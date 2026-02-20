@@ -1553,11 +1553,256 @@ function Reports({ t }) {
   );
 }
 
+function Landing({ onEnter }) {
+  const [scrollY, setScrollY] = useState(0);
+  const handleScroll = (e) => setScrollY(e.target.scrollTop);
+
+  const features = [
+    { icon: LayoutDashboard, title: "Dashboard inteligente", desc: "KPIs financieros en tiempo real con alertas automáticas de IA. Visualizá ingresos, egresos y cash flow de un vistazo." },
+    { icon: Receipt, title: "Transacciones y facturación", desc: "Registrá cobros y pagos, vinculá facturas, controlá pendientes y vencidos. Exportá todo a Excel." },
+    { icon: Layers, title: "Contabilidad automatizada", desc: "Libro Diario con asientos propuestos por IA, Libro Mayor y Balance de Comprobación. Partida doble visual." },
+    { icon: Wallet, title: "Tesorería y bancos", desc: "Cuentas bancarias en vivo, forecast de 4 semanas, CxC/CxP por antigüedad, alertas de pagos." },
+    { icon: FolderKanban, title: "Proyectos y obras", desc: "Seguimiento de avance, presupuesto vs real, tareas por obra. Todo en un solo lugar." },
+    { icon: FileText, title: "OCR de comprobantes", desc: "Sacá una foto del ticket por WhatsApp. La IA extrae monto, proveedor, IVA y lo registra automáticamente." },
+  ];
+
+  const stats = [
+    { val: "85%", label: "menos tiempo en administración" },
+    { val: "30%", label: "más rentabilidad en obras" },
+    { val: "100%", label: "trazabilidad de gastos" },
+    { val: "24/7", label: "acceso desde cualquier lugar" },
+  ];
+
+  const steps = [
+    { num: "01", title: "Conectá tus datos", desc: "Importá tu información existente o empezá de cero. En minutos tenés todo configurado." },
+    { num: "02", title: "Operá día a día", desc: "Registrá gastos por WhatsApp, gestioná cobros, controlá obras. Todo fluye naturalmente." },
+    { num: "03", title: "Tomá mejores decisiones", desc: "Reportes automáticos, alertas inteligentes y proyecciones que te permiten anticiparte." },
+  ];
+
+  return (
+    <div onScroll={handleScroll} style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "#06080D", color: "#ECF0F6", fontFamily: "'DM Sans', sans-serif", scrollBehavior: "smooth" }}>
+      <style>{
+        "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');" +
+        "@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}" +
+        "@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}" +
+        "@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}" +
+        "@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}" +
+        "*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif}" +
+        "::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#262940;border-radius:3px}"
+      }</style>
+
+      {/* Nav */}
+      <nav style={{
+        position: "sticky", top: 0, left: 0, right: 0, zIndex: 100, padding: "16px 40px",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        background: scrollY > 50 ? "rgba(6,8,13,0.95)" : "rgba(6,8,13,0.8)",
+        backdropFilter: "blur(20px)",
+        borderBottom: scrollY > 50 ? "1px solid rgba(124,109,240,0.1)" : "1px solid transparent",
+        transition: "all 0.3s",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(124,109,240,0.4)" }}>
+            <Zap size={17} color="#fff" />
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.5px" }}>GestiónAI</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+          <span onClick={() => document.getElementById("features").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Funcionalidades</span>
+          <span onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
+          <span onClick={() => document.getElementById("pricing").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Planes</span>
+          <button onClick={onEnter} style={{ background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 16px rgba(124,109,240,0.35)" }}>
+            Ver Demo
+          </button>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section style={{
+        minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+        textAlign: "center", padding: "60px 40px 80px", position: "relative", overflow: "hidden",
+      }}>
+        {/* BG effects */}
+        <div style={{ position: "absolute", top: "20%", left: "10%", width: 400, height: 400, background: "radial-gradient(circle, rgba(124,109,240,0.12) 0%, transparent 70%)", borderRadius: "50%", filter: "blur(60px)", animation: "float 8s ease-in-out infinite", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "10%", right: "10%", width: 350, height: 350, background: "radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 70%)", borderRadius: "50%", filter: "blur(60px)", animation: "float 10s ease-in-out infinite 2s", pointerEvents: "none" }} />
+
+        <div style={{ animation: "fadeUp 0.8s ease-out" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 16px", borderRadius: 20, background: "rgba(124,109,240,0.1)", border: "1px solid rgba(124,109,240,0.2)", marginBottom: 28 }}>
+            <Bot size={13} color="#9F92FF" />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#9F92FF" }}>Potenciado por Inteligencia Artificial</span>
+          </div>
+        </div>
+
+        <h1 style={{ fontSize: 62, fontWeight: 900, lineHeight: 1.05, maxWidth: 800, letterSpacing: "-2px", animation: "fadeUp 0.8s ease-out 0.1s both" }}>
+          Gestión financiera
+          <span style={{ background: "linear-gradient(135deg, #7C6DF0, #34D399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}> inteligente</span>
+          <br />para constructoras
+        </h1>
+
+        <p style={{ fontSize: 18, color: "#8890A8", maxWidth: 560, marginTop: 24, lineHeight: 1.6, animation: "fadeUp 0.8s ease-out 0.2s both" }}>
+          Controlá obras, finanzas y equipos desde un solo lugar.
+          Con IA que automatiza tu contabilidad y WhatsApp como canal de carga.
+        </p>
+
+        <div style={{ display: "flex", gap: 14, marginTop: 36, animation: "fadeUp 0.8s ease-out 0.3s both" }}>
+          <button onClick={onEnter} style={{
+            background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
+            borderRadius: 12, padding: "15px 36px", fontSize: 16, fontWeight: 700, cursor: "pointer",
+            boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "flex", alignItems: "center", gap: 8,
+          }}>
+            Probar demo gratis <ArrowUpRight size={18} />
+          </button>
+          <button style={{
+            background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 12, padding: "15px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <MessageSquare size={16} color="#25D366" /> Contactar por WhatsApp
+          </button>
+        </div>
+
+        {/* Stats strip */}
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0,
+          marginTop: 72, padding: "28px 0", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)",
+          maxWidth: 740, width: "100%", animation: "fadeUp 0.8s ease-out 0.5s both",
+        }}>
+          {stats.map((s, i) => (
+            <div key={i} style={{ textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+              <div style={{ fontSize: 32, fontWeight: 900, background: "linear-gradient(135deg, #7C6DF0, #34D399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.val}</div>
+              <div style={{ fontSize: 12, color: "#555B75", marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 60 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#7C6DF0", textTransform: "uppercase", letterSpacing: 2 }}>Funcionalidades</span>
+          <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Todo lo que tu constructora necesita</h2>
+          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, maxWidth: 500, margin: "12px auto 0" }}>Una sola plataforma para reemplazar las planillas, los papeles y los sistemas desconectados.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+          {features.map((f, i) => (
+            <div key={i} style={{
+              padding: 30, borderRadius: 16, background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s",
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 11, background: "rgba(124,109,240,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                <f.icon size={21} color="#9F92FF" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: 13, color: "#8890A8", lineHeight: 1.6 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how" style={{ padding: "100px 40px", background: "rgba(124,109,240,0.03)" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#34D399", textTransform: "uppercase", letterSpacing: 2 }}>Cómo funciona</span>
+            <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Arrancá en 3 pasos</h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 32 }}>
+            {steps.map((s, i) => (
+              <div key={i} style={{ position: "relative" }}>
+                <div style={{ fontSize: 48, fontWeight: 900, color: "rgba(124,109,240,0.12)", marginBottom: 12, lineHeight: 1 }}>{s.num}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{s.title}</h3>
+                <p style={{ fontSize: 13, color: "#8890A8", lineHeight: 1.6 }}>{s.desc}</p>
+                {i < 2 && <div style={{ position: "absolute", top: 24, right: -16, fontSize: 20, color: "rgba(124,109,240,0.2)" }}>→</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" style={{ padding: "100px 40px", maxWidth: 1000, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 60 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24", textTransform: "uppercase", letterSpacing: 2 }}>Planes</span>
+          <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Simple y transparente</h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+          {[
+            { name: "Starter", price: "Gratis", sub: "Para probar", features: ["1 obra activa", "3 usuarios", "Dashboard y reportes", "Soporte por email"], cta: "Empezar gratis", primary: false },
+            { name: "Profesional", price: "$49.900", sub: "/mes · hasta 10 obras", features: ["10 obras activas", "15 usuarios", "Contabilidad con IA", "WhatsApp integrado", "OCR de comprobantes", "Soporte prioritario"], cta: "Elegir plan", primary: true },
+            { name: "Empresa", price: "Personalizado", sub: "Obras ilimitadas", features: ["Obras ilimitadas", "Usuarios ilimitados", "Integración AFIP y bancos", "API y webhooks", "Onboarding dedicado", "Soporte 24/7"], cta: "Contactar ventas", primary: false },
+          ].map((plan, i) => (
+            <div key={i} style={{
+              padding: 32, borderRadius: 16,
+              background: plan.primary ? "linear-gradient(160deg, rgba(124,109,240,0.12), rgba(52,211,153,0.06))" : "rgba(255,255,255,0.02)",
+              border: plan.primary ? "1px solid rgba(124,109,240,0.3)" : "1px solid rgba(255,255,255,0.06)",
+              position: "relative",
+            }}>
+              {plan.primary && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", padding: "4px 14px", borderRadius: 12, background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", fontSize: 11, fontWeight: 700, color: "#fff" }}>Más popular</div>}
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#9F92FF", marginBottom: 8 }}>{plan.name}</div>
+              <div style={{ fontSize: 36, fontWeight: 900, marginBottom: 2 }}>{plan.price}</div>
+              <div style={{ fontSize: 12, color: "#555B75", marginBottom: 24 }}>{plan.sub}</div>
+              {plan.features.map((f, fi) => (
+                <div key={fi} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <CheckCircle2 size={14} color="#34D399" />
+                  <span style={{ fontSize: 13, color: "#8890A8" }}>{f}</span>
+                </div>
+              ))}
+              <button onClick={plan.primary ? onEnter : undefined} style={{
+                width: "100%", marginTop: 20, padding: "13px 0", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                background: plan.primary ? "linear-gradient(135deg, #7C6DF0, #A78BFA)" : "transparent",
+                color: plan.primary ? "#fff" : "#9F92FF",
+                border: plan.primary ? "none" : "1px solid rgba(124,109,240,0.3)",
+                boxShadow: plan.primary ? "0 4px 20px rgba(124,109,240,0.3)" : "none",
+              }}>
+                {plan.cta}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ padding: "100px 40px", textAlign: "center" }}>
+        <div style={{
+          maxWidth: 700, margin: "0 auto", padding: "60px 40px", borderRadius: 24,
+          background: "linear-gradient(160deg, rgba(124,109,240,0.1), rgba(52,211,153,0.05))",
+          border: "1px solid rgba(124,109,240,0.15)",
+        }}>
+          <h2 style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-1px" }}>¿Listo para dejar las planillas?</h2>
+          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, marginBottom: 28 }}>Probá GestiónAI gratis y empezá a tomar mejores decisiones financieras hoy.</p>
+          <button onClick={onEnter} style={{
+            background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
+            borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer",
+            boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "inline-flex", alignItems: "center", gap: 8,
+          }}>
+            Probar demo gratis <ArrowUpRight size={18} />
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ padding: "40px 40px", borderTop: "1px solid rgba(255,255,255,0.06)", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Zap size={13} color="#fff" />
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>GestiónAI</span>
+          </div>
+          <span style={{ fontSize: 11, color: "#555B75" }}>© 2026 GestiónAI — Hecho en Argentina</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
 export default function App() {
+  const [view, setView] = useState("landing");
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
   const t = themes[theme];
+
+  if (view === "landing") return <Landing onEnter={() => setView("app")} />;
 
   const meta = {
     dashboard: ["Dashboard", "Resumen financiero"], clients: ["Clientes / Proveedores", "Gestión de contactos"],
