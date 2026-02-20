@@ -46,6 +46,28 @@ const pill = (bg, color) => ({
   background: bg, color: color, whiteSpace: "nowrap",
 });
 
+const exportCSV = (filename, headers, rows) => {
+  const csvContent = [headers.join(","), ...rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(","))].join("\n");
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename + ".csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
+const handlePrint = (title) => {
+  const printWin = window.open("", "_blank");
+  const content = document.querySelector("[data-report]");
+  if (!printWin) return;
+  printWin.document.write("<html><head><title>" + title + "</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px}th{background:#f5f5f5;font-weight:600}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:16px;font-weight:400}</style></head><body>");
+  printWin.document.write("<h1>GestiónAI — " + title + "</h1><h2>Febrero 2026</h2>");
+  if (content) printWin.document.write(content.innerHTML);
+  printWin.document.write("</body></html>");
+  printWin.document.close();
+  printWin.print();
+};
+
 const CLIENTS = [
   { id:1, name:"Constructora Vial SA", type:"customer", balance:4250000, contact:"Martín Rodríguez", phone:"+54 11 5555-1234", email:"martin@vialsa.com", city:"Buenos Aires", tags:["VIP","Construcción"], projects:3, lastAct:"Hace 2h" },
   { id:2, name:"Hierros del Sur SRL", type:"supplier", balance:-1850000, contact:"Laura García", phone:"+54 11 5555-5678", email:"laura@hierrossur.com", city:"Rosario", tags:["Proveedor clave"], projects:5, lastAct:"Hace 1 día" },
@@ -194,26 +216,37 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     { id: "documents", icon: FileText, label: "Documentos" },
     { id: "reports", icon: BarChart3, label: "Reportes" },
   ];
-  const w = collapsed ? 60 : 224;
+  const w = collapsed ? 64 : 230;
   return (
     <div style={{ width: w, minWidth: w, height: "100vh", background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", transition: "width 0.2s", overflow: "hidden" }}>
-      <div onClick={toggle} style={{ padding: collapsed ? "15px 12px" : "15px 16px", display: "flex", alignItems: "center", gap: 9, borderBottom: "1px solid " + t.border, cursor: "pointer", minHeight: 55 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Zap size={15} color="#fff" />
+      <div onClick={toggle} style={{ padding: collapsed ? "18px 14px" : "18px 18px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid " + t.border, cursor: "pointer", minHeight: 60 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px " + t.accent + "40" }}>
+          <Zap size={16} color="#fff" />
         </div>
-        {!collapsed && <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>GestiónAI</span>}
+        {!collapsed && <div><span style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: "-0.3px" }}>GestiónAI</span><div style={{ fontSize: 9, color: t.dim, marginTop: 1, letterSpacing: "1px", textTransform: "uppercase" }}>Construcción</div></div>}
       </div>
-      <div style={{ flex: 1, padding: "8px 5px", overflowY: "auto" }}>
-        {nav.map(n => (
-          <div key={n.id} onClick={() => onNav(n.id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: collapsed ? "8px 14px" : "8px 11px", borderRadius: 7, cursor: "pointer", marginBottom: 1, background: active === n.id ? t.accentBg : "transparent", color: active === n.id ? t.accentL : t.muted }}>
-            <n.icon size={16} style={{ flexShrink: 0 }} />
-            {!collapsed && <span style={{ fontSize: 12.5, fontWeight: active === n.id ? 600 : 400 }}>{n.label}</span>}
-          </div>
-        ))}
+      <div style={{ flex: 1, padding: collapsed ? "10px 8px" : "10px 10px", overflowY: "auto" }}>
+        {!collapsed && <div style={{ fontSize: 9, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: "1.2px", padding: "10px 10px 6px", marginBottom: 2 }}>Menú principal</div>}
+        {nav.map(n => {
+          const isActive = active === n.id;
+          return (
+            <div key={n.id} onClick={() => onNav(n.id)} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: collapsed ? "10px 16px" : "9px 12px",
+              borderRadius: 9, cursor: "pointer", marginBottom: 2,
+              background: isActive ? t.accentBg : "transparent",
+              borderLeft: isActive ? "3px solid " + t.accent : "3px solid transparent",
+              transition: "all 0.15s",
+            }}>
+              <n.icon size={17} color={isActive ? t.accentL : t.dim} style={{ flexShrink: 0 }} />
+              {!collapsed && <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? t.accentL : t.muted }}>{n.label}</span>}
+            </div>
+          );
+        })}
       </div>
-      <div style={{ padding: collapsed ? 8 : 12, borderTop: "1px solid " + t.border }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "7px 5px" : "8px 10px", background: "rgba(37,211,102,0.06)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.12)" }}>
-          <MessageSquare size={15} color="#25D366" />
+      <div style={{ padding: collapsed ? 10 : 14, borderTop: "1px solid " + t.border }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)" }}>
+          <MessageSquare size={16} color="#25D366" />
           {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>Conectado</div></div>}
         </div>
       </div>
@@ -248,76 +281,93 @@ function TopBar({ title, sub, theme, toggleTheme, t }) {
 
 function Dashboard({ t }) {
   return (
-    <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
+    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      {/* KPI Row - bigger */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         {[
-          { icon: CircleDollarSign, label: "Saldo disponible", val: "$18.4M", ch: "+12.3%", pos: true, data: [12,14,13,16,15,18,18.4], cc: "#34D399" },
-          { icon: ArrowUpRight, label: "Ingresos del mes", val: "$16.5M", ch: "+8.7%", pos: true, data: [8,10,12,11,14,16,16.5], cc: t.accent },
-          { icon: ArrowDownRight, label: "Egresos del mes", val: "$9.8M", ch: "-3.2%", pos: true, data: [11,10.5,10,9.5,10.2,9.9,9.8], cc: "#60A5FA" },
-          { icon: AlertCircle, label: "CxC vencidas", val: "$2.1M", ch: "+5.1%", pos: false, data: [1.5,1.8,1.6,2,1.9,2.2,2.1], cc: "#FBBF24" },
+          { icon: CircleDollarSign, label: "Saldo disponible", val: "$18.4M", ch: "+12.3%", pos: true, data: [12,14,13,16,15,18,18.4], cc: "#34D399", bg: "rgba(52,211,153,0.08)" },
+          { icon: ArrowUpRight, label: "Ingresos del mes", val: "$16.5M", ch: "+8.7%", pos: true, data: [8,10,12,11,14,16,16.5], cc: t.accent, bg: t.accentBg },
+          { icon: ArrowDownRight, label: "Egresos del mes", val: "$9.8M", ch: "-3.2%", pos: true, data: [11,10.5,10,9.5,10.2,9.9,9.8], cc: "#60A5FA", bg: "rgba(96,165,250,0.08)" },
+          { icon: AlertCircle, label: "CxC vencidas", val: "$2.1M", ch: "+5.1%", pos: false, data: [1.5,1.8,1.6,2,1.9,2.2,2.1], cc: "#FBBF24", bg: "rgba(251,191,36,0.08)" },
         ].map((k, i) => (
-          <Crd key={i} t={t} style={{ padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: t.accentBg, display: "flex", alignItems: "center", justifyContent: "center" }}><k.icon size={16} color={t.accentL} /></div>
-              <Chart data={k.data} color={k.cc} />
+          <Crd key={i} t={t} style={{ padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><k.icon size={19} color={k.cc} /></div>
+              <Chart data={k.data} color={k.cc} w={90} h={32} />
             </div>
-            <div style={{ marginTop: 10 }}><div style={{ fontSize: 11, color: t.muted }}>{k.label}</div><div style={{ fontSize: 20, fontWeight: 700, color: t.text }}>{k.val}</div></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 6 }}>
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>{k.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>{k.val}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8, padding: "4px 8px", borderRadius: 6, background: k.pos ? t.greenBg : t.redBg, width: "fit-content" }}>
               {k.pos ? <ArrowUpRight size={12} color={t.green} /> : <ArrowDownRight size={12} color={t.red} />}
               <span style={{ fontSize: 11, color: k.pos ? t.green : t.red, fontWeight: 600 }}>{k.ch}</span>
-              <span style={{ fontSize: 10, color: t.dim }}>vs mes ant.</span>
+              <span style={{ fontSize: 10, color: t.dim, marginLeft: 2 }}>vs mes ant.</span>
             </div>
           </Crd>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
-        <Crd t={t} style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Cash Flow — 6 meses</div>
-          <div style={{ display: "flex", gap: 12, height: 140 }}>
-            {["Sep","Oct","Nov","Dic","Ene","Feb"].map((m, i) => (
-              <div key={m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 3 }}>
-                <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 120 }}>
-                  <div style={{ width: 13, height: [65,70,55,80,75,85][i] + "%", background: t.accent, borderRadius: "3px 3px 0 0" }} />
-                  <div style={{ width: 13, height: [50,45,60,55,48,52][i] + "%", background: t.blue + "60", borderRadius: "3px 3px 0 0" }} />
+
+      {/* Cash flow chart - bigger */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 14, marginBottom: 20 }}>
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Cash Flow — 6 meses</div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: t.accent }} /><span style={{ fontSize: 10, color: t.muted }}>Ingresos</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: t.blue + "60" }} /><span style={{ fontSize: 10, color: t.muted }}>Egresos</span></div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 16, height: 180, alignItems: "flex-end" }}>
+            {[["Sep",65,50],["Oct",70,45],["Nov",55,60],["Dic",80,55],["Ene",75,48],["Feb",85,52]].map(([m,inc,out], i) => (
+              <div key={m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 160, width: "100%" }}>
+                  <div style={{ flex: 1, height: inc + "%", background: "linear-gradient(180deg, " + t.accent + ", " + t.accent + "60)", borderRadius: "5px 5px 0 0", transition: "height 0.5s" }} />
+                  <div style={{ flex: 1, height: out + "%", background: "linear-gradient(180deg, " + t.blue + "80, " + t.blue + "30)", borderRadius: "5px 5px 0 0", transition: "height 0.5s" }} />
                 </div>
-                <span style={{ fontSize: 10, color: t.dim }}>{m}</span>
+                <span style={{ fontSize: 11, color: t.dim, fontWeight: 500 }}>{m}</span>
               </div>
             ))}
           </div>
         </Crd>
-        <Crd t={t} style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Próximos 7 días</div>
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Próximos 7 días</div>
           {[
-            { l: "Cobro Vial SA — Cert. #47", a: "+$3.2M", d: "13 Feb", inc: true },
-            { l: "Pago Hierros del Sur", a: "-$1.85M", d: "14 Feb", inc: false },
-            { l: "Cobro Costa — Anticipo", a: "+$5.0M", d: "15 Feb", inc: true },
-            { l: "Pago Ferretería López", a: "-$420K", d: "16 Feb", inc: false },
-            { l: "Cobro Méndez", a: "+$780K", d: "17 Feb", inc: true },
+            { l: "Cobro Vial SA — Cert. #47", a: "+$3.2M", d: "20 Feb", inc: true },
+            { l: "Pago Hierros del Sur", a: "-$1.85M", d: "21 Feb", inc: false },
+            { l: "Cobro Costa — Anticipo", a: "+$5.0M", d: "22 Feb", inc: true },
+            { l: "Pago Ferretería López", a: "-$420K", d: "23 Feb", inc: false },
+            { l: "Cobro Méndez", a: "+$780K", d: "24 Feb", inc: true },
           ].map((u, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 8px", borderRadius: 7, background: t.hover, marginBottom: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: u.inc ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {u.inc ? <ArrowUpRight size={11} color={t.green} /> : <ArrowDownRight size={11} color={t.red} />}
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 10px", borderRadius: 8, background: t.hover, marginBottom: 5 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: u.inc ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {u.inc ? <ArrowUpRight size={12} color={t.green} /> : <ArrowDownRight size={12} color={t.red} />}
                 </div>
-                <div><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{u.l}</div><div style={{ fontSize: 10, color: t.dim }}>{u.d}</div></div>
+                <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{u.l}</div><div style={{ fontSize: 10, color: t.dim }}>{u.d}</div></div>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: u.inc ? t.green : t.red }}>{u.a}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: u.inc ? t.green : t.red }}>{u.a}</span>
             </div>
           ))}
         </Crd>
       </div>
-      <Crd t={t} style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Últimas transacciones</div>
+
+      {/* Last transactions */}
+      <Crd t={t} style={{ padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Últimas transacciones</div>
+          <Btn t={t} onClick={() => exportCSV("transacciones", ["Fecha","Descripción","Contacto","Monto","Estado"], TXS.map(tx => [tx.date, tx.desc, tx.contact, tx.amount, tx.status]))}><Download size={12} />Exportar</Btn>
+        </div>
         {TXS.slice(0, 5).map(tx => (
-          <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 6, background: tx.amount > 0 ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {tx.amount > 0 ? <ArrowUpRight size={11} color={t.green} /> : <ArrowDownRight size={11} color={t.red} />}
+          <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid " + t.border + "15" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: tx.amount > 0 ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {tx.amount > 0 ? <ArrowUpRight size={12} color={t.green} /> : <ArrowDownRight size={12} color={t.red} />}
               </div>
-              <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date} · {tx.contact}</div></div>
+              <div><div style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 11, color: t.dim }}>{tx.date} · {tx.contact}</div></div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
               <Badge s={tx.status} t={t} />
             </div>
           </div>
@@ -594,22 +644,58 @@ function TasksPage({ t }) {
         </Crd>
       )}
       {view === "calendar" && (
-        <Crd t={t} style={{ padding: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 12, textAlign: "center" }}>Febrero 2026</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
-            {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(d => <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 600, color: t.dim, padding: 5 }}>{d}</div>)}
-            {Array(6).fill(null).map((_, i) => <div key={"e" + i} />)}
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Febrero 2026</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
+            {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: t.dim, padding: "8px 0", borderBottom: "2px solid " + t.border }}>
+                {d}
+              </div>
+            ))}
+            {Array(6).fill(null).map((_, i) => <div key={"e" + i} style={{ minHeight: 80 }} />)}
             {Array.from({ length: 28 }, (_, i) => i + 1).map(d => {
               const ds = "2026-02-" + String(d).padStart(2, "0");
               const dt = tasks.filter(tk => tk.due === ds);
-              const today = d === 13;
+              const today = d === 20;
+              const isWeekend = (() => { const dow = new Date(2026, 1, d).getDay(); return dow === 0 || dow === 6; })();
               return (
-                <div key={d} style={{ minHeight: 64, padding: 3, borderRadius: 6, border: "1px solid " + (today ? t.accent + "50" : t.border + "25"), background: today ? t.accentBg : "transparent" }}>
-                  <div style={{ fontSize: 10, fontWeight: today ? 700 : 400, color: today ? t.accentL : t.text, textAlign: "right", padding: "0 2px" }}>{d}</div>
-                  {dt.map(tk => <div key={tk.id} onClick={() => openEdit(tk)} style={{ fontSize: 9, padding: "2px 3px", borderRadius: 3, marginTop: 1, cursor: "pointer", background: tk.pri === "high" ? t.redBg : tk.pri === "medium" ? t.orangeBg : t.blueBg, color: tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.title}</div>)}
+                <div key={d} style={{
+                  minHeight: 80, padding: 6, borderRadius: 8,
+                  border: today ? "2px solid " + t.accent : "1px solid " + t.border + "30",
+                  background: today ? t.accentBg : isWeekend ? t.hover + "50" : "transparent",
+                }}>
+                  <div style={{
+                    fontSize: 12, fontWeight: today ? 800 : 500,
+                    color: today ? t.accentL : isWeekend ? t.dim : t.text,
+                    textAlign: "right", padding: "0 2px", marginBottom: 4,
+                  }}>
+                    {d}
+                  </div>
+                  {dt.map(tk => (
+                    <div key={tk.id} onClick={() => openEdit(tk)} style={{
+                      fontSize: 10, padding: "3px 5px", borderRadius: 4, marginBottom: 2,
+                      cursor: "pointer", lineHeight: 1.3,
+                      background: tk.pri === "high" ? t.redBg : tk.pri === "medium" ? t.orangeBg : t.blueBg,
+                      color: tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue,
+                      borderLeft: "2px solid " + (tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue),
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {tk.title}
+                    </div>
+                  ))}
                 </div>
               );
             })}
+          </div>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 14 }}>
+            {[["Alta", t.red, t.redBg], ["Media", t.orange, t.orangeBg], ["Baja", t.blue, t.blueBg]].map(([l, c, bg]) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: bg, border: "1px solid " + c }} />
+                <span style={{ fontSize: 10, color: t.muted }}>{l}</span>
+              </div>
+            ))}
           </div>
         </Crd>
       )}
@@ -994,7 +1080,7 @@ function Treasury({ t }) {
           <Crd t={t} style={{ overflow: "hidden" }}>
             <div style={{ padding: "10px 14px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Últimos movimientos</span>
-              <Btn t={t}><Download size={12} />Exportar</Btn>
+              <Btn t={t} onClick={() => exportCSV("movimientos_" + acc.name.replace(/\s/g,"_"), ["Fecha","Descripción","Monto","Saldo"], acc.movs.map(m => [m.date, m.desc, m.amt, m.bal]))}><Download size={12} />Exportar</Btn>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead><tr style={{ background: t.hover }}>{["Fecha","Descripción","Monto","Saldo"].map(h => <th key={h} style={{ padding: "8px 14px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
@@ -1166,10 +1252,42 @@ function Treasury({ t }) {
 
 function DocumentsPage({ t }) {
   const [showUp, setShowUp] = useState(false);
+  const [filterContact, setFilterContact] = useState("");
+  const [filterProject, setFilterProject] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const contacts = [...new Set(DOCS.map(d => d.contact).filter(Boolean))];
+  const projects = [...new Set(DOCS.map(d => d.project).filter(Boolean))];
+  const types = [...new Set(DOCS.map(d => d.type))];
+  const filtered = DOCS.filter(d =>
+    (!filterContact || d.contact === filterContact) &&
+    (!filterProject || d.project === filterProject) &&
+    (!filterType || d.type === filterType)
+  );
+  const selStyle = { background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 };
   return (
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-        <Btn primary t={t} onClick={() => setShowUp(!showUp)}><Upload size={12} />Subir documento</Btn>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <select value={filterContact} onChange={e => setFilterContact(e.target.value)} style={selStyle}>
+            <option value="">Todos los contactos</option>
+            {contacts.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={selStyle}>
+            <option value="">Todas las obras</option>
+            {projects.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value={filterType} onChange={e => setFilterType(e.target.value)} style={selStyle}>
+            <option value="">Todos los tipos</option>
+            {types.map(tp => <option key={tp} value={tp}>{tp.charAt(0).toUpperCase() + tp.slice(1)}</option>)}
+          </select>
+          {(filterContact || filterProject || filterType) && (
+            <button onClick={() => { setFilterContact(""); setFilterProject(""); setFilterType(""); }} style={{ background: "transparent", border: "none", color: t.red, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>✕ Limpiar</button>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Btn t={t} onClick={() => exportCSV("documentos", ["Documento","Tipo","Fecha","Contacto","Proyecto","Estado"], filtered.map(d => [d.name, d.type, d.date, d.contact || "", d.project, d.status]))}><Download size={12} />Exportar</Btn>
+          <Btn primary t={t} onClick={() => setShowUp(!showUp)}><Upload size={12} />Subir documento</Btn>
+        </div>
       </div>
       {showUp && (
         <Crd t={t} style={{ padding: 18, marginBottom: 14, border: "2px dashed " + t.accent + "35" }}>
@@ -1177,20 +1295,20 @@ function DocumentsPage({ t }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Tipo</div>
-              <select style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 }}>
+              <select style={{ width: "100%", ...selStyle }}>
                 <option>Factura</option><option>Remito</option><option>Certificado</option><option>Contrato</option><option>Otro</option>
               </select>
             </div>
             <div>
               <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Contacto</div>
-              <select style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 }}>
+              <select style={{ width: "100%", ...selStyle }}>
                 <option value="">— Seleccionar —</option>
                 {CLIENTS.map(c => <option key={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Proyecto</div>
-              <select style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 }}>
+              <select style={{ width: "100%", ...selStyle }}>
                 <option value="">— Seleccionar —</option>
                 {PROJECTS.map(p => <option key={p.id}>{p.name}</option>)}
               </select>
@@ -1198,7 +1316,7 @@ function DocumentsPage({ t }) {
           </div>
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Transacción (opcional)</div>
-            <select style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 }}>
+            <select style={{ width: "100%", ...selStyle }}>
               <option value="">— Sin vincular —</option>
               {TXS.map(tx => <option key={tx.id}>{tx.date} — {tx.desc}</option>)}
             </select>
@@ -1215,10 +1333,13 @@ function DocumentsPage({ t }) {
           </div>
         </Crd>
       )}
+      <div style={{ fontSize: 11, color: t.muted, marginBottom: 8 }}>{filtered.length} de {DOCS.length} documentos</div>
       <Crd t={t} style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr style={{ background: t.hover }}>{["Documento","Tipo","Fecha","Contacto","Proyecto","Vinculado","Estado"].map(h => <th key={h} style={{ padding: "9px 10px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
-          <tbody>{DOCS.map(d => (
+          <tbody>{filtered.length === 0 ? (
+            <tr><td colSpan={7} style={{ padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay documentos con estos filtros</td></tr>
+          ) : filtered.map(d => (
             <tr key={d.id}>
               <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.size}</div></td>
               <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}><Badge s={d.type} t={t} /></td>
@@ -1256,7 +1377,7 @@ function Reports({ t }) {
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
           <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Estado de Resultados</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
-          <div style={{ display: "flex", gap: 5 }}><Btn t={t}><Printer size={12} />Imprimir</Btn><Btn t={t}><Download size={12} />Excel</Btn></div>
+          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados")}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], [["Ingresos","Servicios","16480000"],["Ingresos","Otros","320000"],["Costos","Materiales","-6200000"],["Costos","Mano de Obra","-3400000"],["Costos","Subcontratistas","-1800000"],["Gastos","Administrativos","-890000"],["Gastos","Transporte","-420000"],["Gastos","Alquileres","-350000"],["","RESULTADO NETO","3740000"]])}><Download size={12} />Excel</Btn></div>
         </div>
         <div style={{ padding: 16 }}>
           {pnl.map((cat, ci) => (
