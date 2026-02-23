@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, useRef } from "react";
 import { supabase } from "./lib/supabase";
 import {
   LayoutDashboard, Users, FolderKanban, Receipt, Wallet, FileText, Bell, Search,
@@ -460,10 +460,11 @@ function Inp({ label, val, onChange, t, placeholder, type = "text" }) {
 }
 
 function Clients({ t }) {
-  const { clients, setClients, transactions: TXS, reload } = useData();
+  const { clients, setClients, transactions: TXS, documents: DOCS, reload } = useData();
   const [filter, setFilter] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const clientFileRef = useRef(null);
   const [nf, setNf] = useState({ name: "", type: "customer", contact: "", phone: "", email: "", city: "" });
   const list = clients.filter(c => filter === "all" || c.type === filter);
 
@@ -480,6 +481,8 @@ function Clients({ t }) {
   if (sel) {
     const c = clients.find(x => x.id === sel);
     if (!c) { setSel(null); return null; }
+    const clientTxs = TXS.filter(tx => tx.contact === c.name);
+    const clientDocs = DOCS.filter(d => d.contact === c.name);
     return (
       <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
         <div onClick={() => setSel(null)} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 16, cursor: "pointer", color: t.muted, fontSize: 12 }}><ChevronLeft size={14} /> Volver</div>
@@ -491,15 +494,35 @@ function Clients({ t }) {
             ))}
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid " + t.border }}><div style={{ fontSize: 10, color: t.dim }}>Saldo</div><div style={{ fontSize: 20, fontWeight: 700, color: c.balance >= 0 ? t.green : t.red }}>{fmt(c.balance)}</div></div>
           </Crd>
-          <Crd t={t} style={{ padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Historial</div>
-            {TXS.filter(tx => tx.contact === c.name).length ? TXS.filter(tx => tx.contact === c.name).map(tx => (
-              <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date}</div></div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
+          <div>
+            <Crd t={t} style={{ padding: 16, marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Movimientos ({clientTxs.length})</div>
+              {clientTxs.length ? clientTxs.map(tx => (
+                <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+                  <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date} · {tx.project}</div></div>
+                  <div style={{ textAlign: "right" }}><span style={{ fontSize: 12, fontWeight: 600, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span><div><Badge s={tx.status} t={t} /></div></div>
+                </div>
+              )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 24 }}>Sin movimientos aún</div>}
+            </Crd>
+            <Crd t={t} style={{ padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Documentos ({clientDocs.length})</div>
+                <input ref={clientFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
+                  const f = e.target.files[0]; if (!f) return;
+                  await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending" }]);
+                  const curSel = sel; await reload(); setSel(curSel);
+                }} />
+                <Btn t={t} onClick={() => clientFileRef.current && clientFileRef.current.click()}><Upload size={12} />Subir</Btn>
               </div>
-            )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 24 }}>Sin movimientos aún</div>}
-          </Crd>
+              {clientDocs.length ? clientDocs.map(d => (
+                <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+                  <FileText size={14} color={t.accentL} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.size}</div></div>
+                  <Badge s={d.status} t={t} />
+                </div>
+              )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 24 }}>Sin documentos</div>}
+            </Crd>
+          </div>
         </div>
       </div>
     );
@@ -550,11 +573,12 @@ function Clients({ t }) {
 }
 
 function ProjectsPage({ t }) {
-  const { projects: PROJECTS, transactions: TXS, tasks: TASKS, clients, reload } = useData();
+  const { projects: PROJECTS, transactions: TXS, tasks: TASKS, documents: DOCS, clients, reload } = useData();
   const [filter, setFilter] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [nf, setNf] = useState({ name: "", client_id: "", budget: "", deadline: "", priority: "medium", description: "" });
+  const projFileRef = useRef(null);
   const list = PROJECTS.filter(p => filter === "all" ? true : filter === "active" ? (p.status === "in_progress" || p.status === "planning") : p.status === "completed");
 
   const saveProject = async () => {
@@ -575,32 +599,58 @@ function ProjectsPage({ t }) {
           <div style={{ display: "flex", gap: 6 }}><Badge s={p.status} t={t} /><Badge s={p.priority} t={t} /></div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 16 }}>
-          {[["Presupuesto",fmt(p.budget)],["Gastado",fmt(p.spent)+" ("+Math.round(p.spent/p.budget*100)+"%)"],["Tareas",p.done+"/"+p.tasks],["Docs",""+p.docs]].map(([l,v],i) => (
-            <Crd key={i} t={t} style={{ padding: 12 }}><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>{l}</div><div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{v}</div></Crd>
-          ))}
+          {(() => {
+            const pTxs = TXS.filter(tx => tx.pid === p.id);
+            const pTasks = TASKS.filter(tk => tk.pid === p.id);
+            const pDocs = DOCS.filter(d => d.pid === p.id);
+            return [["Presupuesto",fmt(p.budget)],["Gastado",fmt(p.spent)+" ("+(p.budget ? Math.round(p.spent/p.budget*100) : 0)+"%)"],["Tareas",pTasks.filter(tk=>tk.st==="done").length+"/"+pTasks.length],["Docs",""+pDocs.length]].map(([l,v],i) => (
+              <Crd key={i} t={t} style={{ padding: 12 }}><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>{l}</div><div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{v}</div></Crd>
+            ));
+          })()}
         </div>
         <div style={{ marginBottom: 16 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 11, color: t.muted }}>Avance</span><span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{p.progress}%</span></div><PBar v={p.progress} h={8} color={p.progress > 80 ? t.green : t.accent} t={t} /></div>
-        <p style={{ fontSize: 12, color: t.muted, marginBottom: 18 }}>{p.desc}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {p.description && <p style={{ fontSize: 12, color: t.muted, marginBottom: 18 }}>{p.description}</p>}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
           <Crd t={t} style={{ padding: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Transacciones</div>
-            {TXS.filter(tx => tx.pid === p.id).map(tx => (
-              <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                <div><div style={{ fontSize: 11, color: t.text }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date}</div></div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Movimientos de dinero</div>
+            {TXS.filter(tx => tx.pid === p.id).length ? TXS.filter(tx => tx.pid === p.id).map(tx => (
+              <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
+                <div><div style={{ fontSize: 11, color: t.text }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date} · {tx.contact}</div></div>
+                <div style={{ textAlign: "right" }}><span style={{ fontSize: 12, fontWeight: 600, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span><div><Badge s={tx.status} t={t} /></div></div>
               </div>
-            ))}
+            )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin movimientos</div>}
           </Crd>
           <Crd t={t} style={{ padding: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Tareas</div>
-            {TASKS.filter(tk => tk.pid === p.id).map(tk => (
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Tareas y pendientes</div>
+            {TASKS.filter(tk => tk.pid === p.id).length ? TASKS.filter(tk => tk.pid === p.id).map(tk => (
               <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                <span style={{ fontSize: 11, color: t.text, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</span>
-                <Badge s={tk.pri} t={t} />
+                <div>
+                  <span style={{ fontSize: 11, color: t.text, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</span>
+                  <div style={{ fontSize: 10, color: t.dim }}>{tk.due || "Sin fecha"} · {tk.who}</div>
+                </div>
+                <div style={{ display: "flex", gap: 4 }}><Badge s={tk.st} t={t} /><Badge s={tk.pri} t={t} /></div>
               </div>
-            ))}
+            )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin tareas</div>}
           </Crd>
         </div>
+        <Crd t={t} style={{ padding: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Documentos y facturas</div>
+            <input ref={projFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
+              const f = e.target.files[0]; if (!f) return;
+              await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending" }]);
+              const curSel = sel; await reload(); setSel(curSel);
+            }} />
+            <Btn t={t} onClick={() => projFileRef.current && projFileRef.current.click()}><Upload size={12} />Subir documento</Btn>
+          </div>
+          {DOCS.filter(d => d.pid === p.id).length ? DOCS.filter(d => d.pid === p.id).map(d => (
+            <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+              <FileText size={14} color={t.accentL} />
+              <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.size} · {d.contact || "—"}</div></div>
+              <Badge s={d.status} t={t} />
+            </div>
+          )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin documentos aún</div>}
+        </Crd>
       </div>
     );
   }
@@ -672,6 +722,12 @@ function TasksPage({ t }) {
     setTasks(tasks.map(tk => tk.id === editing ? { ...editForm } : tk));
     setEditing(null); setEditForm(null);
   };
+  const deleteTask = async (id) => {
+    if (!window.confirm("¿Eliminar esta tarea?")) return;
+    await supabase.from("tasks").delete().eq("id", id);
+    setTasks(tasks.filter(tk => tk.id !== id));
+    setEditing(null); setEditForm(null);
+  };
   const addTask = async () => {
     const { data } = await supabase.from("tasks").insert([{ title: "Nueva tarea", assignee: "MR", priority: "medium", due_date: "2026-02-20", status: "todo", tag: "General" }]).select();
     if (data && data[0]) {
@@ -704,9 +760,12 @@ function TasksPage({ t }) {
       <Inp label="Asignado" val={editForm.who} onChange={v => setEditForm({...editForm, who: v})} t={t} />
       <Inp label="Fecha (YYYY-MM-DD)" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} />
       <Inp label="Etiqueta" val={editForm.tag} onChange={v => setEditForm({...editForm, tag: v})} t={t} />
-      <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-        <Btn t={t} onClick={() => { setEditing(null); setEditForm(null); }}>Cancelar</Btn>
-        <Btn primary t={t} onClick={saveEdit}><Check size={12} />Guardar</Btn>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+        <Btn t={t} onClick={() => deleteTask(editForm.id)} style={{ color: t.red }}><X size={12} />Eliminar</Btn>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Btn t={t} onClick={() => { setEditing(null); setEditForm(null); }}>Cancelar</Btn>
+          <Btn primary t={t} onClick={saveEdit}><Check size={12} />Guardar</Btn>
+        </div>
       </div>
     </div>
   );
@@ -735,7 +794,7 @@ function TasksPage({ t }) {
                       <div style={{ fontSize: 10, color: t.dim, marginBottom: 7 }}>{tk.project}</div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ ...pill(t.hover, t.muted), fontSize: 9, padding: "1px 6px" }}>{tk.tag}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 10, color: t.dim }}>{tk.due.slice(8)}/{tk.due.slice(5, 7)}</span><Av name={tk.who} size={18} /></div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 10, color: t.dim }}>{( tk.due || "").slice(8)}/{(tk.due || "").slice(5, 7)}</span><Av name={tk.who} size={18} /></div>
                       </div>
                     </div>
                   </Crd>
@@ -754,7 +813,7 @@ function TasksPage({ t }) {
                 <td style={{ padding: "9px 12px", borderBottom: "1px solid " + t.border + "15" }}><span style={{ fontSize: 12, color: t.text, fontWeight: 500, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</span></td>
                 <td style={{ padding: "9px 12px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{tk.project}</td>
                 <td style={{ padding: "9px 12px", borderBottom: "1px solid " + t.border + "15" }}><Badge s={tk.pri} t={t} /></td>
-                <td style={{ padding: "9px 12px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{tk.due.slice(8)}/{tk.due.slice(5, 7)}</td>
+                <td style={{ padding: "9px 12px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{( tk.due || "").slice(8)}/{(tk.due || "").slice(5, 7)}</td>
                 <td style={{ padding: "9px 12px", borderBottom: "1px solid " + t.border + "15" }}><Badge s={tk.st} t={t} /></td>
                 <td style={{ padding: "9px 12px", borderBottom: "1px solid " + t.border + "15" }}><MoreHorizontal size={13} color={t.dim} /></td>
               </tr>
@@ -845,10 +904,19 @@ function Transactions({ t }) {
 
   const list = tab === "accounting" ? TXS : TXS.filter(tx => tab === "income" ? tx.amount > 0 : tab === "expense" ? tx.amount < 0 : tab === "pending" ? (tx.status === "pending" || tx.status === "overdue") : true);
 
+  const txFileRef = useRef(null);
+
   if (sel && tab !== "accounting") {
     const tx = TXS.find(x => x.id === sel);
     if (!tx) { setSel(null); return null; }
-    const linkedDocs = DOCS.filter(d => d.txId === tx?.id);
+    const linkedDocs = DOCS.filter(d => d.transaction_id === tx.id);
+    const attachDoc = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      await supabase.from("documents").insert([{ name: f.name, type: "invoice", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: tx.contact_id, project_id: tx.project_id, transaction_id: tx.id, status: "pending" }]);
+      const curSel = sel;
+      await reload();
+      setSel(curSel);
+    };
     return (
       <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
         <div onClick={() => setSel(null)} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 16, cursor: "pointer", color: t.muted, fontSize: 12 }}><ChevronLeft size={14} /> Volver</div>
@@ -891,11 +959,12 @@ function Transactions({ t }) {
                   <div><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.size} · <Badge s={d.type} t={t} /></div></div>
                 </div>
               )) : (
-                <div style={{ textAlign: "center", padding: 16 }}>
-                  <div style={{ fontSize: 11, color: t.dim, marginBottom: 8 }}>Sin documentos</div>
-                  <Btn t={t}><Upload size={12} />Adjuntar factura</Btn>
-                </div>
+                <div style={{ fontSize: 11, color: t.dim, marginBottom: 8, textAlign: "center" }}>Sin documentos</div>
               )}
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <input ref={txFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={attachDoc} />
+                <Btn t={t} onClick={() => txFileRef.current && txFileRef.current.click()}><Upload size={12} />Adjuntar factura</Btn>
+              </div>
             </Crd>
             <Crd t={t} style={{ padding: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Asiento contable</div>
@@ -1438,6 +1507,8 @@ function DocumentsPage({ t }) {
   const [filterType, setFilterType] = useState("");
   const [upFile, setUpFile] = useState(null);
   const [upForm, setUpForm] = useState({ type: "invoice", contact_id: "", project_id: "", transaction_id: "" });
+  const [selDoc, setSelDoc] = useState(null);
+  const docFileRef = useRef(null);
 
   const saveDoc = async () => {
     if (!upFile) { window.alert("Seleccioná un archivo primero"); return; }
@@ -1454,6 +1525,19 @@ function DocumentsPage({ t }) {
     setUpFile(null);
     setUpForm({ type: "invoice", contact_id: "", project_id: "", transaction_id: "" });
     setShowUp(false);
+  };
+
+  const updateDocStatus = async (id, status) => {
+    await supabase.from("documents").update({ status }).eq("id", id);
+    await reload();
+    setSelDoc(null);
+  };
+
+  const deleteDoc = async (id) => {
+    if (!window.confirm("¿Eliminar este documento?")) return;
+    await supabase.from("documents").delete().eq("id", id);
+    await reload();
+    setSelDoc(null);
   };
   const contacts = [...new Set(DOCS.map(d => d.contact).filter(Boolean))];
   const projects = [...new Set(DOCS.map(d => d.project).filter(Boolean))];
@@ -1521,8 +1605,8 @@ function DocumentsPage({ t }) {
               {TXS.map(tx => <option key={tx.id} value={tx.id}>{tx.date} — {tx.desc}</option>)}
             </select>
           </div>
-          <div onClick={() => document.getElementById("fileInput").click()} style={{ border: "2px dashed " + t.border, borderRadius: 10, padding: 28, textAlign: "center", marginBottom: 12, background: t.hover, cursor: "pointer" }}>
-            <input id="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => setUpFile(e.target.files[0])} />
+          <div onClick={() => docFileRef.current && docFileRef.current.click()} style={{ border: "2px dashed " + t.border, borderRadius: 10, padding: 28, textAlign: "center", marginBottom: 12, background: t.hover, cursor: "pointer" }}>
+            <input ref={docFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => setUpFile(e.target.files[0])} />
             <Upload size={24} color={upFile ? t.green : t.dim} />
             {upFile ? (
               <div style={{ fontSize: 12, color: t.green, fontWeight: 600, marginTop: 6 }}>{upFile.name} ({(upFile.size / 1024).toFixed(0)} KB)</div>
@@ -1541,24 +1625,65 @@ function DocumentsPage({ t }) {
         </Crd>
       )}
       <div style={{ fontSize: 11, color: t.muted, marginBottom: 8 }}>{filtered.length} de {DOCS.length} documentos</div>
+      <div style={{ display: "grid", gridTemplateColumns: selDoc ? "1fr 300px" : "1fr", gap: 14 }}>
       <Crd t={t} style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr style={{ background: t.hover }}>{["Documento","Tipo","Fecha","Contacto","Proyecto","Vinculado","Estado"].map(h => <th key={h} style={{ padding: "9px 10px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
           <tbody>{filtered.length === 0 ? (
             <tr><td colSpan={7} style={{ padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay documentos con estos filtros</td></tr>
           ) : filtered.map(d => (
-            <tr key={d.id}>
+            <tr key={d.id} onClick={() => setSelDoc(d)} style={{ cursor: "pointer", background: selDoc && selDoc.id === d.id ? t.accentBg : "transparent" }}>
               <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.size}</div></td>
               <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}><Badge s={d.type} t={t} /></td>
               <td style={{ padding: "9px 10px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{d.date}</td>
               <td style={{ padding: "9px 10px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{d.contact || "—"}</td>
               <td style={{ padding: "9px 10px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{d.project}</td>
-              <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}>{d.txId ? <span style={pill(t.greenBg, t.green)}><Link2 size={9} /> Sí</span> : <span style={{ fontSize: 10, color: t.dim }}>No</span>}</td>
+              <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}>{d.transaction_id ? <span style={pill(t.greenBg, t.green)}><Link2 size={9} /> Sí</span> : <span style={{ fontSize: 10, color: t.dim }}>No</span>}</td>
               <td style={{ padding: "9px 10px", borderBottom: "1px solid " + t.border + "15" }}><Badge s={d.status} t={t} /></td>
             </tr>
           ))}</tbody>
         </table>
       </Crd>
+      {selDoc && (
+        <Crd t={t} style={{ padding: 0, alignSelf: "flex-start", position: "sticky", top: 0 }}>
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Detalle</span>
+            <div onClick={() => setSelDoc(null)} style={{ cursor: "pointer" }}><X size={15} color={t.muted} /></div>
+          </div>
+          <div style={{ padding: 14 }}>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <FileText size={20} color={t.accentL} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{selDoc.name}</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div><div style={{ fontSize: 10, color: t.dim }}>Tipo</div><Badge s={selDoc.type} t={t} /></div>
+                <div><div style={{ fontSize: 10, color: t.dim }}>Tamaño</div><div style={{ fontSize: 12, color: t.text }}>{selDoc.size}</div></div>
+                <div><div style={{ fontSize: 10, color: t.dim }}>Fecha</div><div style={{ fontSize: 12, color: t.text }}>{selDoc.date}</div></div>
+                <div><div style={{ fontSize: 10, color: t.dim }}>Estado</div><Badge s={selDoc.status} t={t} /></div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Contacto</div>
+              <div style={{ fontSize: 12, color: t.text }}>{selDoc.contact || "Sin asignar"}</div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Proyecto</div>
+              <div style={{ fontSize: 12, color: t.text }}>{selDoc.project || "Sin asignar"}</div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Cambiar estado</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[["pending","Pendiente"],["processed","Procesado"],["filed","Archivado"]].map(([v,l]) => (
+                  <button key={v} onClick={() => updateDocStatus(selDoc.id, v)} style={{ padding: "5px 10px", borderRadius: 6, border: selDoc.status === v ? "2px solid " + t.accent : "1px solid " + t.border, background: selDoc.status === v ? t.accentBg : t.hover, color: selDoc.status === v ? t.accentL : t.muted, fontSize: 11, cursor: "pointer", fontWeight: selDoc.status === v ? 600 : 400 }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => deleteDoc(selDoc.id)} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Eliminar documento</button>
+          </div>
+        </Crd>
+      )}
+      </div>
     </div>
   );
 }
