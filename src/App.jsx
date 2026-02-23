@@ -133,16 +133,16 @@ const exportCSV = (filename, headers, rows) => {
   URL.revokeObjectURL(link.href);
 };
 
-const handlePrint = (title) => {
+const handlePrint = (title, rows) => {
   const printWin = window.open("", "_blank");
-  const content = document.querySelector("[data-report]");
   if (!printWin) return;
-  printWin.document.write("<html><head><title>" + title + "</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px}th{background:#f5f5f5;font-weight:600}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:16px;font-weight:400}</style></head><body>");
+  const tableRows = rows ? rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") : "";
+  printWin.document.write("<html><head><title>" + title + "</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%;margin-top:16px}td,th{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px}th{background:#f5f5f5;font-weight:600}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:16px;font-weight:400}</style></head><body>");
   printWin.document.write("<h1>GestiónAI — " + title + "</h1><h2>Febrero 2026</h2>");
-  if (content) printWin.document.write(content.innerHTML);
+  if (tableRows) printWin.document.write("<table>" + tableRows + "</table>");
   printWin.document.write("</body></html>");
   printWin.document.close();
-  printWin.print();
+  setTimeout(() => printWin.print(), 300);
 };
 
 // Data now comes from Supabase via DataContext
@@ -240,8 +240,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     { id: "clients", icon: Users, label: "Clientes / Proveedores" },
     { id: "projects", icon: FolderKanban, label: "Proyectos / Obras" },
     { id: "tasks", icon: Target, label: "Tareas" },
-    { id: "transactions", icon: Receipt, label: "Transacciones" },
-    { id: "accounting", icon: Layers, label: "Contabilidad" },
+    { id: "transactions", icon: Receipt, label: "Finanzas" },
     { id: "treasury", icon: Wallet, label: "Tesorería" },
     { id: "documents", icon: FileText, label: "Documentos" },
     { id: "reports", icon: BarChart3, label: "Reportes" },
@@ -310,7 +309,9 @@ function TopBar({ title, sub, theme, toggleTheme, t }) {
 }
 
 function Dashboard({ t }) {
-  const { transactions: TXS, loading } = useData();
+  const { transactions: TXS, tasks, loading } = useData();
+  const pendingTasks = tasks.filter(tk => tk.st === "todo" || tk.st === "in_progress").slice(0, 5);
+  const pendingTx = TXS.filter(tx => tx.status === "pending" || tx.status === "overdue");
   return (
     <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       {/* KPI Row - bigger */}
@@ -404,6 +405,40 @@ function Dashboard({ t }) {
           </div>
         ))}
       </Crd>
+
+      {/* Pending tasks + payments */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Tareas pendientes</div>
+          {pendingTasks.length === 0 ? <div style={{ fontSize: 12, color: t.dim, padding: 16, textAlign: "center" }}>Sin tareas pendientes</div> : pendingTasks.map(tk => (
+            <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: 8, background: t.hover, marginBottom: 5 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue }} />
+                <div>
+                  <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{tk.project} · {tk.due || "Sin fecha"}</div>
+                </div>
+              </div>
+              <Badge s={tk.st} t={t} />
+            </div>
+          ))}
+        </Crd>
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Cobros y pagos pendientes</div>
+          {pendingTx.length === 0 ? <div style={{ fontSize: 12, color: t.dim, padding: 16, textAlign: "center" }}>Todo al día</div> : pendingTx.map(tx => (
+            <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: 8, background: t.hover, marginBottom: 5, borderLeft: "3px solid " + (tx.status === "overdue" ? t.red : t.orange) }}>
+              <div>
+                <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div>
+                <div style={{ fontSize: 10, color: t.dim }}>{tx.contact} · {tx.date}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</div>
+                <Badge s={tx.status} t={t} />
+              </div>
+            </div>
+          ))}
+        </Crd>
+      </div>
     </div>
   );
 }
@@ -515,10 +550,21 @@ function Clients({ t }) {
 }
 
 function ProjectsPage({ t }) {
-  const { projects: PROJECTS, transactions: TXS, tasks: TASKS } = useData();
+  const { projects: PROJECTS, transactions: TXS, tasks: TASKS, clients, reload } = useData();
   const [filter, setFilter] = useState("all");
   const [sel, setSel] = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const [nf, setNf] = useState({ name: "", client_id: "", budget: "", deadline: "", priority: "medium", description: "" });
   const list = PROJECTS.filter(p => filter === "all" ? true : filter === "active" ? (p.status === "in_progress" || p.status === "planning") : p.status === "completed");
+
+  const saveProject = async () => {
+    if (!nf.name.trim()) return;
+    await supabase.from("projects").insert([{ name: nf.name, client_id: nf.client_id || null, budget: Number(nf.budget) || 0, deadline: nf.deadline || null, priority: nf.priority, description: nf.description, status: "planning", progress: 0, spent: 0 }]);
+    await reload();
+    setNf({ name: "", client_id: "", budget: "", deadline: "", priority: "medium", description: "" });
+    setShowNew(false);
+  };
+
   if (sel) {
     const p = PROJECTS.find(x => x.id === sel);
     return (
@@ -562,8 +608,38 @@ function ProjectsPage({ t }) {
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
         <Tabs t={t} active={filter} onChange={setFilter} items={[{ id: "all", label: "Todos", icon: Layers }, { id: "active", label: "En curso", icon: Activity }, { id: "done", label: "Completados", icon: Archive }]} />
-        <Btn primary t={t}><Plus size={12} />Nuevo proyecto</Btn>
+        <Btn primary t={t} onClick={() => setShowNew(!showNew)}><Plus size={12} />Nuevo proyecto</Btn>
       </div>
+      {showNew && (
+        <Crd t={t} style={{ padding: 18, marginBottom: 14, border: "2px dashed " + t.accent + "35" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Nuevo proyecto</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <Inp label="Nombre del proyecto" val={nf.name} onChange={v => setNf({ ...nf, name: v })} t={t} placeholder="Ej: Torre Belgrano" />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Cliente</div>
+              <select value={nf.client_id} onChange={e => setNf({ ...nf, client_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
+                <option value="">— Seleccionar —</option>
+                {clients.filter(c => c.type === "customer").map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <Inp label="Presupuesto ($)" val={nf.budget} onChange={v => setNf({ ...nf, budget: v })} t={t} placeholder="45000000" />
+            <Inp label="Fecha límite" val={nf.deadline} onChange={v => setNf({ ...nf, deadline: v })} t={t} placeholder="2026-06-30" />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Prioridad</div>
+              <select value={nf.priority} onChange={e => setNf({ ...nf, priority: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
+                <option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option>
+              </select>
+            </div>
+          </div>
+          <Inp label="Descripción" val={nf.description} onChange={v => setNf({ ...nf, description: v })} t={t} placeholder="Descripción del proyecto..." />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 6 }}>
+            <Btn t={t} onClick={() => setShowNew(false)}>Cancelar</Btn>
+            <Btn primary t={t} onClick={saveProject}><Check size={12} />Guardar</Btn>
+          </div>
+        </Crd>
+      )}
       {list.map(p => (
         <Crd key={p.id} t={t} style={{ padding: 14, marginBottom: 8, cursor: "pointer" }}>
           <div onClick={() => setSel(p.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 100px 80px", alignItems: "center", gap: 12 }}>
@@ -747,13 +823,31 @@ function TasksPage({ t }) {
 }
 
 function Transactions({ t }) {
-  const { transactions: TXS, documents: DOCS } = useData();
+  const { transactions: TXS, documents: DOCS, clients, projects, reload } = useData();
   const [tab, setTab] = useState("all");
   const [sel, setSel] = useState(null);
-  const list = TXS.filter(tx => tab === "income" ? tx.amount > 0 : tab === "expense" ? tx.amount < 0 : tab === "pending" ? (tx.status === "pending" || tx.status === "overdue") : true);
+  const [showNew, setShowNew] = useState(false);
+  const [nf, setNf] = useState({ description: "", contact_id: "", project_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
 
-  if (sel) {
+  const saveTx = async () => {
+    if (!nf.description.trim() || !nf.amount) return;
+    await supabase.from("transactions").insert([{ description: nf.description, contact_id: nf.contact_id || null, project_id: nf.project_id || null, amount: Number(nf.amount), status: nf.status, date: nf.date }]);
+    await reload();
+    setNf({ description: "", contact_id: "", project_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
+    setShowNew(false);
+  };
+
+  const markPaid = async (id) => {
+    await supabase.from("transactions").update({ status: "paid" }).eq("id", id);
+    await reload();
+    setSel(null);
+  };
+
+  const list = tab === "accounting" ? TXS : TXS.filter(tx => tab === "income" ? tx.amount > 0 : tab === "expense" ? tx.amount < 0 : tab === "pending" ? (tx.status === "pending" || tx.status === "overdue") : true);
+
+  if (sel && tab !== "accounting") {
     const tx = TXS.find(x => x.id === sel);
+    if (!tx) { setSel(null); return null; }
     const linkedDocs = DOCS.filter(d => d.txId === tx?.id);
     return (
       <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
@@ -783,7 +877,7 @@ function Transactions({ t }) {
             </Crd>
             {tx.status !== "paid" && (
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                <Btn primary t={t}><Check size={12} />Marcar como pagado</Btn>
+                <Btn primary t={t} onClick={() => markPaid(tx.id)}><Check size={12} />Marcar como pagado</Btn>
                 <Btn t={t}><Mail size={12} />Enviar recordatorio</Btn>
               </div>
             )}
@@ -817,9 +911,28 @@ function Transactions({ t }) {
   return (
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
-        <Tabs t={t} active={tab} onChange={setTab} items={[{ id: "all", label: "Todas" }, { id: "income", label: "Ingresos" }, { id: "expense", label: "Egresos" }, { id: "pending", label: "Pendientes" }]} />
-        <Btn primary t={t}><Plus size={12} />Nueva</Btn>
+        <Tabs t={t} active={tab} onChange={setTab} items={[{ id: "all", label: "Todas" }, { id: "income", label: "Ingresos" }, { id: "expense", label: "Egresos" }, { id: "pending", label: "Pendientes" }, { id: "accounting", label: "Contabilidad", icon: Layers }]} />
+        <Btn primary t={t} onClick={() => setShowNew(!showNew)}><Plus size={12} />Nueva</Btn>
       </div>
+      {showNew && (
+        <Crd t={t} style={{ padding: 18, marginBottom: 14, border: "2px dashed " + t.accent + "35" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Nueva transacción</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <Inp label="Descripción" val={nf.description} onChange={v => setNf({ ...nf, description: v })} t={t} placeholder="Ej: Certificado Obra #48" />
+            <Inp label="Monto (positivo=ingreso, negativo=egreso)" val={nf.amount} onChange={v => setNf({ ...nf, amount: v })} t={t} placeholder="3200000 ó -1850000" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Contacto</div><select value={nf.contact_id} onChange={e => setNf({ ...nf, contact_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">— Seleccionar —</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Proyecto</div><select value={nf.project_id} onChange={e => setNf({ ...nf, project_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">— Seleccionar —</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+            <Inp label="Fecha" val={nf.date} onChange={v => setNf({ ...nf, date: v })} t={t} placeholder="2026-02-23" />
+            <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Estado</div><select value={nf.status} onChange={e => setNf({ ...nf, status: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="paid">Pagado</option><option value="pending">Pendiente</option></select></div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+            <Btn t={t} onClick={() => setShowNew(false)}>Cancelar</Btn>
+            <Btn primary t={t} onClick={saveTx}><Check size={12} />Guardar</Btn>
+          </div>
+        </Crd>
+      )}
       {tab === "pending" && (
         <div style={{ background: t.orangeBg, border: "1px solid " + t.orange + "25", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <AlertCircle size={15} color={t.orange} />
@@ -828,6 +941,28 @@ function Transactions({ t }) {
           </div>
         </div>
       )}
+      {tab === "accounting" ? (
+        <Crd t={t} style={{ overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 8 }}>
+            <Bot size={14} color={t.accentL} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Asientos generados automáticamente desde transacciones</span>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr style={{ background: t.hover }}>{["Fecha","Descripción","Debe","Haber","Monto","Origen","Estado"].map(h => <th key={h} style={{ padding: "9px 12px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
+            <tbody>{TXS.map(tx => (
+              <tr key={tx.id}>
+                <td style={{ padding: "9px 12px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{tx.date}</td>
+                <td style={{ padding: "9px 12px", fontSize: 12, color: t.text, fontWeight: 500, borderBottom: "1px solid " + t.border + "15" }}>{tx.desc}</td>
+                <td style={{ padding: "9px 12px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{tx.amount > 0 ? "Cuentas x Cobrar" : "Materiales/Gastos"}</td>
+                <td style={{ padding: "9px 12px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{tx.amount > 0 ? "Ingresos" : "Banco/CxP"}</td>
+                <td style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: t.text, borderBottom: "1px solid " + t.border + "15" }}>{fmt(Math.abs(tx.amount))}</td>
+                <td style={{ padding: "9px 12px", borderBottom: "1px solid " + t.border + "15" }}><span style={pill(t.accentBg, t.accentL)}><Bot size={9} /> IA</span></td>
+                <td style={{ padding: "9px 12px", borderBottom: "1px solid " + t.border + "15" }}>{tx.status === "paid" ? <span style={pill(t.greenBg, t.green)}>Asentado</span> : <span style={pill(t.orangeBg, t.orange)}>Pendiente</span>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </Crd>
+      ) : (
       <Crd t={t} style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr style={{ background: t.hover }}>{["Fecha","Descripción","Contacto","Proyecto","Factura","Monto","Estado"].map(h => <th key={h} style={{ padding: "9px 12px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
@@ -847,6 +982,7 @@ function Transactions({ t }) {
           })}</tbody>
         </table>
       </Crd>
+      )}
     </div>
   );
 }
@@ -1276,17 +1412,17 @@ function Treasury({ t }) {
       <Crd t={t} style={{ padding: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Alertas y recordatorios</div>
         {[
-          { icon: AlertCircle, color: t.red, title: "Pago vencido — Hierros del Sur SRL", desc: "Factura por $1.85M venció hace 5 días. Contactar para gestionar pago.", action: "Gestionar" },
-          { icon: Clock, color: t.orange, title: "Cobro próximo — Certificado #47 Vial SA", desc: "Vence en 2 días. Confirmar recepción de factura con el cliente.", action: "Recordar" },
-          { icon: TrendingUp, color: t.blue, title: "Semana 2 con flujo negativo proyectado", desc: "La semana del 24-28 Feb tiene más pagos ($4.2M) que cobros ($3.5M). Considerar diferir pagos.", action: "Ver forecast" },
-          { icon: Bot, color: t.accent, title: "Sugerencia IA: transferir excedente", desc: "Mercado Pago tiene $1.2M sin rendimiento. Transferir a plazo fijo o FCI podría generar $8K/mes.", action: "Evaluar" },
+          { icon: AlertCircle, color: t.red, title: "Pago vencido — Hierros del Sur SRL", desc: "Factura por $1.85M venció hace 5 días. Contactar para gestionar pago.", action: "Gestionar", onClick: () => alert("Se enviará un recordatorio de pago a Hierros del Sur SRL por WhatsApp") },
+          { icon: Clock, color: t.orange, title: "Cobro próximo — Certificado #47 Vial SA", desc: "Vence en 2 días. Confirmar recepción de factura con el cliente.", action: "Recordar", onClick: () => alert("Recordatorio agendado para mañana a las 9:00") },
+          { icon: TrendingUp, color: t.blue, title: "Semana 2 con flujo negativo proyectado", desc: "La semana del 24-28 Feb tiene más pagos ($4.2M) que cobros ($3.5M). Considerar diferir pagos.", action: "Ver detalle", onClick: () => alert("Semana 24-28 Feb:\n• Cobros esperados: $3.5M\n• Pagos programados: $4.2M\n• Déficit proyectado: -$700K\n\nSugerencia: diferir pago a Ferretería López ($420K) a la semana siguiente") },
+          { icon: Bot, color: t.accent, title: "Sugerencia IA: transferir excedente", desc: "Mercado Pago tiene $1.2M sin rendimiento. Transferir a plazo fijo o FCI podría generar $8K/mes.", action: "Evaluar", onClick: () => alert("Opciones de inversión:\n• Plazo fijo 30d: ~$8K/mes (TNA 8%)\n• FCI Money Market: ~$6K/mes (variable)\n• Transferir a cuenta remunerada: ~$4K/mes\n\nPróximamente podrás ejecutar desde acá") },
         ].map((alert, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: t.hover, borderRadius: 8, marginBottom: 6, borderLeft: "3px solid " + alert.color }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <alert.icon size={16} color={alert.color} />
               <div><div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{alert.title}</div><div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{alert.desc}</div></div>
             </div>
-            <Btn t={t}>{alert.action}</Btn>
+            <Btn t={t} onClick={alert.onClick}>{alert.action}</Btn>
           </div>
         ))}
       </Crd>
@@ -1295,11 +1431,30 @@ function Treasury({ t }) {
 }
 
 function DocumentsPage({ t }) {
-  const { documents: DOCS, clients: CLIENTS, projects: PROJECTS, transactions: TXS } = useData();
+  const { documents: DOCS, clients: CLIENTS, projects: PROJECTS, transactions: TXS, reload } = useData();
   const [showUp, setShowUp] = useState(false);
   const [filterContact, setFilterContact] = useState("");
   const [filterProject, setFilterProject] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [upFile, setUpFile] = useState(null);
+  const [upForm, setUpForm] = useState({ type: "invoice", contact_id: "", project_id: "", transaction_id: "" });
+
+  const saveDoc = async () => {
+    if (!upFile) { window.alert("Seleccioná un archivo primero"); return; }
+    await supabase.from("documents").insert([{
+      name: upFile.name,
+      type: upForm.type,
+      size: upFile.size > 1048576 ? (upFile.size / 1048576).toFixed(1) + " MB" : Math.round(upFile.size / 1024) + " KB",
+      contact_id: upForm.contact_id || null,
+      project_id: upForm.project_id || null,
+      transaction_id: upForm.transaction_id || null,
+      status: "pending",
+    }]);
+    await reload();
+    setUpFile(null);
+    setUpForm({ type: "invoice", contact_id: "", project_id: "", transaction_id: "" });
+    setShowUp(false);
+  };
   const contacts = [...new Set(DOCS.map(d => d.contact).filter(Boolean))];
   const projects = [...new Set(DOCS.map(d => d.project).filter(Boolean))];
   const types = [...new Set(DOCS.map(d => d.type))];
@@ -1340,41 +1495,48 @@ function DocumentsPage({ t }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Tipo</div>
-              <select style={{ width: "100%", ...selStyle }}>
-                <option>Factura</option><option>Remito</option><option>Certificado</option><option>Contrato</option><option>Otro</option>
+              <select value={upForm.type} onChange={e => setUpForm({ ...upForm, type: e.target.value })} style={{ width: "100%", ...selStyle }}>
+                <option value="invoice">Factura</option><option value="receipt">Remito</option><option value="cert">Certificado</option><option value="contract">Contrato</option><option value="quote">Presupuesto</option><option value="other">Otro</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Contacto</div>
-              <select style={{ width: "100%", ...selStyle }}>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Cliente / Proveedor</div>
+              <select value={upForm.contact_id} onChange={e => setUpForm({ ...upForm, contact_id: e.target.value })} style={{ width: "100%", ...selStyle }}>
                 <option value="">— Seleccionar —</option>
-                {CLIENTS.map(c => <option key={c.id}>{c.name}</option>)}
+                {CLIENTS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Proyecto</div>
-              <select style={{ width: "100%", ...selStyle }}>
+              <select value={upForm.project_id} onChange={e => setUpForm({ ...upForm, project_id: e.target.value })} style={{ width: "100%", ...selStyle }}>
                 <option value="">— Seleccionar —</option>
-                {PROJECTS.map(p => <option key={p.id}>{p.name}</option>)}
+                {PROJECTS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Transacción (opcional)</div>
-            <select style={{ width: "100%", ...selStyle }}>
+            <select value={upForm.transaction_id} onChange={e => setUpForm({ ...upForm, transaction_id: e.target.value })} style={{ width: "100%", ...selStyle }}>
               <option value="">— Sin vincular —</option>
-              {TXS.map(tx => <option key={tx.id}>{tx.date} — {tx.desc}</option>)}
+              {TXS.map(tx => <option key={tx.id} value={tx.id}>{tx.date} — {tx.desc}</option>)}
             </select>
           </div>
-          <div style={{ border: "2px dashed " + t.border, borderRadius: 10, padding: 28, textAlign: "center", marginBottom: 12, background: t.hover, cursor: "pointer" }}>
-            <Upload size={24} color={t.dim} />
-            <div style={{ fontSize: 12, color: t.text, fontWeight: 500, marginTop: 6 }}>Arrastrá archivos o hacé click</div>
-            <div style={{ fontSize: 10, color: t.dim, marginTop: 3 }}>PDF, JPG, PNG — Máx 25MB</div>
+          <div onClick={() => document.getElementById("fileInput").click()} style={{ border: "2px dashed " + t.border, borderRadius: 10, padding: 28, textAlign: "center", marginBottom: 12, background: t.hover, cursor: "pointer" }}>
+            <input id="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => setUpFile(e.target.files[0])} />
+            <Upload size={24} color={upFile ? t.green : t.dim} />
+            {upFile ? (
+              <div style={{ fontSize: 12, color: t.green, fontWeight: 600, marginTop: 6 }}>{upFile.name} ({(upFile.size / 1024).toFixed(0)} KB)</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: t.text, fontWeight: 500, marginTop: 6 }}>Arrastrá archivos o hacé click</div>
+                <div style={{ fontSize: 10, color: t.dim, marginTop: 3 }}>PDF, JPG, PNG — Máx 25MB</div>
+              </>
+            )}
             <div style={{ fontSize: 10, color: t.accentL, marginTop: 6 }}>También por WhatsApp</div>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-            <Btn t={t} onClick={() => setShowUp(false)}>Cancelar</Btn>
-            <Btn primary t={t}><Upload size={12} />Subir y OCR</Btn>
+            <Btn t={t} onClick={() => { setShowUp(false); setUpFile(null); }}>Cancelar</Btn>
+            <Btn primary t={t} onClick={saveDoc}><Upload size={12} />Subir y registrar</Btn>
           </div>
         </Crd>
       )}
@@ -1423,7 +1585,7 @@ function Reports({ t }) {
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
           <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Estado de Resultados</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
-          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados")}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], [["Ingresos","Servicios","16480000"],["Ingresos","Otros","320000"],["Costos","Materiales","-6200000"],["Costos","Mano de Obra","-3400000"],["Costos","Subcontratistas","-1800000"],["Gastos","Administrativos","-890000"],["Gastos","Transporte","-420000"],["Gastos","Alquileres","-350000"],["","RESULTADO NETO","3740000"]])}><Download size={12} />Excel</Btn></div>
+          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados", [["<th>Categoría</th>","<th>Concepto</th>","<th>Monto</th>"],["Ingresos","Servicios","$16.480.000"],["Ingresos","Otros","$320.000"],["Costos Directos","Materiales","-$6.200.000"],["Costos Directos","Mano de Obra","-$3.400.000"],["Costos Directos","Subcontratistas","-$1.800.000"],["Gastos Operativos","Administrativos","-$890.000"],["Gastos Operativos","Transporte","-$420.000"],["Gastos Operativos","Alquileres","-$350.000"],["<b>RESULTADO</b>","<b>NETO</b>","<b>$3.740.000</b>"]])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], [["Ingresos","Servicios","16480000"],["Ingresos","Otros","320000"],["Costos","Materiales","-6200000"],["Costos","Mano de Obra","-3400000"],["Costos","Subcontratistas","-1800000"],["Gastos","Administrativos","-890000"],["Gastos","Transporte","-420000"],["Gastos","Alquileres","-350000"],["","RESULTADO NETO","3740000"]])}><Download size={12} />Excel</Btn></div>
         </div>
         <div style={{ padding: 16 }}>
           {pnl.map((cat, ci) => (
@@ -1865,11 +2027,11 @@ function AppContent() {
   const meta = {
     dashboard: ["Dashboard", "Resumen financiero"], clients: ["Clientes / Proveedores", "Gestión de contactos"],
     projects: ["Proyectos / Obras", "Seguimiento y presupuestos"], tasks: ["Tareas", "Gestión de actividades"],
-    transactions: ["Transacciones", "Ingresos y egresos"], accounting: ["Contabilidad", "Libro diario y estados"],
+    transactions: ["Finanzas", "Transacciones y contabilidad"],
     treasury: ["Tesorería", "Cuentas y cash flow"], documents: ["Documentos", "Facturas y comprobantes"],
     reports: ["Reportes", "Informes financieros"],
   };
-  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, accounting: Accounting, treasury: Treasury, documents: DocumentsPage, reports: Reports };
+  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, treasury: Treasury, documents: DocumentsPage, reports: Reports };
   const Page = pages[page] || Dashboard;
 
   return (
