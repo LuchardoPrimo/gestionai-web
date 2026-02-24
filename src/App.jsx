@@ -262,6 +262,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) 
     { id: "treasury", icon: Wallet, label: "Tesorería", roles: ["owner","admin"] },
     { id: "documents", icon: FileText, label: "Documentos", roles: ["owner","admin","accountant","pm"] },
     { id: "reports", icon: BarChart3, label: "Reportes", roles: ["owner","admin","accountant"] },
+    { id: "team", icon: UserPlus, label: "Equipo", roles: ["owner","admin"] },
   ];
   const nav = allNav.filter(n => n.roles.includes(role || "owner"));
   const w = collapsed ? 64 : 230;
@@ -2604,8 +2605,9 @@ function AppContent({ user, profile, onLogout }) {
     transactions: ["Finanzas", "Transacciones y contabilidad"],
     treasury: ["Tesorería", "Cuentas y cash flow"], documents: ["Documentos", "Facturas y comprobantes"],
     reports: ["Reportes", "Informes financieros"],
+    team: ["Equipo", "Gestión de usuarios e invitaciones"],
   };
-  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, treasury: Treasury, documents: DocumentsPage, reports: Reports };
+  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage };
   const Page = pages[page] || Dashboard;
 
   return (
@@ -2623,10 +2625,227 @@ function AppContent({ user, profile, onLogout }) {
         <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} role={role} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} profile={profile} onLogout={onLogout} onNav={setPage} />
-          <Page t={t} onNav={setPage} user={user} />
+          <Page t={t} onNav={setPage} user={user} profile={profile} />
         </div>
       </div>
     </>
+  );
+}
+
+function TeamPage({ t, user, profile }) {
+  const { companyId } = useData();
+  const [members, setMembers] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [showInvite, setShowInvite] = useState(false);
+  const [invForm, setInvForm] = useState({ email: "", role: "employee", name: "" });
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const roleLabels = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", employee: "Empleado" };
+  const roleColors = { owner: t.accent, admin: "#A78BFA", accountant: t.blue, pm: t.orange, employee: t.green };
+
+  const loadTeam = async () => {
+    if (!companyId) return;
+    const { data: m } = await supabase.from("user_profiles").select("*, user:id(email)").eq("company_id", companyId);
+    if (m) setMembers(m);
+    const { data: inv } = await supabase.from("invitations").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
+    if (inv) setInvitations(inv);
+  };
+
+  useEffect(() => { loadTeam(); }, [companyId]);
+
+  const sendInvite = async () => {
+    setError(""); setSuccess("");
+    if (!invForm.email.trim() || !invForm.email.includes("@")) { setError("Ingresá un email válido"); return; }
+    if (members.some(m => m.user?.email === invForm.email)) { setError("Este email ya es miembro del equipo"); return; }
+    if (invitations.some(i => i.email === invForm.email && i.status === "pending")) { setError("Ya hay una invitación pendiente para este email"); return; }
+    setSending(true);
+    const { error: err } = await supabase.from("invitations").insert([{
+      company_id: companyId,
+      email: invForm.email.trim().toLowerCase(),
+      role: invForm.role,
+      invited_by: user?.id,
+    }]);
+    if (err) { setError(err.message); }
+    else {
+      setSuccess("Invitación enviada a " + invForm.email);
+      setInvForm({ email: "", role: "employee", name: "" });
+      setShowInvite(false);
+      await loadTeam();
+    }
+    setSending(false);
+  };
+
+  const cancelInvite = async (id) => {
+    if (!window.confirm("¿Cancelar esta invitación?")) return;
+    await supabase.from("invitations").delete().eq("id", id);
+    await loadTeam();
+  };
+
+  const changeMemberRole = async (memberId, newRole) => {
+    await supabase.from("user_profiles").update({ role: newRole }).eq("id", memberId);
+    await loadTeam();
+  };
+
+  const removeMember = async (memberId, email) => {
+    if (!window.confirm("¿Eliminar a " + email + " del equipo? Ya no podrá acceder a los datos de la empresa.")) return;
+    await supabase.from("user_profiles").update({ company_id: null }).eq("id", memberId);
+    await loadTeam();
+  };
+
+  const myRole = profile?.role || "owner";
+  const isOwner = myRole === "owner";
+
+  return (
+    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Equipo</div>
+          <div style={{ fontSize: 12, color: t.muted }}>{members.length} miembros · {invitations.filter(i => i.status === "pending").length} invitaciones pendientes</div>
+        </div>
+        <button onClick={() => setShowInvite(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <UserPlus size={14} /> Invitar miembro
+        </button>
+      </div>
+
+      {success && <div style={{ padding: "10px 14px", background: t.greenBg, border: "1px solid " + t.green + "25", borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.green, display: "flex", justifyContent: "space-between", alignItems: "center" }}>{success}<span onClick={() => setSuccess("")} style={{ cursor: "pointer" }}>✕</span></div>}
+
+      {/* Invite modal */}
+      {showInvite && (
+        <Crd t={t} style={{ padding: 20, marginBottom: 20, border: "1px solid " + t.accent + "30" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Invitar nuevo miembro</div>
+            <span onClick={() => { setShowInvite(false); setError(""); }} style={{ cursor: "pointer", color: t.dim }}>✕</span>
+          </div>
+          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, padding: "8px 10px", background: t.hover, borderRadius: 6 }}>
+            La persona recibirá acceso al registrarse en GestiónAI con el email que indiques. Automáticamente se unirá a tu empresa con el rol asignado.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Email del invitado *</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 10px" }}>
+                <Mail size={13} color={t.dim} />
+                <input value={invForm.email} onChange={e => setInvForm({ ...invForm, email: e.target.value })} placeholder="empleado@empresa.com" style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 12, outline: "none" }} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Rol asignado</div>
+              <select value={invForm.role} onChange={e => setInvForm({ ...invForm, role: e.target.value })} style={{ width: "100%", padding: "8px 10px", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, color: t.text, fontSize: 12 }}>
+                {isOwner && <option value="admin">Administrador</option>}
+                <option value="accountant">Contador</option>
+                <option value="pm">Director de obra</option>
+                <option value="employee">Empleado</option>
+              </select>
+            </div>
+          </div>
+          {/* Role description */}
+          <div style={{ padding: "8px 10px", background: t.hover, borderRadius: 6, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Permisos del rol "{roleLabels[invForm.role]}":</div>
+            <div style={{ fontSize: 11, color: t.muted }}>
+              {invForm.role === "admin" && "Acceso completo: clientes, proyectos, tareas, finanzas, tesorería, documentos, reportes y equipo."}
+              {invForm.role === "accountant" && "Acceso a: clientes, finanzas, documentos y reportes. Sin acceso a: proyectos, tareas, tesorería."}
+              {invForm.role === "pm" && "Acceso a: proyectos, tareas y documentos. Sin acceso a: clientes, finanzas, tesorería, reportes."}
+              {invForm.role === "employee" && "Acceso limitado a: proyectos y tareas asignadas. Sin acceso a: clientes, finanzas, documentos, reportes."}
+            </div>
+          </div>
+          {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 12, fontSize: 12, color: t.red }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button onClick={() => { setShowInvite(false); setError(""); }} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
+            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1 }}>
+              {sending ? "Enviando..." : "Enviar invitación"}
+            </button>
+          </div>
+        </Crd>
+      )}
+
+      {/* Members */}
+      <Crd t={t} style={{ padding: 20, marginBottom: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Miembros del equipo</div>
+        {members.length === 0 ? (
+          <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Cargando miembros...</div>
+        ) : members.map(m => {
+          const email = m.user?.email || "—";
+          const name = m.full_name || email.split("@")[0];
+          const isMe = m.id === user?.id;
+          return (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid " + t.border + "20" }}>
+              <Av name={name} size={36} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{name}</span>
+                  {isMe && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: t.accentBg, color: t.accentL }}>Vos</span>}
+                </div>
+                <div style={{ fontSize: 11, color: t.dim }}>{email}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {isOwner && !isMe ? (
+                  <select value={m.role} onChange={e => changeMemberRole(m.id, e.target.value)} style={{ padding: "4px 8px", background: t.hover, border: "1px solid " + t.border, borderRadius: 5, color: roleColors[m.role] || t.text, fontSize: 11, fontWeight: 600 }}>
+                    <option value="admin">Admin</option>
+                    <option value="accountant">Contador</option>
+                    <option value="pm">Dir. obra</option>
+                    <option value="employee">Empleado</option>
+                  </select>
+                ) : (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: roleColors[m.role] || t.muted, padding: "4px 8px", background: (roleColors[m.role] || t.muted) + "12", borderRadius: 5 }}>
+                    {roleLabels[m.role] || m.role}
+                  </span>
+                )}
+                {isOwner && !isMe && (
+                  <button onClick={() => removeMember(m.id, email)} style={{ padding: "4px 8px", background: t.redBg, border: "1px solid " + t.red + "20", borderRadius: 5, color: t.red, fontSize: 10, cursor: "pointer" }}>Quitar</button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </Crd>
+
+      {/* Pending invitations */}
+      <Crd t={t} style={{ padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Invitaciones pendientes</div>
+        {invitations.filter(i => i.status === "pending").length === 0 ? (
+          <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin invitaciones pendientes</div>
+        ) : invitations.filter(i => i.status === "pending").map(inv => (
+          <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid " + t.border + "20" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: t.hover, border: "1px dashed " + t.border, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Mail size={14} color={t.dim} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{inv.email}</div>
+              <div style={{ fontSize: 10, color: t.dim }}>Invitado {new Date(inv.created_at).toLocaleDateString("es-AR")} · Pendiente de registro</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: roleColors[inv.role] || t.muted, padding: "4px 8px", background: (roleColors[inv.role] || t.muted) + "12", borderRadius: 5 }}>
+              {roleLabels[inv.role] || inv.role}
+            </span>
+            <button onClick={() => cancelInvite(inv.id)} style={{ padding: "4px 8px", background: t.hover, border: "1px solid " + t.border, borderRadius: 5, color: t.red, fontSize: 10, cursor: "pointer" }}>Cancelar</button>
+          </div>
+        ))}
+        {invitations.filter(i => i.status === "accepted").length > 0 && (
+          <>
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.dim, marginTop: 16, marginBottom: 8 }}>Invitaciones aceptadas</div>
+            {invitations.filter(i => i.status === "accepted").map(inv => (
+              <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid " + t.border + "10" }}>
+                <CheckCircle2 size={12} color={t.green} />
+                <span style={{ fontSize: 11, color: t.muted }}>{inv.email}</span>
+                <span style={{ fontSize: 10, color: t.dim }}>· {new Date(inv.created_at).toLocaleDateString("es-AR")}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </Crd>
+
+      {/* Instructions */}
+      <div style={{ marginTop: 20, padding: 16, background: t.hover, borderRadius: 10, border: "1px solid " + t.border }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 6 }}>¿Cómo funciona?</div>
+        <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.6 }}>
+          1. Invitás a alguien ingresando su email y asignándole un rol.<br />
+          2. Esa persona se registra en GestiónAI con el mismo email.<br />
+          3. Al registrarse, automáticamente se une a tu empresa con los permisos del rol asignado.<br />
+          4. Podés cambiar roles o quitar miembros en cualquier momento.
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2643,14 +2862,32 @@ function LoginPage({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // register: step 1 = company, step 2 = user
+  const [invitation, setInvitation] = useState(null); // {found, company_name, role}
+  const [checkingInv, setCheckingInv] = useState(false);
   const t = themes.dark;
 
   const inputStyle = { display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" };
   const fieldStyle = { flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none", width: "100%" };
+  const roleLabels = { admin: "Administrador", accountant: "Contador", pm: "Director de obra", employee: "Empleado", owner: "Dueño / Socio" };
+
+  // Check if email has a pending invitation
+  const checkInvitation = async (emailToCheck) => {
+    if (!emailToCheck || !emailToCheck.includes("@")) { setInvitation(null); return; }
+    setCheckingInv(true);
+    const { data } = await supabase.rpc("check_invitation", { p_email: emailToCheck.trim().toLowerCase() });
+    if (data?.found) {
+      setInvitation(data);
+    } else {
+      setInvitation(null);
+    }
+    setCheckingInv(false);
+  };
 
   const validateRegStep1 = () => {
-    if (!company.trim()) { setError("Ingresá el nombre de tu empresa"); return false; }
+    if (!email.trim() || !email.includes("@")) { setError("Ingresá un email válido"); return false; }
     if (!fullName.trim()) { setError("Ingresá tu nombre completo"); return false; }
+    if (invitation?.found) { setError(""); return true; } // Skip company validation for invited users
+    if (!company.trim()) { setError("Ingresá el nombre de tu empresa"); return false; }
     if (!phone.trim()) { setError("Ingresá un teléfono de contacto"); return false; }
     setError(""); return true;
   };
@@ -2673,22 +2910,32 @@ function LoginPage({ onLogin }) {
       } else {
         const { data, error } = await supabase.auth.signUp({
           email, password: pass,
-          options: { data: { full_name: fullName, company, phone, cuit, role } }
+          options: { data: { full_name: fullName || email.split("@")[0], company: invitation?.found ? invitation.company_name : company, phone, cuit, role: invitation?.found ? invitation.role : role } }
         });
         if (error) { setError(error.message); }
         else {
-          // Create company + profile in database
           if (data?.user) {
-            await supabase.rpc("create_company_and_profile", {
-              p_user_id: data.user.id,
-              p_company_name: company,
-              p_cuit: cuit || null,
-              p_phone: phone || null,
-              p_full_name: fullName,
-              p_role: role,
-            });
+            if (invitation?.found) {
+              // Accept invitation — join existing company
+              await supabase.rpc("accept_invitation", {
+                p_user_id: data.user.id,
+                p_email: email.trim().toLowerCase(),
+                p_full_name: fullName || email.split("@")[0],
+              });
+              window.alert("✅ Cuenta creada exitosamente.\n\nTe uniste a: " + invitation.company_name + "\nRol: " + (roleLabels[invitation.role] || invitation.role) + "\n\nYa podés iniciar sesión.");
+            } else {
+              // Create new company + profile
+              await supabase.rpc("create_company_and_profile", {
+                p_user_id: data.user.id,
+                p_company_name: company,
+                p_cuit: cuit || null,
+                p_phone: phone || null,
+                p_full_name: fullName,
+                p_role: role,
+              });
+              window.alert("✅ Cuenta creada exitosamente.\n\nEmpresa: " + company + "\nUsuario: " + fullName + "\n\nYa podés iniciar sesión.");
+            }
           }
-          window.alert("✅ Cuenta creada exitosamente.\n\nEmpresa: " + company + "\nUsuario: " + fullName + "\n\nYa podés iniciar sesión.");
           setIsLogin(true); setStep(1);
           setPass(""); setPass2("");
         }
@@ -2697,7 +2944,7 @@ function LoginPage({ onLogin }) {
     setLoading(false);
   };
 
-  const switchMode = () => { setIsLogin(!isLogin); setError(""); setStep(1); setPass(""); setPass2(""); };
+  const switchMode = () => { setIsLogin(!isLogin); setError(""); setStep(1); setPass(""); setPass2(""); setInvitation(null); };
 
   return (
     <>
@@ -2717,7 +2964,7 @@ function LoginPage({ onLogin }) {
               <Zap size={26} color="#fff" />
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>GestiónAI</div>
-            <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{isLogin ? "Iniciá sesión en tu cuenta" : step === 1 ? "Paso 1 de 2 — Datos de tu empresa" : "Paso 2 de 2 — Datos de acceso"}</div>
+            <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{isLogin ? "Iniciá sesión en tu cuenta" : step === 1 ? (invitation?.found ? "Te invitaron a " + invitation.company_name : "Paso 1 de 2 — Datos de tu empresa") : "Paso 2 de 2 — Datos de acceso"}</div>
           </div>
 
           <div style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 14, padding: 24 }}>
@@ -2740,20 +2987,26 @@ function LoginPage({ onLogin }) {
               </>
             ) : step === 1 ? (
               <>
+                {/* Email first — for invitation detection */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Nombre de la empresa *</div>
-                  <div style={inputStyle}>
-                    <Briefcase size={14} color={t.dim} />
-                    <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Ej: Constructora López SRL" style={fieldStyle} />
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Tu email *</div>
+                  <div style={{ ...inputStyle, borderColor: invitation?.found ? t.green + "50" : t.border }}>
+                    <Mail size={14} color={invitation?.found ? t.green : t.dim} />
+                    <input value={email} onChange={e => setEmail(e.target.value)} onBlur={() => checkInvitation(email)} placeholder="tu@empresa.com" style={fieldStyle} />
+                    {checkingInv && <div style={{ fontSize: 10, color: t.dim }}>...</div>}
                   </div>
                 </div>
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>CUIT (opcional)</div>
-                  <div style={inputStyle}>
-                    <FileText size={14} color={t.dim} />
-                    <input value={cuit} onChange={e => setCuit(e.target.value)} placeholder="30-12345678-9" style={fieldStyle} />
+
+                {/* Invitation detected */}
+                {invitation?.found && (
+                  <div style={{ padding: "12px 14px", background: t.greenBg, border: "1px solid " + t.green + "25", borderRadius: 8, marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.green, marginBottom: 4 }}>¡Tenés una invitación!</div>
+                    <div style={{ fontSize: 11, color: t.muted }}>Te invitaron a unirte a <b style={{ color: t.text }}>{invitation.company_name}</b> como <b style={{ color: t.text }}>{roleLabels[invitation.role] || invitation.role}</b>.</div>
+                    <div style={{ fontSize: 10, color: t.dim, marginTop: 4 }}>Completá tu nombre y contraseña para unirte.</div>
                   </div>
-                </div>
+                )}
+
+                {/* Name — always shown */}
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Nombre completo *</div>
                   <div style={inputStyle}>
@@ -2761,35 +3014,48 @@ function LoginPage({ onLogin }) {
                     <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Juan Pérez" style={fieldStyle} />
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Teléfono *</div>
-                    <div style={inputStyle}>
-                      <Phone size={14} color={t.dim} />
-                      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+54 11 ..." style={fieldStyle} />
+
+                {/* Company fields — only if NOT invited */}
+                {!invitation?.found && (
+                  <>
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Nombre de la empresa *</div>
+                      <div style={inputStyle}>
+                        <Briefcase size={14} color={t.dim} />
+                        <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Ej: Constructora López SRL" style={fieldStyle} />
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Rol en la empresa</div>
-                    <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px", color: t.text, fontSize: 13 }}>
-                      <option value="owner">Dueño / Socio</option>
-                      <option value="admin">Administrador</option>
-                      <option value="accountant">Contador</option>
-                      <option value="pm">Director de obra</option>
-                      <option value="other">Otro</option>
-                    </select>
-                  </div>
-                </div>
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>CUIT (opcional)</div>
+                      <div style={inputStyle}>
+                        <FileText size={14} color={t.dim} />
+                        <input value={cuit} onChange={e => setCuit(e.target.value)} placeholder="30-12345678-9" style={fieldStyle} />
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Teléfono *</div>
+                        <div style={inputStyle}>
+                          <Phone size={14} color={t.dim} />
+                          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+54 11 ..." style={fieldStyle} />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Rol en la empresa</div>
+                        <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px", color: t.text, fontSize: 13 }}>
+                          <option value="owner">Dueño / Socio</option>
+                          <option value="admin">Administrador</option>
+                          <option value="accountant">Contador</option>
+                          <option value="pm">Director de obra</option>
+                          <option value="other">Otro</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <>
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Email de acceso *</div>
-                  <div style={inputStyle}>
-                    <Mail size={14} color={t.dim} />
-                    <input value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@empresa.com" style={fieldStyle} />
-                  </div>
-                </div>
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Contraseña * <span style={{ fontSize: 10, color: t.dim }}>(mínimo 6 caracteres)</span></div>
                   <div style={inputStyle}>
@@ -2808,9 +3074,13 @@ function LoginPage({ onLogin }) {
                   {pass2.length > 0 && pass !== pass2 && <div style={{ fontSize: 10, color: t.red, marginTop: 4 }}>Las contraseñas no coinciden</div>}
                   {pass2.length > 0 && pass === pass2 && <div style={{ fontSize: 10, color: t.green, marginTop: 4 }}>✓ Las contraseñas coinciden</div>}
                 </div>
-                <div style={{ padding: "10px 12px", background: t.hover, borderRadius: 8, marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Resumen de registro</div>
-                  <div style={{ fontSize: 12, color: t.text }}><b>{company}</b> · {fullName} · {phone}</div>
+                <div style={{ padding: "10px 12px", background: invitation?.found ? t.greenBg : t.hover, borderRadius: 8, marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Resumen</div>
+                  {invitation?.found ? (
+                    <div style={{ fontSize: 12, color: t.text }}>Unirse a <b>{invitation.company_name}</b> · {fullName} · {roleLabels[invitation.role]}</div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: t.text }}><b>{company}</b> · {fullName} · {phone}</div>
+                  )}
                 </div>
               </>
             )}
