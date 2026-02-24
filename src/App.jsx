@@ -2286,27 +2286,59 @@ function LoginPage({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [company, setCompany] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [cuit, setCuit] = useState("");
+  const [role, setRole] = useState("owner");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1); // register: step 1 = company, step 2 = user
   const t = themes.dark;
 
+  const inputStyle = { display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" };
+  const fieldStyle = { flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none", width: "100%" };
+
+  const validateRegStep1 = () => {
+    if (!company.trim()) { setError("Ingresá el nombre de tu empresa"); return false; }
+    if (!fullName.trim()) { setError("Ingresá tu nombre completo"); return false; }
+    if (!phone.trim()) { setError("Ingresá un teléfono de contacto"); return false; }
+    setError(""); return true;
+  };
+
   const handleSubmit = async () => {
-    if (!email.trim() || !pass.trim()) { setError("Completá email y contraseña"); return; }
-    if (pass.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
-    setLoading(true); setError("");
+    setError("");
+    if (isLogin) {
+      if (!email.trim() || !pass.trim()) { setError("Completá email y contraseña"); return; }
+    } else {
+      if (!email.trim()) { setError("Completá tu email"); return; }
+      if (pass.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+      if (pass !== pass2) { setError("Las contraseñas no coinciden"); return; }
+    }
+    setLoading(true);
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
         if (error) setError(error.message === "Invalid login credentials" ? "Email o contraseña incorrectos" : error.message);
         else onLogin();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password: pass });
-        if (error) setError(error.message);
-        else { setError(""); window.alert("✅ Cuenta creada. Revisá tu email para confirmar, o probá iniciar sesión."); setIsLogin(true); }
+        const { data, error } = await supabase.auth.signUp({
+          email, password: pass,
+          options: { data: { full_name: fullName, company, phone, cuit, role } }
+        });
+        if (error) { setError(error.message); }
+        else {
+          window.alert("✅ Cuenta creada exitosamente.\n\nEmpresa: " + company + "\nUsuario: " + fullName + "\n\nYa podés iniciar sesión.");
+          setIsLogin(true); setStep(1);
+          setPass(""); setPass2("");
+        }
       }
     } catch (e) { setError("Error de conexión"); }
     setLoading(false);
   };
+
+  const switchMode = () => { setIsLogin(!isLogin); setError(""); setStep(1); setPass(""); setPass2(""); };
 
   return (
     <>
@@ -2320,38 +2352,137 @@ function LoginPage({ onLogin }) {
           <div style={{ position: "absolute", top: "20%", left: "10%", width: 300, height: 300, borderRadius: "50%", background: t.accent + "08", filter: "blur(80px)" }} />
           <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 250, height: 250, borderRadius: "50%", background: "#A78BFA10", filter: "blur(80px)" }} />
         </div>
-        <div style={{ width: 400, padding: 40, position: "relative", zIndex: 1 }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ width: isLogin ? 400 : 460, padding: 40, position: "relative", zIndex: 1 }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 4px 20px " + t.accent + "40" }}>
               <Zap size={26} color="#fff" />
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>GestiónAI</div>
-            <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{isLogin ? "Iniciá sesión en tu cuenta" : "Creá una cuenta nueva"}</div>
+            <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{isLogin ? "Iniciá sesión en tu cuenta" : step === 1 ? "Paso 1 de 2 — Datos de tu empresa" : "Paso 2 de 2 — Datos de acceso"}</div>
           </div>
+
           <div style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 14, padding: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Email</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" }}>
-                <Mail size={14} color={t.dim} />
-                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@empresa.com" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none" }} />
-              </div>
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Contraseña</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" }}>
-                <Lock size={14} color={t.dim} />
-                <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none" }} />
-              </div>
-            </div>
+            {isLogin ? (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Email</div>
+                  <div style={inputStyle}>
+                    <Mail size={14} color={t.dim} />
+                    <input value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@empresa.com" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={fieldStyle} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Contraseña</div>
+                  <div style={inputStyle}>
+                    <Lock size={14} color={t.dim} />
+                    <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={fieldStyle} />
+                  </div>
+                </div>
+              </>
+            ) : step === 1 ? (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Nombre de la empresa *</div>
+                  <div style={inputStyle}>
+                    <Briefcase size={14} color={t.dim} />
+                    <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Ej: Constructora López SRL" style={fieldStyle} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>CUIT (opcional)</div>
+                  <div style={inputStyle}>
+                    <FileText size={14} color={t.dim} />
+                    <input value={cuit} onChange={e => setCuit(e.target.value)} placeholder="30-12345678-9" style={fieldStyle} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Nombre completo *</div>
+                  <div style={inputStyle}>
+                    <Users size={14} color={t.dim} />
+                    <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Juan Pérez" style={fieldStyle} />
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Teléfono *</div>
+                    <div style={inputStyle}>
+                      <Phone size={14} color={t.dim} />
+                      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+54 11 ..." style={fieldStyle} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Rol en la empresa</div>
+                    <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px", color: t.text, fontSize: 13 }}>
+                      <option value="owner">Dueño / Socio</option>
+                      <option value="admin">Administrador</option>
+                      <option value="accountant">Contador</option>
+                      <option value="pm">Director de obra</option>
+                      <option value="other">Otro</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Email de acceso *</div>
+                  <div style={inputStyle}>
+                    <Mail size={14} color={t.dim} />
+                    <input value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@empresa.com" style={fieldStyle} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Contraseña * <span style={{ fontSize: 10, color: t.dim }}>(mínimo 6 caracteres)</span></div>
+                  <div style={inputStyle}>
+                    <Lock size={14} color={t.dim} />
+                    <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" style={fieldStyle} />
+                  </div>
+                  {pass.length > 0 && pass.length < 6 && <div style={{ fontSize: 10, color: t.red, marginTop: 4 }}>Mínimo 6 caracteres ({6 - pass.length} más)</div>}
+                  {pass.length >= 6 && <div style={{ fontSize: 10, color: t.green, marginTop: 4 }}>✓ Contraseña válida</div>}
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Repetir contraseña *</div>
+                  <div style={{ ...inputStyle, borderColor: pass2.length > 0 ? (pass === pass2 ? t.green + "50" : t.red + "50") : t.border }}>
+                    <Lock size={14} color={pass2.length > 0 ? (pass === pass2 ? t.green : t.red) : t.dim} />
+                    <input type="password" value={pass2} onChange={e => setPass2(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={fieldStyle} />
+                  </div>
+                  {pass2.length > 0 && pass !== pass2 && <div style={{ fontSize: 10, color: t.red, marginTop: 4 }}>Las contraseñas no coinciden</div>}
+                  {pass2.length > 0 && pass === pass2 && <div style={{ fontSize: 10, color: t.green, marginTop: 4 }}>✓ Las contraseñas coinciden</div>}
+                </div>
+                <div style={{ padding: "10px 12px", background: t.hover, borderRadius: 8, marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Resumen de registro</div>
+                  <div style={{ fontSize: 12, color: t.text }}><b>{company}</b> · {fullName} · {phone}</div>
+                </div>
+              </>
+            )}
+
             {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.red }}>{error}</div>}
-            <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1 }}>
-              {loading ? "..." : isLogin ? "Iniciar sesión" : "Crear cuenta"}
-            </button>
+
+            {isLogin ? (
+              <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Ingresando..." : "Iniciar sesión"}
+              </button>
+            ) : step === 1 ? (
+              <button onClick={() => { if (validateRegStep1()) setStep(2); }} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                Siguiente →
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setStep(1)} style={{ flex: 1, padding: "11px 0", borderRadius: 9, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  ← Atrás
+                </button>
+                <button onClick={handleSubmit} disabled={loading || pass.length < 6 || pass !== pass2} style={{ flex: 2, padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: (loading || pass.length < 6 || pass !== pass2) ? 0.5 : 1 }}>
+                  {loading ? "Creando cuenta..." : "Crear cuenta"}
+                </button>
+              </div>
+            )}
           </div>
+
           <div style={{ textAlign: "center", marginTop: 16 }}>
             <span style={{ fontSize: 12, color: t.muted }}>{isLogin ? "¿No tenés cuenta?" : "¿Ya tenés cuenta?"} </span>
-            <span onClick={() => { setIsLogin(!isLogin); setError(""); }} style={{ fontSize: 12, color: t.accentL, cursor: "pointer", fontWeight: 600 }}>{isLogin ? "Registrate" : "Iniciá sesión"}</span>
+            <span onClick={switchMode} style={{ fontSize: 12, color: t.accentL, cursor: "pointer", fontWeight: 600 }}>{isLogin ? "Registrate" : "Iniciá sesión"}</span>
           </div>
+          {!isLogin && <div style={{ textAlign: "center", marginTop: 8, fontSize: 10, color: t.dim }}>Al registrarte aceptás los términos y condiciones de GestiónAI</div>}
         </div>
       </div>
     </>
