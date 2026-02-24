@@ -1,5 +1,15 @@
 import { useState, useEffect, createContext, useContext, useRef } from "react";
 import { supabase } from "./lib/supabase";
+
+// File upload helper — stores file in Supabase Storage and returns URL
+const uploadFile = async (file) => {
+  const ext = file.name.split(".").pop();
+  const path = Date.now() + "_" + Math.random().toString(36).slice(2) + "." + ext;
+  const { error } = await supabase.storage.from("documents").upload(path, file);
+  if (error) { console.error("Upload error:", error); return null; }
+  const { data } = supabase.storage.from("documents").getPublicUrl(path);
+  return data?.publicUrl || null;
+};
 import {
   LayoutDashboard, Users, FolderKanban, Receipt, Wallet, FileText, Bell, Search,
   Plus, MoreHorizontal, ArrowUpRight, ArrowDownRight, Eye, Calendar, Clock,
@@ -482,7 +492,7 @@ function Clients({ t }) {
     const c = clients.find(x => x.id === sel);
     if (!c) { setSel(null); return null; }
     const clientTxs = TXS.filter(tx => tx.contact === c.name);
-    const clientDocs = DOCS.filter(d => d.contact === c.name);
+    const clientDocs = DOCS.filter(d => d.contact_id === c.id || d.contact === c.name);
     return (
       <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
         <div onClick={() => setSel(null)} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 16, cursor: "pointer", color: t.muted, fontSize: 12 }}><ChevronLeft size={14} /> Volver</div>
@@ -509,7 +519,8 @@ function Clients({ t }) {
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Documentos ({clientDocs.length})</div>
                 <input ref={clientFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
                   const f = e.target.files[0]; if (!f) return;
-                  await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending" }]);
+                  const fileUrl = await uploadFile(f);
+                  await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending", file_url: fileUrl }]);
                   const curSel = sel; await reload(); setSel(curSel);
                 }} />
                 <Btn t={t} onClick={() => clientFileRef.current && clientFileRef.current.click()}><Upload size={12} />Subir</Btn>
@@ -518,6 +529,7 @@ function Clients({ t }) {
                 <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
                   <FileText size={14} color={t.accentL} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.size}</div></div>
+                  {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a>}
                   <Badge s={d.status} t={t} />
                 </div>
               )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 24 }}>Sin documentos</div>}
@@ -638,15 +650,17 @@ function ProjectsPage({ t }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Documentos y facturas</div>
             <input ref={projFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
               const f = e.target.files[0]; if (!f) return;
-              await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending" }]);
+              const fileUrl = await uploadFile(f);
+              await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending", file_url: fileUrl }]);
               const curSel = sel; await reload(); setSel(curSel);
             }} />
             <Btn t={t} onClick={() => projFileRef.current && projFileRef.current.click()}><Upload size={12} />Subir documento</Btn>
           </div>
-          {DOCS.filter(d => d.pid === p.id).length ? DOCS.filter(d => d.pid === p.id).map(d => (
+          {DOCS.filter(d => d.pid === p.id || d.project_id === p.id).length ? DOCS.filter(d => d.pid === p.id || d.project_id === p.id).map(d => (
             <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
               <FileText size={14} color={t.accentL} />
               <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.size} · {d.contact || "—"}</div></div>
+              {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a>}
               <Badge s={d.status} t={t} />
             </div>
           )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin documentos aún</div>}
@@ -912,7 +926,8 @@ function Transactions({ t }) {
     const linkedDocs = DOCS.filter(d => d.transaction_id === tx.id);
     const attachDoc = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      await supabase.from("documents").insert([{ name: f.name, type: "invoice", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: tx.contact_id, project_id: tx.project_id, transaction_id: tx.id, status: "pending" }]);
+      const fileUrl = await uploadFile(f);
+      await supabase.from("documents").insert([{ name: f.name, type: "invoice", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: tx.contact_id, project_id: tx.project_id, transaction_id: tx.id, status: "pending", file_url: fileUrl }]);
       const curSel = sel;
       await reload();
       setSel(curSel);
@@ -946,7 +961,7 @@ function Transactions({ t }) {
             {tx.status !== "paid" && (
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <Btn primary t={t} onClick={() => markPaid(tx.id)}><Check size={12} />Marcar como pagado</Btn>
-                <Btn t={t}><Mail size={12} />Enviar recordatorio</Btn>
+                <Btn t={t} onClick={() => window.alert("📱 Recordatorio para " + tx.contact + ":\n\nHola, le recordamos que tiene un pago/cobro pendiente:\n• " + tx.desc + "\n• Monto: " + fmt(tx.amount) + "\n\n(Próximamente se enviará por WhatsApp automáticamente)")}><Mail size={12} />Enviar recordatorio</Btn>
               </div>
             )}
           </div>
@@ -956,7 +971,8 @@ function Transactions({ t }) {
               {linkedDocs.length ? linkedDocs.map(d => (
                 <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
                   <FileText size={16} color={t.accentL} />
-                  <div><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.size} · <Badge s={d.type} t={t} /></div></div>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.size} · <Badge s={d.type} t={t} /></div></div>
+                  {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a>}
                 </div>
               )) : (
                 <div style={{ fontSize: 11, color: t.dim, marginBottom: 8, textAlign: "center" }}>Sin documentos</div>
@@ -1242,7 +1258,9 @@ function Accounting({ t }) {
 
 function Treasury({ t }) {
   const [selAcc, setSelAcc] = useState(null);
-  const accounts = [
+  const [showNewAcc, setShowNewAcc] = useState(false);
+  const [newAcc, setNewAcc] = useState({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
+  const [accounts, setAccounts] = useState([
     { id: 1, name: "Banco Galicia — Cta Cte", type: "ARS", bal: 12400000, color: t.accent, cbu: "0070999030004123456789", alias: "GESTION.AI.GALICIA", data: [8.2,9.5,8.8,10.1,11.3,12,12.4],
       movs: [
         { date: "13/02", desc: "Cobro Cert. Obra #47 — Vial SA", amt: 3200000, bal: 12400000 },
@@ -1272,8 +1290,22 @@ function Treasury({ t }) {
         { date: "09/02", desc: "Cobros varios", amt: 320000, bal: 1570000 },
       ]
     },
-  ];
+  ]);
+  const colors = [t.accent, t.blue, t.green, t.orange, t.red, "#EC4899"];
   const totalBal = accounts.reduce((s, a) => s + a.bal, 0);
+
+  const addAccount = () => {
+    if (!newAcc.name.trim()) return;
+    setAccounts([...accounts, { id: Date.now(), name: newAcc.name, type: newAcc.type, bal: Number(newAcc.bal) || 0, color: colors[accounts.length % colors.length], cbu: newAcc.cbu || "—", alias: newAcc.alias || "—", data: [0], movs: [] }]);
+    setNewAcc({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
+    setShowNewAcc(false);
+  };
+
+  const removeAccount = (id) => {
+    if (!window.confirm("¿Eliminar esta cuenta?")) return;
+    setAccounts(accounts.filter(a => a.id !== id));
+    setSelAcc(null);
+  };
 
   // CxC / CxP
   const cxc = [
@@ -1309,6 +1341,7 @@ function Treasury({ t }) {
                   </div>
                 ))}
               </div>
+              <button onClick={() => removeAccount(acc.id)} style={{ marginTop: 10, width: "100%", padding: "7px 0", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Eliminar cuenta</button>
             </Crd>
             <Crd t={t} style={{ padding: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 8 }}>Resumen del mes</div>
@@ -1370,6 +1403,33 @@ function Treasury({ t }) {
       </div>
 
       {/* Bank Accounts */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Cuentas bancarias</div>
+        <Btn primary t={t} onClick={() => setShowNewAcc(!showNewAcc)}><Plus size={12} />Nueva cuenta</Btn>
+      </div>
+      {showNewAcc && (
+        <Crd t={t} style={{ padding: 16, marginBottom: 12, border: "2px dashed " + t.accent + "35" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Agregar cuenta bancaria</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <Inp label="Nombre del banco / cuenta" val={newAcc.name} onChange={v => setNewAcc({ ...newAcc, name: v })} t={t} placeholder="Ej: Banco Nación — Cta Cte" />
+            <Inp label="Saldo actual ($)" val={newAcc.bal} onChange={v => setNewAcc({ ...newAcc, bal: v })} t={t} placeholder="5000000" />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Moneda</div>
+              <select value={newAcc.type} onChange={e => setNewAcc({ ...newAcc, type: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
+                <option value="ARS">ARS</option><option value="USD">USD</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <Inp label="CBU (opcional)" val={newAcc.cbu} onChange={v => setNewAcc({ ...newAcc, cbu: v })} t={t} placeholder="0000000000000000000000" />
+            <Inp label="Alias (opcional)" val={newAcc.alias} onChange={v => setNewAcc({ ...newAcc, alias: v })} t={t} placeholder="MI.ALIAS.BANCO" />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+            <Btn t={t} onClick={() => setShowNewAcc(false)}>Cancelar</Btn>
+            <Btn primary t={t} onClick={addAccount}><Check size={12} />Guardar</Btn>
+          </div>
+        </Crd>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
         {accounts.map(acc => (
           <Crd key={acc.id} t={t} style={{ padding: 14, borderTop: "3px solid " + acc.color, cursor: "pointer" }}>
@@ -1386,12 +1446,13 @@ function Treasury({ t }) {
         ))}
       </div>
 
-      {/* Forecast */}
+      {/* Cash Flow Projection */}
       <Crd t={t} style={{ padding: 14, marginBottom: 18 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Forecast — Próximas 4 semanas</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}><Bot size={12} color={t.accentL} /><span style={{ fontSize: 10, color: t.accentL }}>Proyección IA</span></div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Proyección de flujo de caja</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}><Bot size={12} color={t.accentL} /><span style={{ fontSize: 10, color: t.accentL }}>Estimación IA</span></div>
         </div>
+        <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>Cuánta plata se estima que entra y sale cada semana — basado en cobros pendientes, pagos programados y patrones históricos.</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 12 }}>
           {[
             ["Sem 1 (17-21 Feb)", 8200000, 2455000],
@@ -1512,6 +1573,7 @@ function DocumentsPage({ t }) {
 
   const saveDoc = async () => {
     if (!upFile) { window.alert("Seleccioná un archivo primero"); return; }
+    const fileUrl = await uploadFile(upFile);
     await supabase.from("documents").insert([{
       name: upFile.name,
       type: upForm.type,
@@ -1520,6 +1582,7 @@ function DocumentsPage({ t }) {
       project_id: upForm.project_id || null,
       transaction_id: upForm.transaction_id || null,
       status: "pending",
+      file_url: fileUrl,
     }]);
     await reload();
     setUpFile(null);
@@ -1679,6 +1742,20 @@ function DocumentsPage({ t }) {
                 ))}
               </div>
             </div>
+            {selDoc.file_url ? (
+              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <a href={selDoc.file_url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 0", borderRadius: 7, background: t.accentBg, border: "1px solid " + t.accent + "30", color: t.accentL, fontSize: 12, fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>
+                  <Eye size={13} /> Ver archivo
+                </a>
+                <a href={selDoc.file_url} download={selDoc.name} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 0", borderRadius: 7, background: t.hover, border: "1px solid " + t.border, color: t.text, fontSize: 12, fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>
+                  <Download size={13} /> Descargar
+                </a>
+              </div>
+            ) : (
+              <div style={{ padding: "10px 12px", background: t.hover, borderRadius: 7, fontSize: 11, color: t.dim, textAlign: "center", marginBottom: 12 }}>
+                Archivo no disponible — subido solo como registro
+              </div>
+            )}
             <button onClick={() => deleteDoc(selDoc.id)} style={{ width: "100%", padding: "8px 0", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Eliminar documento</button>
           </div>
         </Crd>
@@ -2192,3 +2269,4 @@ export default function App() {
     </DataProvider>
   );
 }
+
