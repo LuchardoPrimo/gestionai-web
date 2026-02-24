@@ -306,158 +306,292 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout }) {
   );
 }
 
-function TopBar({ title, sub, theme, toggleTheme, t }) {
+function TopBar({ title, sub, theme, toggleTheme, t, user, onLogout, onNav }) {
+  const { transactions: TXS, tasks, clients, projects, documents } = useData();
+  const [searchQ, setSearchQ] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [notiOpen, setNotiOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  // Search across all data
+  const searchResults = searchQ.length < 2 ? [] : [
+    ...clients.filter(c => c.name.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 3).map(c => ({ type: "Cliente", name: c.name, icon: Users, nav: "clients" })),
+    ...projects.filter(p => p.name.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 3).map(p => ({ type: "Proyecto", name: p.name, icon: FolderKanban, nav: "projects" })),
+    ...TXS.filter(tx => tx.desc.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 3).map(tx => ({ type: "Transacción", name: tx.desc + " (" + fmt(tx.amount) + ")", icon: Receipt, nav: "transactions" })),
+    ...tasks.filter(tk => tk.title.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 3).map(tk => ({ type: "Tarea", name: tk.title, icon: CheckCircle2, nav: "tasks" })),
+    ...documents.filter(d => d.name.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 3).map(d => ({ type: "Documento", name: d.name, icon: FileText, nav: "documents" })),
+  ].slice(0, 8);
+
+  // Notifications
+  const overdueTx = TXS.filter(tx => tx.status === "overdue");
+  const pendingTx = TXS.filter(tx => tx.status === "pending");
+  const urgentTasks = tasks.filter(tk => tk.pri === "high" && tk.st !== "done");
+  const dueSoonTasks = tasks.filter(tk => {
+    if (!tk.due || tk.st === "done") return false;
+    const d = new Date(tk.due); const now = new Date(); const diff = (d - now) / (1000*60*60*24);
+    return diff >= 0 && diff <= 3;
+  });
+  const notifs = [
+    ...overdueTx.map(tx => ({ icon: AlertCircle, color: t.red, text: "Pago vencido: " + tx.desc, sub: fmt(tx.amount), nav: "transactions" })),
+    ...urgentTasks.map(tk => ({ icon: Target, color: t.red, text: "Tarea urgente: " + tk.title, sub: tk.project, nav: "tasks" })),
+    ...dueSoonTasks.map(tk => ({ icon: Clock, color: t.orange, text: "Vence pronto: " + tk.title, sub: tk.due, nav: "tasks" })),
+    ...pendingTx.slice(0, 3).map(tx => ({ icon: Clock, color: t.orange, text: "Pendiente: " + tx.desc, sub: fmt(tx.amount), nav: "transactions" })),
+  ];
+  const notiCount = overdueTx.length + urgentTasks.length + dueSoonTasks.length;
+
+  const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario";
+  const userCompany = user?.user_metadata?.company || "";
+  const userPhone = user?.user_metadata?.phone || "";
+  const userRole = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", other: "Otro" }[user?.user_metadata?.role] || "";
+
   return (
-    <div style={{ padding: "11px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid " + t.border, background: t.topbar, minHeight: 54 }}>
+    <div style={{ padding: "11px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid " + t.border, background: t.topbar, minHeight: 54, position: "relative" }}>
       <div>
         <h1 style={{ fontSize: 16, fontWeight: 700, color: t.text, margin: 0 }}>{title}</h1>
         {sub && <p style={{ fontSize: 11, color: t.muted, margin: "1px 0 0" }}>{sub}</p>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.card, border: "1px solid " + t.border, borderRadius: 7, padding: "5px 10px", width: 180 }}>
-          <Search size={13} color={t.dim} />
-          <input placeholder="Buscar..." style={{ background: "transparent", border: "none", padding: 0, fontSize: 12, color: t.text, outline: "none", width: "100%" }} />
+        {/* Search */}
+        <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.card, border: "1px solid " + (searchOpen ? t.accent + "50" : t.border), borderRadius: 7, padding: "5px 10px", width: searchOpen ? 260 : 180, transition: "all 0.2s" }}>
+            <Search size={13} color={t.dim} />
+            <input value={searchQ} onChange={e => { setSearchQ(e.target.value); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onBlur={() => setTimeout(() => setSearchOpen(false), 200)} placeholder="Buscar clientes, obras, tareas..." style={{ background: "transparent", border: "none", padding: 0, fontSize: 12, color: t.text, outline: "none", width: "100%" }} />
+            {searchQ && <div onMouseDown={() => { setSearchQ(""); setSearchOpen(false); }} style={{ cursor: "pointer" }}><X size={12} color={t.dim} /></div>}
+          </div>
+          {searchOpen && searchQ.length >= 2 && (
+            <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, width: 320, background: t.card, border: "1px solid " + t.border, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", zIndex: 100, overflow: "hidden" }}>
+              {searchResults.length === 0 ? (
+                <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin resultados para "{searchQ}"</div>
+              ) : searchResults.map((r, i) => (
+                <div key={i} onMouseDown={() => { onNav(r.nav); setSearchQ(""); setSearchOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid " + t.border + "30", background: "transparent" }} onMouseEnter={e => e.currentTarget.style.background = t.hover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <r.icon size={14} color={t.accentL} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                  </div>
+                  <span style={{ fontSize: 10, color: t.dim, background: t.hover, padding: "2px 6px", borderRadius: 4 }}>{r.type}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Theme */}
         <div onClick={toggleTheme} style={{ width: 30, height: 30, borderRadius: 7, background: t.card, border: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           {theme === "dark" ? <Sun size={14} color={t.yellow} /> : <Moon size={14} color={t.accent} />}
         </div>
-        <div style={{ width: 30, height: 30, borderRadius: 7, background: t.card, border: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-          <Bell size={14} color={t.muted} />
-          <div style={{ position: "absolute", top: 5, right: 5, width: 6, height: 6, background: t.red, borderRadius: "50%", border: "2px solid " + t.topbar }} />
+
+        {/* Notifications */}
+        <div style={{ position: "relative" }}>
+          <div onClick={() => { setNotiOpen(!notiOpen); setProfileOpen(false); }} style={{ width: 30, height: 30, borderRadius: 7, background: notiOpen ? t.accentBg : t.card, border: "1px solid " + (notiOpen ? t.accent + "30" : t.border), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
+            <Bell size={14} color={notiOpen ? t.accentL : t.muted} />
+            {notiCount > 0 && <div style={{ position: "absolute", top: 3, right: 3, minWidth: 14, height: 14, background: t.red, borderRadius: 7, border: "2px solid " + t.topbar, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>{notiCount}</span></div>}
+          </div>
+          {notiOpen && (
+            <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, width: 340, background: t.card, border: "1px solid " + t.border, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", zIndex: 100, maxHeight: 380, overflowY: "auto" }}>
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Notificaciones</span>
+                <span style={{ fontSize: 11, color: t.dim }}>{notifs.length} alertas</span>
+              </div>
+              {notifs.length === 0 ? (
+                <div style={{ padding: 24, textAlign: "center", color: t.dim, fontSize: 12 }}>Todo al día</div>
+              ) : notifs.map((n, i) => (
+                <div key={i} onMouseDown={() => { onNav(n.nav); setNotiOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid " + t.border + "20" }} onMouseEnter={e => e.currentTarget.style.background = t.hover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: n.color + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><n.icon size={13} color={n.color} /></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{n.text}</div>
+                    <div style={{ fontSize: 10, color: t.dim }}>{n.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <Av name="Usuario Demo" size={30} />
+
+        {/* Profile */}
+        <div style={{ position: "relative" }}>
+          <div onClick={() => { setProfileOpen(!profileOpen); setNotiOpen(false); }} style={{ cursor: "pointer" }}>
+            <Av name={userName} size={30} />
+          </div>
+          {profileOpen && (
+            <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, width: 280, background: t.card, border: "1px solid " + t.border, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", zIndex: 100 }}>
+              <div style={{ padding: 16, borderBottom: "1px solid " + t.border }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <Av name={userName} size={40} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{userName}</div>
+                    <div style={{ fontSize: 11, color: t.muted }}>{user?.email}</div>
+                  </div>
+                </div>
+                {userCompany && (
+                  <div style={{ padding: "8px 10px", background: t.hover, borderRadius: 7, marginBottom: 6 }}>
+                    <div style={{ fontSize: 10, color: t.dim }}>Empresa</div>
+                    <div style={{ fontSize: 12, color: t.text, fontWeight: 600 }}>{userCompany}</div>
+                  </div>
+                )}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  {userRole && <div style={{ padding: "6px 8px", background: t.hover, borderRadius: 6 }}><div style={{ fontSize: 9, color: t.dim }}>Rol</div><div style={{ fontSize: 11, color: t.text }}>{userRole}</div></div>}
+                  {userPhone && <div style={{ padding: "6px 8px", background: t.hover, borderRadius: 6 }}><div style={{ fontSize: 9, color: t.dim }}>Teléfono</div><div style={{ fontSize: 11, color: t.text }}>{userPhone}</div></div>}
+                </div>
+              </div>
+              <div onMouseDown={onLogout} style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: t.red, fontSize: 12, fontWeight: 600 }} onMouseEnter={e => e.currentTarget.style.background = t.hover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <LogOut size={14} /> Cerrar sesión
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function Dashboard({ t }) {
-  const { transactions: TXS, tasks, loading } = useData();
-  const pendingTasks = tasks.filter(tk => tk.st === "todo" || tk.st === "in_progress").slice(0, 5);
+  const { transactions: TXS, tasks, clients, projects, documents } = useData();
+  const pendingTasks = tasks.filter(tk => tk.st === "todo" || tk.st === "in_progress");
+  const urgentTasks = pendingTasks.filter(tk => tk.pri === "high");
   const pendingTx = TXS.filter(tx => tx.status === "pending" || tx.status === "overdue");
+  const overdueTx = TXS.filter(tx => tx.status === "overdue");
+  const recentDocs = documents.slice(0, 5);
+  const today = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+
+  // Tasks due soon (next 7 days)
+  const dueSoon = tasks.filter(tk => {
+    if (!tk.due || tk.st === "done") return false;
+    const d = new Date(tk.due); const now = new Date(); const diff = (d - now) / (1000*60*60*24);
+    return diff >= -1 && diff <= 7;
+  }).sort((a, b) => new Date(a.due) - new Date(b.due));
+
   return (
     <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
-      {/* KPI Row - bigger */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+      {/* Welcome + date */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Buen día</div>
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+      </div>
+
+      {/* Quick stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
         {[
-          { icon: CircleDollarSign, label: "Saldo disponible", val: "$18.4M", ch: "+12.3%", pos: true, data: [12,14,13,16,15,18,18.4], cc: "#34D399", bg: "rgba(52,211,153,0.08)" },
-          { icon: ArrowUpRight, label: "Ingresos del mes", val: "$16.5M", ch: "+8.7%", pos: true, data: [8,10,12,11,14,16,16.5], cc: t.accent, bg: t.accentBg },
-          { icon: ArrowDownRight, label: "Egresos del mes", val: "$9.8M", ch: "-3.2%", pos: true, data: [11,10.5,10,9.5,10.2,9.9,9.8], cc: "#60A5FA", bg: "rgba(96,165,250,0.08)" },
-          { icon: AlertCircle, label: "CxC vencidas", val: "$2.1M", ch: "+5.1%", pos: false, data: [1.5,1.8,1.6,2,1.9,2.2,2.1], cc: "#FBBF24", bg: "rgba(251,191,36,0.08)" },
+          { icon: Target, label: "Tareas pendientes", val: pendingTasks.length, sub: urgentTasks.length + " urgentes", color: t.accent, bg: t.accentBg },
+          { icon: AlertCircle, label: "Pagos vencidos", val: overdueTx.length, sub: overdueTx.length ? fmt(overdueTx.reduce((s, tx) => s + Math.abs(tx.amount), 0)) : "Ninguno", color: t.red, bg: t.redBg },
+          { icon: Clock, label: "Cobros pendientes", val: pendingTx.filter(tx => tx.amount > 0).length, sub: fmt(pendingTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0)), color: t.green, bg: t.greenBg },
+          { icon: FolderKanban, label: "Obras activas", val: projects.filter(p => p.status === "active" || p.status === "in_progress").length || projects.length, sub: clients.length + " clientes", color: t.blue, bg: "rgba(96,165,250,0.08)" },
         ].map((k, i) => (
-          <Crd key={i} t={t} style={{ padding: 18 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><k.icon size={19} color={k.cc} /></div>
-              <Chart data={k.data} color={k.cc} w={90} h={32} />
+          <Crd key={i} t={t} style={{ padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><k.icon size={17} color={k.color} /></div>
             </div>
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>{k.val}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8, padding: "4px 8px", borderRadius: 6, background: k.pos ? t.greenBg : t.redBg, width: "fit-content" }}>
-              {k.pos ? <ArrowUpRight size={12} color={t.green} /> : <ArrowDownRight size={12} color={t.red} />}
-              <span style={{ fontSize: 11, color: k.pos ? t.green : t.red, fontWeight: 600 }}>{k.ch}</span>
-              <span style={{ fontSize: 10, color: t.dim, marginLeft: 2 }}>vs mes ant.</span>
-            </div>
+            <div style={{ fontSize: 10, color: t.muted }}>{k.label}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: t.text }}>{k.val}</div>
+            <div style={{ fontSize: 10, color: t.dim, marginTop: 2 }}>{k.sub}</div>
           </Crd>
         ))}
       </div>
 
-      {/* Cash flow chart - bigger */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 14, marginBottom: 20 }}>
+      {/* Main grid: tasks + agenda */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr", gap: 14, marginBottom: 20 }}>
+        {/* Tasks panel */}
         <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Cash Flow — 6 meses</div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: t.accent }} /><span style={{ fontSize: 10, color: t.muted }}>Ingresos</span></div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: t.blue + "60" }} /><span style={{ fontSize: 10, color: t.muted }}>Egresos</span></div>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Tareas para hoy</div>
+            <span style={{ fontSize: 11, color: t.dim }}>{pendingTasks.length} pendientes</span>
           </div>
-          <div style={{ display: "flex", gap: 16, height: 180, alignItems: "flex-end" }}>
-            {[["Sep",65,50],["Oct",70,45],["Nov",55,60],["Dic",80,55],["Ene",75,48],["Feb",85,52]].map(([m,inc,out], i) => (
-              <div key={m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 160, width: "100%" }}>
-                  <div style={{ flex: 1, height: inc + "%", background: "linear-gradient(180deg, " + t.accent + ", " + t.accent + "60)", borderRadius: "5px 5px 0 0", transition: "height 0.5s" }} />
-                  <div style={{ flex: 1, height: out + "%", background: "linear-gradient(180deg, " + t.blue + "80, " + t.blue + "30)", borderRadius: "5px 5px 0 0", transition: "height 0.5s" }} />
-                </div>
-                <span style={{ fontSize: 11, color: t.dim, fontWeight: 500 }}>{m}</span>
-              </div>
-            ))}
-          </div>
-        </Crd>
-        <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Próximos 7 días</div>
-          {[
-            { l: "Cobro Vial SA — Cert. #47", a: "+$3.2M", d: "20 Feb", inc: true },
-            { l: "Pago Hierros del Sur", a: "-$1.85M", d: "21 Feb", inc: false },
-            { l: "Cobro Costa — Anticipo", a: "+$5.0M", d: "22 Feb", inc: true },
-            { l: "Pago Ferretería López", a: "-$420K", d: "23 Feb", inc: false },
-            { l: "Cobro Méndez", a: "+$780K", d: "24 Feb", inc: true },
-          ].map((u, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 10px", borderRadius: 8, background: t.hover, marginBottom: 5 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 7, background: u.inc ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {u.inc ? <ArrowUpRight size={12} color={t.green} /> : <ArrowDownRight size={12} color={t.red} />}
-                </div>
-                <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{u.l}</div><div style={{ fontSize: 10, color: t.dim }}>{u.d}</div></div>
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: u.inc ? t.green : t.red }}>{u.a}</span>
+          {pendingTasks.length === 0 ? (
+            <div style={{ padding: 30, textAlign: "center" }}>
+              <CheckCircle2 size={28} color={t.green} style={{ marginBottom: 8 }} />
+              <div style={{ fontSize: 13, color: t.green, fontWeight: 600 }}>Todo al día</div>
+              <div style={{ fontSize: 11, color: t.dim }}>No hay tareas pendientes</div>
             </div>
-          ))}
-        </Crd>
-      </div>
-
-      {/* Last transactions */}
-      <Crd t={t} style={{ padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Últimas transacciones</div>
-          <Btn t={t} onClick={() => exportCSV("transacciones", ["Fecha","Descripción","Contacto","Monto","Estado"], TXS.map(tx => [tx.date, tx.desc, tx.contact, tx.amount, tx.status]))}><Download size={12} />Exportar</Btn>
-        </div>
-        {TXS.slice(0, 5).map(tx => (
-          <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid " + t.border + "15" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 7, background: tx.amount > 0 ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {tx.amount > 0 ? <ArrowUpRight size={12} color={t.green} /> : <ArrowDownRight size={12} color={t.red} />}
-              </div>
-              <div><div style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 11, color: t.dim }}>{tx.date} · {tx.contact}</div></div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
-              <Badge s={tx.status} t={t} />
-            </div>
-          </div>
-        ))}
-      </Crd>
-
-      {/* Pending tasks + payments */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
-        <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Tareas pendientes</div>
-          {pendingTasks.length === 0 ? <div style={{ fontSize: 12, color: t.dim, padding: 16, textAlign: "center" }}>Sin tareas pendientes</div> : pendingTasks.map(tk => (
-            <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: 8, background: t.hover, marginBottom: 5 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue }} />
-                <div>
-                  <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
-                  <div style={{ fontSize: 10, color: t.dim }}>{tk.project} · {tk.due || "Sin fecha"}</div>
-                </div>
-              </div>
-              <Badge s={tk.st} t={t} />
-            </div>
-          ))}
-        </Crd>
-        <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Cobros y pagos pendientes</div>
-          {pendingTx.length === 0 ? <div style={{ fontSize: 12, color: t.dim, padding: 16, textAlign: "center" }}>Todo al día</div> : pendingTx.map(tx => (
-            <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 10px", borderRadius: 8, background: t.hover, marginBottom: 5, borderLeft: "3px solid " + (tx.status === "overdue" ? t.red : t.orange) }}>
-              <div>
-                <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div>
-                <div style={{ fontSize: 10, color: t.dim }}>{tx.contact} · {tx.date}</div>
+          ) : pendingTasks.slice(0, 8).map(tk => (
+            <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: t.hover, marginBottom: 5, borderLeft: "3px solid " + (tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue) }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
+                <div style={{ fontSize: 10, color: t.dim }}>{tk.project} · {tk.who || "Sin asignar"}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</div>
-                <Badge s={tx.status} t={t} />
+                {tk.due && <div style={{ fontSize: 10, color: new Date(tk.due) < new Date() ? t.red : t.dim }}>{tk.due}</div>}
+                <Badge s={tk.st} t={t} />
               </div>
+            </div>
+          ))}
+          {pendingTasks.length > 8 && <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: t.accentL }}>+{pendingTasks.length - 8} tareas más</div>}
+        </Crd>
+
+        {/* Right column: vencimientos + próximos */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Due soon */}
+          <Crd t={t} style={{ padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Vencimientos próximos</div>
+            {dueSoon.length === 0 ? (
+              <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Sin vencimientos esta semana</div>
+            ) : dueSoon.slice(0, 5).map(tk => {
+              const d = new Date(tk.due); const now = new Date(); const diff = Math.ceil((d - now) / (1000*60*60*24));
+              const urgency = diff < 0 ? "Vencida" : diff === 0 ? "Hoy" : diff === 1 ? "Mañana" : diff + " días";
+              return (
+                <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: diff <= 0 ? t.red : diff <= 2 ? t.orange : t.blue, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.title}</div>
+                    <div style={{ fontSize: 10, color: t.dim }}>{tk.project}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: diff <= 0 ? t.red : diff <= 2 ? t.orange : t.muted, whiteSpace: "nowrap" }}>{urgency}</span>
+                </div>
+              );
+            })}
+          </Crd>
+
+          {/* Cobros/pagos urgentes */}
+          <Crd t={t} style={{ padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Cobros y pagos pendientes</div>
+            {pendingTx.length === 0 ? (
+              <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Todo al día</div>
+            ) : pendingTx.slice(0, 5).map(tx => (
+              <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.desc}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{tx.contact}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</div>
+                  <Badge s={tx.status} t={t} />
+                </div>
+              </div>
+            ))}
+          </Crd>
+        </div>
+      </div>
+
+      {/* Bottom row: recent activity + docs */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {/* Last transactions */}
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Últimos movimientos</div>
+          {TXS.slice(0, 5).map(tx => (
+            <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 6, background: tx.amount > 0 ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {tx.amount > 0 ? <ArrowUpRight size={11} color={t.green} /> : <ArrowDownRight size={11} color={t.red} />}
+                </div>
+                <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date} · {tx.contact}</div></div>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
+            </div>
+          ))}
+        </Crd>
+
+        {/* Recent docs */}
+        <Crd t={t} style={{ padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Documentos recientes</div>
+          {recentDocs.length === 0 ? (
+            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 20 }}>Sin documentos</div>
+          ) : recentDocs.map(d => (
+            <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+              <FileText size={14} color={t.accentL} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
+                <div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.contact || d.project || "—"}</div>
+              </div>
+              <Badge s={d.status} t={t} />
+              {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: t.accentL, textDecoration: "none", padding: "2px 6px", background: t.accentBg, borderRadius: 4 }}>Ver</a>}
             </div>
           ))}
         </Crd>
@@ -2274,7 +2408,7 @@ function AppContent({ user, onLogout }) {
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s" }}>
         <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} />
+          <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} onLogout={onLogout} onNav={setPage} />
           <Page t={t} />
         </div>
       </div>
