@@ -16,7 +16,7 @@ import {
   CheckCircle2, AlertCircle, Phone, Mail, MapPin, Tag, MessageSquare, BarChart3,
   CreditCard, FileUp, Download, Zap, ChevronLeft, X, Check, Bot, CircleDollarSign,
   Layers, Target, Activity, Archive, Sun, Moon, Upload, Link2, List, Grid3X3,
-  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase
+  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus
 } from "lucide-react";
 
 // Data context for Supabase
@@ -244,7 +244,7 @@ function Crd({ children, t, style: s }) {
   );
 }
 
-function Sidebar({ active, onNav, collapsed, toggle, t }) {
+function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout }) {
   const nav = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { id: "clients", icon: Users, label: "Clientes / Proveedores" },
@@ -284,10 +284,23 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
         })}
       </div>
       <div style={{ padding: collapsed ? 10 : 14, borderTop: "1px solid " + t.border }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)", marginBottom: 8 }}>
           <MessageSquare size={16} color="#25D366" />
           {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>Conectado</div></div>}
         </div>
+        {user && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "8px 10px" }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: t.accent + "25", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: t.accentL }}>{(user.email || "U")[0].toUpperCase()}</span>
+            </div>
+            {!collapsed && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
+              </div>
+            )}
+            <div onClick={onLogout} style={{ cursor: "pointer", flexShrink: 0 }} title="Cerrar sesión"><LogOut size={14} color={t.dim} /></div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -772,7 +785,7 @@ function TasksPage({ t }) {
         </select>
       </div>
       <Inp label="Asignado" val={editForm.who} onChange={v => setEditForm({...editForm, who: v})} t={t} />
-      <Inp label="Fecha (YYYY-MM-DD)" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} />
+      <Inp label="Fecha de vencimiento (YYYY-MM-DD)" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} />
       <Inp label="Etiqueta" val={editForm.tag} onChange={v => setEditForm({...editForm, tag: v})} t={t} />
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
         <Btn t={t} onClick={() => deleteTask(editForm.id)} style={{ color: t.red }}><X size={12} />Eliminar</Btn>
@@ -900,6 +913,7 @@ function Transactions({ t }) {
   const [tab, setTab] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [filterProject, setFilterProject] = useState("");
   const [nf, setNf] = useState({ description: "", contact_id: "", project_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
 
   const saveTx = async () => {
@@ -916,7 +930,10 @@ function Transactions({ t }) {
     setSel(null);
   };
 
-  const list = tab === "accounting" ? TXS : TXS.filter(tx => tab === "income" ? tx.amount > 0 : tab === "expense" ? tx.amount < 0 : tab === "pending" ? (tx.status === "pending" || tx.status === "overdue") : true);
+  const list = tab === "accounting" ? TXS : TXS.filter(tx => {
+    if (filterProject && tx.project !== filterProject) return false;
+    return tab === "income" ? tx.amount > 0 : tab === "expense" ? tx.amount < 0 : tab === "pending" ? (tx.status === "pending" || tx.status === "overdue") : true;
+  });
 
   const txFileRef = useRef(null);
 
@@ -996,7 +1013,14 @@ function Transactions({ t }) {
   return (
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
-        <Tabs t={t} active={tab} onChange={setTab} items={[{ id: "all", label: "Todas" }, { id: "income", label: "Ingresos" }, { id: "expense", label: "Egresos" }, { id: "pending", label: "Pendientes" }, { id: "accounting", label: "Contabilidad", icon: Layers }]} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Tabs t={t} active={tab} onChange={setTab} items={[{ id: "all", label: "Todas" }, { id: "income", label: "Ingresos" }, { id: "expense", label: "Egresos" }, { id: "pending", label: "Pendientes" }, { id: "accounting", label: "Contabilidad", icon: Layers }]} />
+          <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={{ background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "6px 9px", color: t.text, fontSize: 11 }}>
+            <option value="">Todos los proyectos</option>
+            {[...new Set(TXS.map(tx => tx.project).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {filterProject && <button onClick={() => setFilterProject("")} style={{ background: "transparent", border: "none", color: t.red, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>✕</button>}
+        </div>
         <Btn primary t={t} onClick={() => setShowNew(!showNew)}><Plus size={12} />Nueva</Btn>
       </div>
       {showNew && (
@@ -2217,7 +2241,7 @@ function LoadingScreen({ t }) {
   );
 }
 
-function AppContent() {
+function AppContent({ user, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
@@ -2248,7 +2272,7 @@ function AppContent() {
         "select{color:" + t.text + "}option{background:" + t.card + ";color:" + t.text + "}"
       }</style>
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s" }}>
-        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} />
+        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} />
           <Page t={t} />
@@ -2258,15 +2282,111 @@ function AppContent() {
   );
 }
 
-export default function App() {
-  const [view, setView] = useState("landing");
+function LoginPage({ onLogin }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const t = themes.dark;
 
-  if (view === "landing") return <Landing onEnter={() => setView("app")} />;
+  const handleSubmit = async () => {
+    if (!email.trim() || !pass.trim()) { setError("Completá email y contraseña"); return; }
+    if (pass.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+    setLoading(true); setError("");
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) setError(error.message === "Invalid login credentials" ? "Email o contraseña incorrectos" : error.message);
+        else onLogin();
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password: pass });
+        if (error) setError(error.message);
+        else { setError(""); window.alert("✅ Cuenta creada. Revisá tu email para confirmar, o probá iniciar sesión."); setIsLogin(true); }
+      }
+    } catch (e) { setError("Error de conexión"); }
+    setLoading(false);
+  };
 
   return (
-    <DataProvider>
-      <AppContent />
-    </DataProvider>
+    <>
+      <style>{
+        "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');" +
+        "*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',-apple-system,sans-serif}" +
+        "input::placeholder{color:" + t.dim + "}"
+      }</style>
+      <div style={{ minHeight: "100vh", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", top: "20%", left: "10%", width: 300, height: 300, borderRadius: "50%", background: t.accent + "08", filter: "blur(80px)" }} />
+          <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 250, height: 250, borderRadius: "50%", background: "#A78BFA10", filter: "blur(80px)" }} />
+        </div>
+        <div style={{ width: 400, padding: 40, position: "relative", zIndex: 1 }}>
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 4px 20px " + t.accent + "40" }}>
+              <Zap size={26} color="#fff" />
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>GestiónAI</div>
+            <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{isLogin ? "Iniciá sesión en tu cuenta" : "Creá una cuenta nueva"}</div>
+          </div>
+          <div style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 14, padding: 24 }}>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Email</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" }}>
+                <Mail size={14} color={t.dim} />
+                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@empresa.com" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none" }} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 5 }}>Contraseña</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" }}>
+                <Lock size={14} color={t.dim} />
+                <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && handleSubmit()} style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none" }} />
+              </div>
+            </div>
+            {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.red }}>{error}</div>}
+            <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1 }}>
+              {loading ? "..." : isLogin ? "Iniciar sesión" : "Crear cuenta"}
+            </button>
+          </div>
+          <div style={{ textAlign: "center", marginTop: 16 }}>
+            <span style={{ fontSize: 12, color: t.muted }}>{isLogin ? "¿No tenés cuenta?" : "¿Ya tenés cuenta?"} </span>
+            <span onClick={() => { setIsLogin(!isLogin); setError(""); }} style={{ fontSize: 12, color: t.accentL, cursor: "pointer", fontWeight: 600 }}>{isLogin ? "Registrate" : "Iniciá sesión"}</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
+export default function App() {
+  const [view, setView] = useState("loading");
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) { setUser(session.user); setView("app"); }
+      else setView("landing");
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) { setUser(session.user); setView("app"); }
+      else { setUser(null); setView("landing"); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setView("landing");
+  };
+
+  if (view === "loading") return <div style={{ minHeight: "100vh", background: "#0B0F1A", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
+  if (view === "landing") return <Landing onEnter={() => setView("login")} />;
+  if (view === "login") return <LoginPage onLogin={() => setView("app")} />;
+
+  return (
+    <DataProvider>
+      <AppContent user={user} onLogout={handleLogout} />
+    </DataProvider>
+  );
+}
