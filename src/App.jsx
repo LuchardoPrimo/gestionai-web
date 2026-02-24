@@ -30,9 +30,17 @@ function DataProvider({ children }) {
   const [tasks, setTasks] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [companyId, setCompanyId] = useState(null);
 
   const load = async () => {
     try {
+      // Get company_id for inserts
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: prof } = await supabase.from("user_profiles").select("company_id").eq("id", user.id).single();
+        if (prof?.company_id) setCompanyId(prof.company_id);
+      }
+
       const [cRes, pRes, tRes, tkRes, dRes] = await Promise.all([
         supabase.from("clients").select("*").order("name"),
         supabase.from("projects").select("*, client:clients(name)").order("name"),
@@ -89,7 +97,7 @@ function DataProvider({ children }) {
   useEffect(() => { load(); }, []);
 
   return (
-    <DataContext.Provider value={{ clients, projects, transactions, tasks, documents, loading, reload: load, setClients, setProjects, setTransactions, setTasks, setDocuments }}>
+    <DataContext.Provider value={{ clients, projects, transactions, tasks, documents, loading, reload: load, companyId, setClients, setProjects, setTransactions, setTasks, setDocuments }}>
       {children}
     </DataContext.Provider>
   );
@@ -244,17 +252,18 @@ function Crd({ children, t, style: s }) {
   );
 }
 
-function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout }) {
-  const nav = [
-    { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { id: "clients", icon: Users, label: "Clientes / Proveedores" },
-    { id: "projects", icon: FolderKanban, label: "Proyectos / Obras" },
-    { id: "tasks", icon: Target, label: "Tareas" },
-    { id: "transactions", icon: Receipt, label: "Finanzas" },
-    { id: "treasury", icon: Wallet, label: "Tesorería" },
-    { id: "documents", icon: FileText, label: "Documentos" },
-    { id: "reports", icon: BarChart3, label: "Reportes" },
+function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) {
+  const allNav = [
+    { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ["owner","admin","accountant","pm","employee"] },
+    { id: "clients", icon: Users, label: "Clientes / Proveedores", roles: ["owner","admin","accountant"] },
+    { id: "projects", icon: FolderKanban, label: "Proyectos / Obras", roles: ["owner","admin","pm","employee"] },
+    { id: "tasks", icon: Target, label: "Tareas", roles: ["owner","admin","pm","employee"] },
+    { id: "transactions", icon: Receipt, label: "Finanzas", roles: ["owner","admin","accountant"] },
+    { id: "treasury", icon: Wallet, label: "Tesorería", roles: ["owner","admin"] },
+    { id: "documents", icon: FileText, label: "Documentos", roles: ["owner","admin","accountant","pm"] },
+    { id: "reports", icon: BarChart3, label: "Reportes", roles: ["owner","admin","accountant"] },
   ];
+  const nav = allNav.filter(n => n.roles.includes(role || "owner"));
   const w = collapsed ? 64 : 230;
   return (
     <div style={{ width: w, minWidth: w, height: "100vh", background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", transition: "width 0.2s", overflow: "hidden" }}>
@@ -306,7 +315,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout }) {
   );
 }
 
-function TopBar({ title, sub, theme, toggleTheme, t, user, onLogout, onNav }) {
+function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, onNav }) {
   const { transactions: TXS, tasks, clients, projects, documents } = useData();
   const [searchQ, setSearchQ] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -339,10 +348,10 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, onLogout, onNav }) {
   ];
   const notiCount = overdueTx.length + urgentTasks.length + dueSoonTasks.length;
 
-  const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario";
-  const userCompany = user?.user_metadata?.company || "";
+  const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario";
+  const userCompany = profile?.company?.name || user?.user_metadata?.company || "";
   const userPhone = user?.user_metadata?.phone || "";
-  const userRole = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", other: "Otro" }[user?.user_metadata?.role] || "";
+  const userRole = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", employee: "Empleado", other: "Otro" }[profile?.role || user?.user_metadata?.role] || "";
 
   return (
     <div style={{ padding: "11px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid " + t.border, background: t.topbar, minHeight: 54, position: "relative" }}>
@@ -444,7 +453,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, onLogout, onNav }) {
   );
 }
 
-function Dashboard({ t }) {
+function Dashboard({ t, onNav }) {
   const { transactions: TXS, tasks, clients, projects, documents } = useData();
   const pendingTasks = tasks.filter(tk => tk.st === "todo" || tk.st === "in_progress");
   const urgentTasks = pendingTasks.filter(tk => tk.pri === "high");
@@ -471,12 +480,12 @@ function Dashboard({ t }) {
       {/* Quick stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
         {[
-          { icon: Target, label: "Tareas pendientes", val: pendingTasks.length, sub: urgentTasks.length + " urgentes", color: t.accent, bg: t.accentBg },
-          { icon: AlertCircle, label: "Pagos vencidos", val: overdueTx.length, sub: overdueTx.length ? fmt(overdueTx.reduce((s, tx) => s + Math.abs(tx.amount), 0)) : "Ninguno", color: t.red, bg: t.redBg },
-          { icon: Clock, label: "Cobros pendientes", val: pendingTx.filter(tx => tx.amount > 0).length, sub: fmt(pendingTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0)), color: t.green, bg: t.greenBg },
-          { icon: FolderKanban, label: "Obras activas", val: projects.filter(p => p.status === "active" || p.status === "in_progress").length || projects.length, sub: clients.length + " clientes", color: t.blue, bg: "rgba(96,165,250,0.08)" },
+          { icon: Target, label: "Tareas pendientes", val: pendingTasks.length, sub: urgentTasks.length + " urgentes", color: t.accent, bg: t.accentBg, nav: "tasks" },
+          { icon: AlertCircle, label: "Pagos vencidos", val: overdueTx.length, sub: overdueTx.length ? fmt(overdueTx.reduce((s, tx) => s + Math.abs(tx.amount), 0)) : "Ninguno", color: t.red, bg: t.redBg, nav: "transactions" },
+          { icon: Clock, label: "Cobros pendientes", val: pendingTx.filter(tx => tx.amount > 0).length, sub: fmt(pendingTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0)), color: t.green, bg: t.greenBg, nav: "transactions" },
+          { icon: FolderKanban, label: "Obras activas", val: projects.filter(p => p.status === "active" || p.status === "in_progress").length || projects.length, sub: clients.length + " clientes", color: t.blue, bg: "rgba(96,165,250,0.08)", nav: "projects" },
         ].map((k, i) => (
-          <Crd key={i} t={t} style={{ padding: 16 }}>
+          <Crd key={i} t={t} style={{ padding: 16, cursor: "pointer", transition: "transform 0.15s" }} onClick={() => onNav && onNav(k.nav)} onMouseEnter={e => e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform="none"}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><k.icon size={17} color={k.color} /></div>
             </div>
@@ -493,7 +502,7 @@ function Dashboard({ t }) {
         <Crd t={t} style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Tareas para hoy</div>
-            <span style={{ fontSize: 11, color: t.dim }}>{pendingTasks.length} pendientes</span>
+            <span onClick={() => onNav && onNav("tasks")} style={{ fontSize: 11, color: t.accentL, cursor: "pointer", fontWeight: 500 }}>Ver todas →</span>
           </div>
           {pendingTasks.length === 0 ? (
             <div style={{ padding: 30, textAlign: "center" }}>
@@ -502,7 +511,7 @@ function Dashboard({ t }) {
               <div style={{ fontSize: 11, color: t.dim }}>No hay tareas pendientes</div>
             </div>
           ) : pendingTasks.slice(0, 8).map(tk => (
-            <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: t.hover, marginBottom: 5, borderLeft: "3px solid " + (tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue) }}>
+            <div key={tk.id} onClick={() => onNav && onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: t.hover, marginBottom: 5, borderLeft: "3px solid " + (tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue), cursor: "pointer" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
                 <div style={{ fontSize: 10, color: t.dim }}>{tk.project} · {tk.who || "Sin asignar"}</div>
@@ -520,7 +529,7 @@ function Dashboard({ t }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Due soon */}
           <Crd t={t} style={{ padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Vencimientos próximos</div>
+            <div onClick={() => onNav && onNav("tasks")} style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10, cursor: "pointer" }}>Vencimientos próximos <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
             {dueSoon.length === 0 ? (
               <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Sin vencimientos esta semana</div>
             ) : dueSoon.slice(0, 5).map(tk => {
@@ -541,7 +550,7 @@ function Dashboard({ t }) {
 
           {/* Cobros/pagos urgentes */}
           <Crd t={t} style={{ padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Cobros y pagos pendientes</div>
+            <div onClick={() => onNav && onNav("transactions")} style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10, cursor: "pointer" }}>Cobros y pagos pendientes <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
             {pendingTx.length === 0 ? (
               <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Todo al día</div>
             ) : pendingTx.slice(0, 5).map(tx => (
@@ -564,7 +573,7 @@ function Dashboard({ t }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {/* Last transactions */}
         <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Últimos movimientos</div>
+          <div onClick={() => onNav && onNav("transactions")} style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14, cursor: "pointer" }}>Últimos movimientos <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
           {TXS.slice(0, 5).map(tx => (
             <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -580,7 +589,7 @@ function Dashboard({ t }) {
 
         {/* Recent docs */}
         <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Documentos recientes</div>
+          <div onClick={() => onNav && onNav("documents")} style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14, cursor: "pointer" }}>Documentos recientes <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
           {recentDocs.length === 0 ? (
             <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 20 }}>Sin documentos</div>
           ) : recentDocs.map(d => (
@@ -617,7 +626,7 @@ function Inp({ label, val, onChange, t, placeholder, type = "text" }) {
 }
 
 function Clients({ t }) {
-  const { clients, setClients, transactions: TXS, documents: DOCS, reload } = useData();
+  const { clients, setClients, transactions: TXS, documents: DOCS, reload, companyId } = useData();
   const [filter, setFilter] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
@@ -627,7 +636,7 @@ function Clients({ t }) {
 
   const saveNew = async () => {
     if (!nf.name.trim()) return;
-    const { data, error } = await supabase.from("clients").insert([{ name: nf.name, type: nf.type, contact: nf.contact, phone: nf.phone, email: nf.email, city: nf.city }]).select();
+    const { data, error } = await supabase.from("clients").insert([{ name: nf.name, type: nf.type, contact: nf.contact, phone: nf.phone, email: nf.email, city: nf.city, company_id: companyId }]).select();
     if (!error && data) {
       await reload();
     }
@@ -667,7 +676,7 @@ function Clients({ t }) {
                 <input ref={clientFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
                   const f = e.target.files[0]; if (!f) return;
                   const fileUrl = await uploadFile(f);
-                  await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending", file_url: fileUrl }]);
+                  await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
                   const curSel = sel; await reload(); setSel(curSel);
                 }} />
                 <Btn t={t} onClick={() => clientFileRef.current && clientFileRef.current.click()}><Upload size={12} />Subir</Btn>
@@ -732,7 +741,7 @@ function Clients({ t }) {
 }
 
 function ProjectsPage({ t }) {
-  const { projects: PROJECTS, transactions: TXS, tasks: TASKS, documents: DOCS, clients, reload } = useData();
+  const { projects: PROJECTS, transactions: TXS, tasks: TASKS, documents: DOCS, clients, reload, companyId } = useData();
   const [filter, setFilter] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
@@ -742,7 +751,7 @@ function ProjectsPage({ t }) {
 
   const saveProject = async () => {
     if (!nf.name.trim()) return;
-    await supabase.from("projects").insert([{ name: nf.name, client_id: nf.client_id || null, budget: Number(nf.budget) || 0, deadline: nf.deadline || null, priority: nf.priority, description: nf.description, status: "planning", progress: 0, spent: 0 }]);
+    await supabase.from("projects").insert([{ name: nf.name, client_id: nf.client_id || null, budget: Number(nf.budget) || 0, deadline: nf.deadline || null, priority: nf.priority, description: nf.description, status: "planning", progress: 0, spent: 0, company_id: companyId }]);
     await reload();
     setNf({ name: "", client_id: "", budget: "", deadline: "", priority: "medium", description: "" });
     setShowNew(false);
@@ -798,7 +807,7 @@ function ProjectsPage({ t }) {
             <input ref={projFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
               const f = e.target.files[0]; if (!f) return;
               const fileUrl = await uploadFile(f);
-              await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending", file_url: fileUrl }]);
+              await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
               const curSel = sel; await reload(); setSel(curSel);
             }} />
             <Btn t={t} onClick={() => projFileRef.current && projFileRef.current.click()}><Upload size={12} />Subir documento</Btn>
@@ -867,7 +876,7 @@ function ProjectsPage({ t }) {
 }
 
 function TasksPage({ t }) {
-  const { tasks: dbTasks, reload } = useData();
+  const { tasks: dbTasks, reload, companyId } = useData();
   const [view, setView] = useState("board");
   const [tasks, setTasks] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -890,7 +899,7 @@ function TasksPage({ t }) {
     setEditing(null); setEditForm(null);
   };
   const addTask = async () => {
-    const { data } = await supabase.from("tasks").insert([{ title: "Nueva tarea", assignee: "MR", priority: "medium", due_date: "2026-02-20", status: "todo", tag: "General" }]).select();
+    const { data } = await supabase.from("tasks").insert([{ title: "Nueva tarea", assignee: "MR", priority: "medium", due_date: "2026-02-20", status: "todo", tag: "General", company_id: companyId }]).select();
     if (data && data[0]) {
       const nt = { ...data[0], project: "Admin", pid: null, who: data[0].assignee, pri: data[0].priority, due: data[0].due_date, st: data[0].status, tag: data[0].tag };
       setTasks([nt, ...tasks]);
@@ -1043,7 +1052,7 @@ function TasksPage({ t }) {
 }
 
 function Transactions({ t }) {
-  const { transactions: TXS, documents: DOCS, clients, projects, reload } = useData();
+  const { transactions: TXS, documents: DOCS, clients, projects, reload, companyId } = useData();
   const [tab, setTab] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
@@ -1052,7 +1061,7 @@ function Transactions({ t }) {
 
   const saveTx = async () => {
     if (!nf.description.trim() || !nf.amount) return;
-    await supabase.from("transactions").insert([{ description: nf.description, contact_id: nf.contact_id || null, project_id: nf.project_id || null, amount: Number(nf.amount), status: nf.status, date: nf.date }]);
+    await supabase.from("transactions").insert([{ description: nf.description, contact_id: nf.contact_id || null, project_id: nf.project_id || null, amount: Number(nf.amount), status: nf.status, date: nf.date, company_id: companyId }]);
     await reload();
     setNf({ description: "", contact_id: "", project_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
     setShowNew(false);
@@ -1078,7 +1087,7 @@ function Transactions({ t }) {
     const attachDoc = async (e) => {
       const f = e.target.files[0]; if (!f) return;
       const fileUrl = await uploadFile(f);
-      await supabase.from("documents").insert([{ name: f.name, type: "invoice", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: tx.contact_id, project_id: tx.project_id, transaction_id: tx.id, status: "pending", file_url: fileUrl }]);
+      await supabase.from("documents").insert([{ name: f.name, type: "invoice", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: tx.contact_id, project_id: tx.project_id, transaction_id: tx.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
       const curSel = sel;
       await reload();
       setSel(curSel);
@@ -1719,7 +1728,7 @@ function Treasury({ t }) {
 }
 
 function DocumentsPage({ t }) {
-  const { documents: DOCS, clients: CLIENTS, projects: PROJECTS, transactions: TXS, reload } = useData();
+  const { documents: DOCS, clients: CLIENTS, projects: PROJECTS, transactions: TXS, reload, companyId } = useData();
   const [showUp, setShowUp] = useState(false);
   const [filterContact, setFilterContact] = useState("");
   const [filterProject, setFilterProject] = useState("");
@@ -1741,6 +1750,7 @@ function DocumentsPage({ t }) {
       transaction_id: upForm.transaction_id || null,
       status: "pending",
       file_url: fileUrl,
+      company_id: companyId,
     }]);
     await reload();
     setUpFile(null);
@@ -1924,7 +1934,7 @@ function DocumentsPage({ t }) {
 }
 
 function Reports({ t }) {
-  const { projects: PROJECTS, transactions: TXS } = useData();
+  const { projects: PROJECTS, transactions: TXS, tasks, clients, documents } = useData();
   const [active, setActive] = useState("pnl");
   const reps = [
     { id: "pnl", label: "Estado de Resultados", icon: BarChart3 },
@@ -1932,119 +1942,224 @@ function Reports({ t }) {
     { id: "cashflow", label: "Flujo de Efectivo", icon: Activity },
     { id: "project", label: "Por Proyecto", icon: FolderKanban },
     { id: "aging", label: "Aging Cartera", icon: Clock },
+    { id: "kpi", label: "KPIs y Métricas", icon: TrendingUp },
   ];
 
   const renderPnl = () => {
     const pnl = [
-      { cat: "Ingresos", items: [["Servicios", 16480000], ["Otros", 320000]], total: 16800000 },
-      { cat: "Costos Directos", items: [["Materiales", -6200000], ["Mano de Obra", -3400000], ["Subcontratistas", -1800000]], total: -11400000 },
-      { cat: "Gastos Operativos", items: [["Administrativos", -890000], ["Transporte", -420000], ["Alquileres", -350000]], total: -1660000 },
+      { cat: "Ingresos", items: [["Certificados de obra", 12800000], ["Servicios profesionales", 3680000], ["Otros ingresos", 320000]], total: 16800000 },
+      { cat: "Costos Directos", items: [["Materiales de construcción", -6200000], ["Mano de obra directa", -3400000], ["Subcontratistas", -1800000], ["Fletes y logística", -580000]], total: -11980000 },
+      { cat: "Gastos Operativos", items: [["Sueldos administrativos", -890000], ["Alquiler oficina/obrador", -350000], ["Transporte y combustible", -420000], ["Seguros y ART", -280000], ["Servicios (luz, gas, tel)", -180000], ["Software y tecnología", -90000]], total: -2210000 },
+      { cat: "Impuestos y Retenciones", items: [["IVA neto a pagar", -420000], ["IIBB", -168000], ["Retenciones sufridas", -85000]], total: -673000 },
     ];
-    const net = 16800000 - 11400000 - 1660000;
+    const totalInc = 16800000; const totalCost = 11980000 + 2210000 + 673000; const net = totalInc - totalCost;
+    const margenBruto = Math.round((totalInc - 11980000) / totalInc * 100);
+    const margenNeto = Math.round(net / totalInc * 100);
     return (
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
           <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Estado de Resultados</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
-          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados", [["<th>Categoría</th>","<th>Concepto</th>","<th>Monto</th>"],["Ingresos","Servicios","$16.480.000"],["Ingresos","Otros","$320.000"],["Costos Directos","Materiales","-$6.200.000"],["Costos Directos","Mano de Obra","-$3.400.000"],["Costos Directos","Subcontratistas","-$1.800.000"],["Gastos Operativos","Administrativos","-$890.000"],["Gastos Operativos","Transporte","-$420.000"],["Gastos Operativos","Alquileres","-$350.000"],["<b>RESULTADO</b>","<b>NETO</b>","<b>$3.740.000</b>"]])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], [["Ingresos","Servicios","16480000"],["Ingresos","Otros","320000"],["Costos","Materiales","-6200000"],["Costos","Mano de Obra","-3400000"],["Costos","Subcontratistas","-1800000"],["Gastos","Administrativos","-890000"],["Gastos","Transporte","-420000"],["Gastos","Alquileres","-350000"],["","RESULTADO NETO","3740000"]])}><Download size={12} />Excel</Btn></div>
+          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados", [["<th>Categoría</th>","<th>Concepto</th>","<th>Monto</th>"],...pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, fmt(a)])),["<b>RESULTADO</b>","<b>NETO</b>","<b>" + fmt(net) + "</b>"]])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, a])))}><Download size={12} />Excel</Btn></div>
+        </div>
+        {/* KPI Summary */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
+          {[
+            { l: "Ingresos totales", v: fmt(totalInc), c: t.green },
+            { l: "Costos totales", v: fmt(totalCost), c: t.red },
+            { l: "Margen bruto", v: margenBruto + "%", c: margenBruto > 25 ? t.green : t.orange },
+            { l: "Margen neto", v: margenNeto + "%", c: margenNeto > 10 ? t.green : t.orange },
+          ].map((k, i) => (
+            <div key={i} style={{ textAlign: "center", padding: 8, background: t.hover, borderRadius: 7 }}>
+              <div style={{ fontSize: 9, color: t.dim }}>{k.l}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: k.c }}>{k.v}</div>
+            </div>
+          ))}
         </div>
         <div style={{ padding: 16 }}>
           {pnl.map((cat, ci) => (
             <div key={ci} style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid " + t.border }}>{cat.cat}</div>
               {cat.items.map(([name, amt], ii) => (
-                <div key={ii} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0 4px 14px" }}>
+                <div key={ii} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 14px" }}>
                   <span style={{ fontSize: 12, color: t.muted }}>{name}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: amt >= 0 ? t.text : t.red }}>{fmt(amt)}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 60, height: 4, borderRadius: 2, background: t.border }}>
+                      <div style={{ height: 4, borderRadius: 2, background: amt >= 0 ? t.green : t.red, width: Math.min(100, Math.abs(amt) / 168000) + "%" }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: amt >= 0 ? t.text : t.red, minWidth: 90, textAlign: "right" }}>{fmt(amt)}</span>
+                  </div>
                 </div>
               ))}
               <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 6px 14px", borderTop: "1px solid " + t.border + "20", marginTop: 3 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Total</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Subtotal</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: cat.total >= 0 ? t.green : t.red }}>{fmt(cat.total)}</span>
               </div>
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", background: t.accentBg, borderRadius: 9 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>RESULTADO NETO</span>
-            <span style={{ fontSize: 17, fontWeight: 800, color: net >= 0 ? t.green : t.red }}>{fmt(net)}</span>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 16px", background: net >= 0 ? t.greenBg : t.redBg, borderRadius: 9, border: "1px solid " + (net >= 0 ? t.green : t.red) + "20" }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>RESULTADO NETO</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: net >= 0 ? t.green : t.red }}>{fmt(net)}</span>
+          </div>
+          {/* Monthly comparison */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 8 }}>Comparación mensual (últimos 6 meses)</div>
+            <div style={{ display: "flex", gap: 10, height: 120, alignItems: "flex-end" }}>
+              {[["Sep",4.2,3.1],["Oct",3.8,2.9],["Nov",2.1,2.8],["Dic",5.2,3.5],["Ene",4.8,3.2],["Feb",4.8,3.9]].map(([m,inc,cost], i) => (
+                <div key={m} style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ display: "flex", gap: 2, justifyContent: "center", alignItems: "flex-end", height: 95 }}>
+                    <div style={{ width: 14, height: (inc/6*100) + "%", background: t.green, borderRadius: "3px 3px 0 0" }} />
+                    <div style={{ width: 14, height: (cost/6*100) + "%", background: t.red + "60", borderRadius: "3px 3px 0 0" }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: t.dim, marginTop: 4 }}>{m}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: t.green }} /><span style={{ fontSize: 10, color: t.dim }}>Ingresos (M)</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: t.red + "60" }} /><span style={{ fontSize: 10, color: t.dim }}>Costos (M)</span></div>
+            </div>
           </div>
         </div>
       </div>
     );
   };
 
-  const renderBalance = () => (
-    <div>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Balance General</div>
-        <div style={{ fontSize: 11, color: t.muted }}>Al 13/02/2026</div>
-      </div>
-      <div style={{ padding: 16 }}>
-        {[
-          { cat: "ACTIVOS", items: [["Caja y Bancos", 18400000], ["Cuentas por Cobrar", 13700000], ["Materiales en Obra", 4200000], ["Activos Fijos", 28000000]], total: 64300000 },
-          { cat: "PASIVOS", items: [["Cuentas por Pagar", -8760000], ["Préstamos Bancarios", -12000000], ["Anticipos de Clientes", -5000000], ["Deudas Fiscales", -3200000]], total: -28960000 },
-          { cat: "PATRIMONIO", items: [["Capital Social", 20000000], ["Resultados Acumulados", 11600000], ["Resultado del Ejercicio", 3740000]], total: 35340000 },
-        ].map((sec, si) => (
-          <div key={si} style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid " + t.border }}>{sec.cat}</div>
-            {sec.items.map(([n, a], ii) => (
-              <div key={ii} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0 4px 14px" }}>
-                <span style={{ fontSize: 12, color: t.muted }}>{n}</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{fmt(Math.abs(a))}</span>
+  const renderBalance = () => {
+    const activos = [["Caja y Bancos", 18400000], ["Cuentas por Cobrar", 13700000], ["Materiales en Obra", 4200000], ["Anticipos a Proveedores", 1500000], ["Activos Fijos (neto)", 28000000], ["Intangibles", 600000]];
+    const pasivos = [["Cuentas por Pagar", 8760000], ["Préstamos Bancarios", 12000000], ["Anticipos de Clientes", 5000000], ["Deudas Fiscales", 3200000], ["Provisiones", 1440000]];
+    const patrimonio = [["Capital Social", 20000000], ["Reservas", 4000000], ["Resultados Acumulados", 7600000], ["Resultado del Ejercicio", 1937000]];
+    const totalA = activos.reduce((s, [,a]) => s + a, 0);
+    const totalP = pasivos.reduce((s, [,a]) => s + a, 0);
+    const totalPat = patrimonio.reduce((s, [,a]) => s + a, 0);
+    return (
+      <div>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
+          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Balance General</div><div style={{ fontSize: 11, color: t.muted }}>Al 24/02/2026</div></div>
+          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Balance General", [["<th>Categoría</th>","<th>Cuenta</th>","<th>Monto</th>"],...activos.map(([n,a]) => ["Activo", n, fmt(a)]),...pasivos.map(([n,a]) => ["Pasivo", n, fmt(a)]),...patrimonio.map(([n,a]) => ["Patrimonio", n, fmt(a)])])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("balance_general", ["Categoría","Cuenta","Monto"], [...activos.map(([n,a]) => ["Activo",n,a]),...pasivos.map(([n,a]) => ["Pasivo",n,a]),...patrimonio.map(([n,a]) => ["Patrimonio",n,a])])}><Download size={12} />Excel</Btn></div>
+        </div>
+        {/* Visual summary */}
+        <div style={{ display: "flex", gap: 0, padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
+          <div style={{ flex: totalA, height: 24, background: t.accent, borderRadius: "6px 0 0 6px", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>ACTIVOS {fmt(totalA)}</span></div>
+          <div style={{ flex: totalP, height: 24, background: t.red, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>PASIVOS {fmt(totalP)}</span></div>
+          <div style={{ flex: totalPat, height: 24, background: t.green, borderRadius: "0 6px 6px 0", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>PN {fmt(totalPat)}</span></div>
+        </div>
+        <div style={{ padding: 16 }}>
+          {[{ cat: "ACTIVOS", items: activos, total: totalA, color: t.accent }, { cat: "PASIVOS", items: pasivos, total: totalP, color: t.red }, { cat: "PATRIMONIO NETO", items: patrimonio, total: totalPat, color: t.green }].map((sec, si) => (
+            <div key={si} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: sec.color, textTransform: "uppercase", marginBottom: 6, paddingBottom: 4, borderBottom: "2px solid " + sec.color + "30" }}>{sec.cat}</div>
+              {sec.items.map(([n, a], ii) => (
+                <div key={ii} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 14px" }}>
+                  <span style={{ fontSize: 12, color: t.muted }}>{n}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 50, height: 4, borderRadius: 2, background: t.border }}><div style={{ height: 4, borderRadius: 2, background: sec.color, width: Math.min(100, a / sec.total * 100) + "%" }} /></div>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: t.text, minWidth: 90, textAlign: "right" }}>{fmt(a)}</span>
+                  </div>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 6px 14px", borderTop: "1px solid " + t.border + "20", marginTop: 3 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Total {sec.cat}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: sec.color }}>{fmt(sec.total)}</span>
+              </div>
+            </div>
+          ))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginTop: 8 }}>
+            {[
+              { l: "Liquidez corriente", v: (18400000 / totalP).toFixed(2), ok: (18400000 / totalP) > 1 },
+              { l: "Endeudamiento", v: Math.round(totalP / totalA * 100) + "%", ok: (totalP / totalA) < 0.6 },
+              { l: "Solvencia", v: (totalA / totalP).toFixed(2), ok: (totalA / totalP) > 1.5 },
+            ].map((r, i) => (
+              <div key={i} style={{ padding: 10, background: t.hover, borderRadius: 7, textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: t.dim }}>{r.l}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: r.ok ? t.green : t.red }}>{r.v}</div>
               </div>
             ))}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 6px 14px", borderTop: "1px solid " + t.border + "20", marginTop: 3 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Total {sec.cat}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: t.accent }}>{fmt(Math.abs(sec.total))}</span>
-            </div>
           </div>
-        ))}
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", background: t.greenBg, borderRadius: 9, marginTop: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: t.text }}>ACTIVOS = PASIVOS + PATRIMONIO</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: t.green }}>{fmt(64300000)} = {fmt(28960000)} + {fmt(35340000)}</span>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderCashflow = () => (
-    <div>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Flujo de Efectivo</div>
-        <div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div>
-      </div>
-      <div style={{ padding: 16 }}>
-        {[
-          { cat: "Actividades Operativas", items: [["Cobros de clientes", 16480000], ["Pagos a proveedores", -8955000], ["Sueldos y cargas", -3400000], ["Gastos operativos", -1660000]], total: 2465000 },
-          { cat: "Actividades de Inversión", items: [["Compra de equipos", -1200000], ["Mejoras en obras", -800000]], total: -2000000 },
-          { cat: "Actividades de Financiamiento", items: [["Cuota préstamo bancario", -500000], ["Aportes de socios", 0]], total: -500000 },
-        ].map((sec, si) => (
-          <div key={si} style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid " + t.border }}>{sec.cat}</div>
-            {sec.items.map(([n, a], ii) => (
-              <div key={ii} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0 4px 14px" }}>
-                <span style={{ fontSize: 12, color: t.muted }}>{n}</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: a >= 0 ? t.green : t.red }}>{fmt(a)}</span>
+  const renderCashflow = () => {
+    const secciones = [
+      { cat: "Actividades Operativas", items: [["Cobros de clientes", 16480000], ["Pagos a proveedores", -8955000], ["Sueldos y cargas sociales", -3400000], ["Impuestos pagados", -673000], ["Gastos operativos", -2210000]], total: 1242000 },
+      { cat: "Actividades de Inversión", items: [["Compra de equipos", -1200000], ["Mejoras en obras", -800000], ["Venta de activos", 350000]], total: -1650000 },
+      { cat: "Actividades de Financiamiento", items: [["Cuota préstamo bancario", -500000], ["Intereses pagados", -180000], ["Aportes de socios", 0]], total: -680000 },
+    ];
+    const variacion = secciones.reduce((s, sec) => s + sec.total, 0);
+    const saldoInicial = 18400000;
+    return (
+      <div>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
+          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Flujo de Efectivo</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
+          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Flujo de Efectivo", [["<th>Actividad</th>","<th>Concepto</th>","<th>Monto</th>"],...secciones.flatMap(s => s.items.map(([n,a]) => [s.cat, n, fmt(a)]))])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("flujo_efectivo", ["Actividad","Concepto","Monto"], secciones.flatMap(s => s.items.map(([n,a]) => [s.cat,n,a])))}><Download size={12} />Excel</Btn></div>
+        </div>
+        {/* Cash Flow chart */}
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: t.text, marginBottom: 8 }}>Flujo mensual (6 meses)</div>
+          <div style={{ display: "flex", gap: 12, height: 100, alignItems: "flex-end" }}>
+            {[["Sep",65,50],["Oct",70,45],["Nov",55,60],["Dic",80,55],["Ene",75,48],["Feb",85,52]].map(([m,inc,out], i) => (
+              <div key={m} style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ display: "flex", gap: 2, justifyContent: "center", alignItems: "flex-end", height: 80 }}>
+                  <div style={{ width: 12, height: inc + "%", background: "linear-gradient(180deg, " + t.accent + ", " + t.accent + "60)", borderRadius: "3px 3px 0 0" }} />
+                  <div style={{ width: 12, height: out + "%", background: "linear-gradient(180deg, " + t.red + "80, " + t.red + "30)", borderRadius: "3px 3px 0 0" }} />
+                </div>
+                <div style={{ fontSize: 10, color: t.dim, marginTop: 3 }}>{m}</div>
               </div>
             ))}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 6px 14px", borderTop: "1px solid " + t.border + "20", marginTop: 3 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Subtotal</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: sec.total >= 0 ? t.green : t.red }}>{fmt(sec.total)}</span>
-            </div>
           </div>
-        ))}
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", background: t.accentBg, borderRadius: 9 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>VARIACIÓN NETA DE EFECTIVO</span>
-          <span style={{ fontSize: 17, fontWeight: 800, color: t.red }}>{fmt(-35000)}</span>
+        </div>
+        <div style={{ padding: 16 }}>
+          {/* Saldo inicial */}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: t.hover, borderRadius: 7, marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Saldo inicial del mes</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{fmt(saldoInicial)}</span>
+          </div>
+          {secciones.map((sec, si) => (
+            <div key={si} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid " + t.border }}>{sec.cat}</div>
+              {sec.items.map(([n, a], ii) => (
+                <div key={ii} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0 5px 14px" }}>
+                  <span style={{ fontSize: 12, color: t.muted }}>{n}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: a >= 0 ? t.green : t.red }}>{fmt(a)}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 6px 14px", borderTop: "1px solid " + t.border + "20", marginTop: 3 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Subtotal</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: sec.total >= 0 ? t.green : t.red }}>{fmt(sec.total)}</span>
+              </div>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", background: t.accentBg, borderRadius: 9, marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>VARIACIÓN NETA DE EFECTIVO</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: variacion >= 0 ? t.green : t.red }}>{fmt(variacion)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: t.hover, borderRadius: 9 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Saldo final proyectado</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.accent }}>{fmt(saldoInicial + variacion)}</span>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderProject = () => (
     <div>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Rentabilidad por Proyecto</div>
-        <div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
+        <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Rentabilidad por Proyecto</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
+        <Btn t={t} onClick={() => exportCSV("rentabilidad_proyectos", ["Proyecto","Cliente","Presupuesto","Ingresos","Egresos","Resultado","Margen"], PROJECTS.map(p => { const ing=TXS.filter(tx=>tx.pid===p.id&&tx.amount>0).reduce((s,tx)=>s+tx.amount,0); const eg=TXS.filter(tx=>tx.pid===p.id&&tx.amount<0).reduce((s,tx)=>s+Math.abs(tx.amount),0); return [p.name,p.client,p.budget,ing,eg,ing-eg,ing>0?Math.round((ing-eg)/ing*100)+"%":"0%"]; }))}><Download size={12} />Excel</Btn>
+      </div>
+      {/* Summary KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
+        {[
+          { l: "Proyectos activos", v: PROJECTS.length, c: t.accent },
+          { l: "Presupuesto total", v: fmt(PROJECTS.reduce((s,p) => s + (p.budget || 0), 0)), c: t.blue },
+          { l: "Tareas totales", v: tasks.length, c: t.green },
+        ].map((k, i) => (
+          <div key={i} style={{ textAlign: "center", padding: 8, background: t.hover, borderRadius: 7 }}>
+            <div style={{ fontSize: 9, color: t.dim }}>{k.l}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: k.c }}>{k.v}</div>
+          </div>
+        ))}
       </div>
       <div style={{ padding: 16 }}>
         {PROJECTS.map(p => {
@@ -2052,18 +2167,26 @@ function Reports({ t }) {
           const eg = TXS.filter(tx => tx.pid === p.id && tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
           const net = ing - eg;
           const margin = ing > 0 ? Math.round(net / ing * 100) : 0;
+          const pTasks = tasks.filter(tk => tk.pid === p.id);
+          const doneTasks = pTasks.filter(tk => tk.st === "done").length;
+          const progress = pTasks.length > 0 ? Math.round(doneTasks / pTasks.length * 100) : 0;
+          const pDocs = documents.filter(d => d.pid === p.id);
           return (
-            <div key={p.id} style={{ padding: 12, borderRadius: 9, background: t.hover, marginBottom: 8, border: "1px solid " + t.border }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <div><div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{p.name}</div><div style={{ fontSize: 10, color: t.dim }}>{p.client}</div></div>
+            <div key={p.id} style={{ padding: 14, borderRadius: 9, background: t.hover, marginBottom: 10, border: "1px solid " + t.border }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{p.name}</div><div style={{ fontSize: 11, color: t.dim }}>{p.client} · {p.deadline || "Sin plazo"}</div></div>
                 <Badge s={p.status} t={t} />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 10 }}>
                 <div><div style={{ fontSize: 10, color: t.dim }}>Presupuesto</div><div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{fmt(p.budget)}</div></div>
                 <div><div style={{ fontSize: 10, color: t.dim }}>Ingresos</div><div style={{ fontSize: 12, fontWeight: 600, color: t.green }}>{fmt(ing)}</div></div>
                 <div><div style={{ fontSize: 10, color: t.dim }}>Egresos</div><div style={{ fontSize: 12, fontWeight: 600, color: t.red }}>{fmt(eg)}</div></div>
                 <div><div style={{ fontSize: 10, color: t.dim }}>Resultado</div><div style={{ fontSize: 12, fontWeight: 700, color: net >= 0 ? t.green : t.red }}>{fmt(net)}</div></div>
                 <div><div style={{ fontSize: 10, color: t.dim }}>Margen</div><div style={{ fontSize: 12, fontWeight: 700, color: margin > 20 ? t.green : margin > 0 ? t.orange : t.red }}>{margin}%</div></div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1 }}><PBar v={progress} color={t.accent} h={5} t={t} /></div>
+                <span style={{ fontSize: 10, color: t.dim, whiteSpace: "nowrap" }}>{doneTasks}/{pTasks.length} tareas · {pDocs.length} docs</span>
               </div>
             </div>
           );
@@ -2074,33 +2197,123 @@ function Reports({ t }) {
 
   const renderAging = () => (
     <div>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Aging de Cartera</div>
-        <div style={{ fontSize: 11, color: t.muted }}>Antigüedad de CxC y CxP</div>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
+        <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Aging de Cartera</div><div style={{ fontSize: 11, color: t.muted }}>Antigüedad de CxC y CxP</div></div>
+        <Btn t={t} onClick={() => exportCSV("aging_cartera", ["Tipo","Rango","Monto","Porcentaje"], [["CxC","Vigentes",7500000,"55%"],["CxC","1-30d",3200000,"23%"],["CxC","31-60d",1800000,"13%"],["CxC","+60d",1200000,"9%"],["CxP","Vigentes",4200000,"48%"],["CxP","1-30d",2100000,"24%"],["CxP","31-60d",1500000,"17%"],["CxP","+60d",960000,"11%"]])}><Download size={12} />Excel</Btn>
+      </div>
+      {/* Summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
+        <div style={{ textAlign: "center", padding: 10, background: t.greenBg, borderRadius: 7 }}><div style={{ fontSize: 10, color: t.green }}>Total CxC</div><div style={{ fontSize: 18, fontWeight: 700, color: t.green }}>{fmt(13700000)}</div></div>
+        <div style={{ textAlign: "center", padding: 10, background: t.redBg, borderRadius: 7 }}><div style={{ fontSize: 10, color: t.red }}>Total CxP</div><div style={{ fontSize: 18, fontWeight: 700, color: t.red }}>{fmt(8760000)}</div></div>
       </div>
       <div style={{ padding: 16 }}>
         {[
-          { title: "Cuentas por Cobrar", data: [["Vigentes", 7500000, t.green, 55], ["1-30 días", 3200000, t.orange, 23], ["31-60 días", 1800000, t.red, 13], ["+60 días", 1200000, "#FF4757", 9]] },
-          { title: "Cuentas por Pagar", data: [["Vigentes", 4200000, t.green, 48], ["1-30 días", 2100000, t.orange, 24], ["31-60 días", 1500000, t.red, 17], ["+60 días", 960000, "#FF4757", 11]] },
+          { title: "Cuentas por Cobrar", total: 13700000, data: [["Vigentes", 7500000, t.green, 55], ["1-30 días", 3200000, t.orange, 23], ["31-60 días", 1800000, t.red, 13], ["+60 días", 1200000, "#FF4757", 9]],
+            detail: [["Constructora Vial SA", 7500000, 0, "vigente"], ["Inmobiliaria Costa", 2100000, 15, "1-30"], ["Estudio Arq. Méndez", 1800000, 45, "31-60"], ["Varios menores", 2300000, 70, "+60"]] },
+          { title: "Cuentas por Pagar", total: 8760000, data: [["Vigentes", 4200000, t.green, 48], ["1-30 días", 2100000, t.orange, 24], ["31-60 días", 1500000, t.red, 17], ["+60 días", 960000, "#FF4757", 11]],
+            detail: [["Hierros del Sur SRL", 1850000, 5, "vigente"], ["Ferretería López", 920000, 20, "1-30"], ["Transportes Rápido", 1500000, 50, "31-60"], ["Varios proveedores", 4490000, 30, "1-30"]] },
         ].map((sec, si) => (
           <div key={si} style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>{sec.title}</div>
             {sec.data.map(([l, a, c, p], i) => (
               <div key={i} style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                  <span style={{ fontSize: 11, color: t.muted }}>{l}</span>
+                  <span style={{ fontSize: 11, color: t.muted }}>{l} ({p}%)</span>
                   <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{fmt(a)}</span>
                 </div>
-                <PBar v={p} color={c} h={5} t={t} />
+                <PBar v={p} color={c} h={6} t={t} />
               </div>
             ))}
+            {/* Detail table */}
+            <div style={{ marginTop: 10, borderRadius: 7, overflow: "hidden", border: "1px solid " + t.border }}>
+              {sec.detail.map(([name, amt, days, status], i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 12px", borderBottom: i < sec.detail.length - 1 ? "1px solid " + t.border + "20" : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Av name={name} size={22} />
+                    <div><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{name}</div><div style={{ fontSize: 10, color: t.dim }}>{days === 0 ? "Al día" : days + " días"}</div></div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{fmt(amt)}</div>
+                    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: status === "vigente" ? t.greenBg : status === "1-30" ? t.orangeBg : t.redBg, color: status === "vigente" ? t.green : status === "1-30" ? t.orange : t.red }}>{status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
     </div>
   );
 
-  const content = { pnl: renderPnl, balance: renderBalance, cashflow: renderCashflow, project: renderProject, aging: renderAging };
+  const renderKpi = () => {
+    const totalInc = TXS.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
+    const totalEg = TXS.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const totalTasks = tasks.length;
+    const doneTasks = tasks.filter(tk => tk.st === "done").length;
+    const totalDocs = documents.length;
+    return (
+      <div>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>KPIs y Métricas del Negocio</div>
+          <div style={{ fontSize: 11, color: t.muted }}>Resumen ejecutivo — Febrero 2026</div>
+        </div>
+        <div style={{ padding: 16 }}>
+          {/* Financieros */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 8 }}>Indicadores Financieros</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+            {[
+              { l: "Ingresos totales", v: fmt(totalInc), c: t.green, sub: TXS.filter(tx => tx.amount > 0).length + " transacciones" },
+              { l: "Egresos totales", v: fmt(totalEg), c: t.red, sub: TXS.filter(tx => tx.amount < 0).length + " transacciones" },
+              { l: "Resultado neto", v: fmt(totalInc - totalEg), c: totalInc - totalEg >= 0 ? t.green : t.red, sub: "Margen: " + (totalInc > 0 ? Math.round((totalInc - totalEg) / totalInc * 100) : 0) + "%" },
+              { l: "Ticket promedio ingreso", v: fmt(TXS.filter(tx => tx.amount > 0).length > 0 ? totalInc / TXS.filter(tx => tx.amount > 0).length : 0), c: t.accent, sub: "Por transacción" },
+              { l: "CxC / CxP ratio", v: (13700000 / 8760000).toFixed(2), c: t.blue, sub: "CxC: " + fmt(13700000) },
+              { l: "Liquidez", v: (18400000 / 8760000).toFixed(2), c: 18400000 / 8760000 > 1.5 ? t.green : t.orange, sub: "Caja / Pasivo corriente" },
+            ].map((k, i) => (
+              <div key={i} style={{ padding: 12, background: t.hover, borderRadius: 8, borderLeft: "3px solid " + k.c }}>
+                <div style={{ fontSize: 10, color: t.dim }}>{k.l}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: k.c, marginTop: 2 }}>{k.v}</div>
+                <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+          {/* Operativos */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 8 }}>Indicadores Operativos</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+            {[
+              { l: "Proyectos activos", v: PROJECTS.length, c: t.accent, sub: "Total registrados" },
+              { l: "Tareas completadas", v: doneTasks + "/" + totalTasks, c: t.green, sub: totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + "% completado" : "Sin tareas" },
+              { l: "Tareas urgentes", v: tasks.filter(tk => tk.pri === "high" && tk.st !== "done").length, c: t.red, sub: "Prioridad alta pendientes" },
+              { l: "Clientes activos", v: clients.length, c: t.blue, sub: clients.filter(c => c.type === "client").length + " clientes, " + clients.filter(c => c.type === "supplier").length + " proveedores" },
+              { l: "Documentos", v: totalDocs, c: t.orange, sub: documents.filter(d => d.status === "pending").length + " pendientes de procesar" },
+              { l: "Productividad", v: totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + "%" : "—", c: t.green, sub: "Tasa de completitud" },
+            ].map((k, i) => (
+              <div key={i} style={{ padding: 12, background: t.hover, borderRadius: 8, borderLeft: "3px solid " + k.c }}>
+                <div style={{ fontSize: 10, color: t.dim }}>{k.l}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: k.c, marginTop: 2 }}>{k.v}</div>
+                <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+          {/* Task completion rate */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: "uppercase", marginBottom: 8 }}>Avance de Proyectos</div>
+          {PROJECTS.map(p => {
+            const pTasks = tasks.filter(tk => tk.pid === p.id);
+            const done = pTasks.filter(tk => tk.st === "done").length;
+            const prog = pTasks.length > 0 ? Math.round(done / pTasks.length * 100) : 0;
+            return (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+                <div style={{ width: 120, fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                <div style={{ flex: 1 }}><PBar v={prog} color={t.accent} h={6} t={t} /></div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: t.text, minWidth: 40, textAlign: "right" }}>{prog}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const content = { pnl: renderPnl, balance: renderBalance, cashflow: renderCashflow, project: renderProject, aging: renderAging, kpi: renderKpi };
 
   return (
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
@@ -2375,12 +2588,13 @@ function LoadingScreen({ t }) {
   );
 }
 
-function AppContent({ user, onLogout }) {
+function AppContent({ user, profile, onLogout }) {
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
   const { loading } = useData();
   const t = themes[theme];
+  const role = profile?.role || user?.user_metadata?.role || "owner";
 
   if (loading) return <LoadingScreen t={t} />;
 
@@ -2406,10 +2620,10 @@ function AppContent({ user, onLogout }) {
         "select{color:" + t.text + "}option{background:" + t.card + ";color:" + t.text + "}"
       }</style>
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s" }}>
-        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} />
+        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} role={role} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} onLogout={onLogout} onNav={setPage} />
-          <Page t={t} />
+          <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} profile={profile} onLogout={onLogout} onNav={setPage} />
+          <Page t={t} onNav={setPage} user={user} />
         </div>
       </div>
     </>
@@ -2463,6 +2677,17 @@ function LoginPage({ onLogin }) {
         });
         if (error) { setError(error.message); }
         else {
+          // Create company + profile in database
+          if (data?.user) {
+            await supabase.rpc("create_company_and_profile", {
+              p_user_id: data.user.id,
+              p_company_name: company,
+              p_cuit: cuit || null,
+              p_phone: phone || null,
+              p_full_name: fullName,
+              p_role: role,
+            });
+          }
           window.alert("✅ Cuenta creada exitosamente.\n\nEmpresa: " + company + "\nUsuario: " + fullName + "\n\nYa podés iniciar sesión.");
           setIsLogin(true); setStep(1);
           setPass(""); setPass2("");
@@ -2626,15 +2851,21 @@ function LoginPage({ onLogin }) {
 export default function App() {
   const [view, setView] = useState("loading");
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+
+  const loadProfile = async (userId) => {
+    const { data } = await supabase.from("user_profiles").select("*, company:companies(name)").eq("id", userId).single();
+    if (data) setProfile(data);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) { setUser(session.user); setView("app"); }
+      if (session?.user) { setUser(session.user); loadProfile(session.user.id); setView("app"); }
       else setView("landing");
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) { setUser(session.user); setView("app"); }
-      else { setUser(null); setView("landing"); }
+      if (session?.user) { setUser(session.user); loadProfile(session.user.id); setView("app"); }
+      else { setUser(null); setProfile(null); setView("landing"); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -2642,6 +2873,7 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setProfile(null);
     setView("landing");
   };
 
@@ -2651,7 +2883,7 @@ export default function App() {
 
   return (
     <DataProvider>
-      <AppContent user={user} onLogout={handleLogout} />
+      <AppContent user={user} profile={profile} onLogout={handleLogout} />
     </DataProvider>
   );
 }
