@@ -710,7 +710,11 @@ function Clients({ t }) {
   };
 
   const deleteClient = async (id, name) => {
-    if (!window.confirm("¿Eliminar a " + name + "? Se perderán los datos asociados.")) return;
+    if (!window.confirm("¿Eliminar a " + name + "? Las transacciones y documentos vinculados perderán la referencia al contacto.")) return;
+    // Nullify FK references first
+    await supabase.from("transactions").update({ contact_id: null }).eq("contact_id", id);
+    await supabase.from("documents").update({ contact_id: null }).eq("contact_id", id);
+    await supabase.from("projects").update({ client_id: null }).eq("client_id", id);
     await supabase.from("clients").delete().eq("id", id);
     await reload();
     setSel(null);
@@ -831,14 +835,30 @@ function ProjectsPage({ t }) {
   };
 
   const deleteProject = async (id, name) => {
-    if (!window.confirm("¿Eliminar el proyecto \"" + name + "\"? Esta acción no se puede deshacer.")) return;
+    if (!window.confirm("¿Eliminar el proyecto \"" + name + "\"? Las transacciones, tareas y documentos vinculados perderán la referencia.")) return;
+    // Nullify FK references first
+    await supabase.from("transactions").update({ project_id: null }).eq("project_id", id);
+    await supabase.from("tasks").update({ project_id: null }).eq("project_id", id);
+    await supabase.from("documents").update({ project_id: null }).eq("project_id", id);
     await supabase.from("projects").delete().eq("id", id);
     await reload();
     setSel(null);
   };
 
+  const updateProgress = async (id, val) => {
+    const status = val === 100 ? "completed" : val > 0 ? "in_progress" : "planning";
+    await supabase.from("projects").update({ progress: val, status }).eq("id", id);
+    const curSel = sel;
+    await reload();
+    setSel(curSel);
+  };
+
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [newTask, setNewTask] = useState({ title: "", assignee: "", priority: "medium", due_date: "", tag: "obra" });
+
   if (sel) {
     const p = PROJECTS.find(x => x.id === sel);
+    if (!p) { setSel(null); return null; }
     return (
       <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
         <div onClick={() => setSel(null)} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 16, cursor: "pointer", color: t.muted, fontSize: 12 }}><ChevronLeft size={14} /> Volver</div>
@@ -856,7 +876,24 @@ function ProjectsPage({ t }) {
             ));
           })()}
         </div>
-        <div style={{ marginBottom: 16 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 11, color: t.muted }}>Avance</span><span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{p.progress}%</span></div><PBar v={p.progress} h={8} color={p.progress > 80 ? t.green : t.accent} t={t} /></div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontSize: 11, color: t.muted }}>Avance</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{p.progress}%</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1 }}><PBar v={p.progress} h={8} color={p.progress > 80 ? t.green : t.accent} t={t} /></div>
+            <input type="range" min={0} max={100} step={5} value={p.progress} onChange={async (e) => {
+              const val = Number(e.target.value);
+              await updateProgress(p.id, val);
+            }} style={{ width: 120, accentColor: p.progress > 80 ? "#34D399" : "#7C6DF0" }} />
+          </div>
+          <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+            {[0,25,50,75,100].map(v => (
+              <button key={v} onClick={() => updateProgress(p.id, v)} style={{ flex: 1, padding: "4px 0", borderRadius: 5, border: "1px solid " + (p.progress === v ? t.accent : t.border), background: p.progress === v ? t.accentBg : t.hover, color: p.progress === v ? t.accent : t.dim, fontSize: 10, fontWeight: 600, cursor: "pointer" }}>{v}%</button>
+            ))}
+          </div>
+        </div>
         {p.description && <p style={{ fontSize: 12, color: t.muted, marginBottom: 18 }}>{p.description}</p>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
           <Crd t={t} style={{ padding: 14 }}>
@@ -869,7 +906,42 @@ function ProjectsPage({ t }) {
             )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin movimientos</div>}
           </Crd>
           <Crd t={t} style={{ padding: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Tareas y pendientes</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Tareas y pendientes</div>
+              <Btn t={t} onClick={() => setShowNewTask(!showNewTask)}><Plus size={12} />{showNewTask ? "Cancelar" : "Nueva tarea"}</Btn>
+            </div>
+            {showNewTask && (
+              <div style={{ padding: 12, background: t.hover, borderRadius: 8, marginBottom: 10, border: "1px dashed " + t.accent + "40" }}>
+                <Inp label="Título de la tarea" val={newTask.title} onChange={v => setNewTask({...newTask, title: v})} t={t} placeholder="Ej: Revisar planos..." />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+                  <Inp label="Responsable" val={newTask.assignee} onChange={v => setNewTask({...newTask, assignee: v})} t={t} placeholder="Nombre" />
+                  <Inp label="Fecha límite" val={newTask.due_date} onChange={v => setNewTask({...newTask, due_date: v})} t={t} placeholder="2026-03-15" />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Prioridad</div>
+                    <select value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value})} style={{ width: "100%", background: t.card, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 }}>
+                      <option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Etiqueta</div>
+                    <select value={newTask.tag} onChange={e => setNewTask({...newTask, tag: e.target.value})} style={{ width: "100%", background: t.card, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 12 }}>
+                      <option value="obra">Obra</option><option value="compras">Compras</option><option value="admin">Admin</option><option value="diseño">Diseño</option><option value="contratos">Contratos</option><option value="gestión">Gestión</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <Btn primary t={t} onClick={async () => {
+                    if (!newTask.title.trim()) return;
+                    await supabase.from("tasks").insert([{ title: newTask.title, project_id: p.id, assignee: newTask.assignee || null, priority: newTask.priority, due_date: newTask.due_date || null, status: "todo", tag: newTask.tag, company_id: companyId }]);
+                    setNewTask({ title: "", assignee: "", priority: "medium", due_date: "", tag: "obra" });
+                    setShowNewTask(false);
+                    const curSel = sel; await reload(); setSel(curSel);
+                  }}><Check size={12} />Crear tarea</Btn>
+                </div>
+              </div>
+            )}
             {TASKS.filter(tk => tk.pid === p.id).length ? TASKS.filter(tk => tk.pid === p.id).map(tk => (
               <div key={tk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
                 <div>
@@ -878,7 +950,7 @@ function ProjectsPage({ t }) {
                 </div>
                 <div style={{ display: "flex", gap: 4 }}><Badge s={tk.st} t={t} /><Badge s={tk.pri} t={t} /></div>
               </div>
-            )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin tareas</div>}
+            )) : !showNewTask && <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin tareas</div>}
           </Crd>
         </div>
         <Crd t={t} style={{ padding: 14 }}>
