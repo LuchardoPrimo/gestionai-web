@@ -16,7 +16,7 @@ import {
   CheckCircle2, AlertCircle, Phone, Mail, MapPin, Tag, MessageSquare, BarChart3,
   CreditCard, FileUp, Download, Zap, ChevronLeft, X, Check, Bot, CircleDollarSign,
   Layers, Target, Activity, Archive, Sun, Moon, Upload, Link2, List, Grid3X3,
-  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus
+  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus, Shield, Building2, ExternalLink, ChevronRight, RefreshCw
 } from "lucide-react";
 
 // Data context for Supabase
@@ -98,6 +98,52 @@ function DataProvider({ children }) {
 
   return (
     <DataContext.Provider value={{ clients, projects, transactions, tasks, documents, loading, reload: load, companyId, setClients, setProjects, setTransactions, setTasks, setDocuments }}>
+      {children}
+    </DataContext.Provider>
+  );
+}
+
+// ─── Demo Data Provider (datos ficticios para mostrar la plataforma) ───
+function DemoDataProvider({ children }) {
+  const demoClients = [
+    { id: "d1", name: "Inmobiliaria Costa del Sol", type: "client", phone: "11-4532-8877", email: "info@costadelsol.com.ar", city: "CABA", tags: ["VIP"], lastAct: "Ayer", projects: 2, contact: "Martín Costa" },
+    { id: "d2", name: "Desarrollos Urbanos SA", type: "client", phone: "11-5567-3344", email: "contacto@desurbanos.com", city: "Rosario", tags: [], lastAct: "Hace 3 días", projects: 1, contact: "Laura Méndez" },
+    { id: "d3", name: "Corralón El Constructor", type: "provider", phone: "11-4421-5500", email: "ventas@elconstructor.com", city: "Pilar", tags: ["Materiales"], lastAct: "Hoy", projects: 0, contact: "Roberto Sánchez" },
+    { id: "d4", name: "Estudio Arq. Vega & Asoc.", type: "provider", phone: "11-6698-2211", email: "estudio@vegaarq.com", city: "CABA", tags: ["Profesional"], lastAct: "Hace 1 semana", projects: 3, contact: "Ana Vega" },
+    { id: "d5", name: "Familia Rodríguez", type: "client", phone: "2254-55-1234", email: "jrodriguez@gmail.com", city: "Pinamar", tags: [], lastAct: "Hace 2 días", projects: 1, contact: "Jorge Rodríguez" },
+  ];
+  const demoProjects = [
+    { id: "p1", name: "Torre Norte - CABA", status: "active", budget: 85000000, progress: 65, client: "Inmobiliaria Costa del Sol", tasks: 12, done: 8, docs: 15, deadline: "dic. 2026", description: "Edificio 8 pisos, 24 departamentos" },
+    { id: "p2", name: "Casa Pinamar 2026", status: "pending", budget: 15000000, progress: 10, client: "Familia Rodríguez", tasks: 5, done: 1, docs: 3, deadline: "mar. 2027", description: "Casa familiar en La Frontera" },
+    { id: "p3", name: "Oficinas Rosario Centro", status: "active", budget: 42000000, progress: 40, client: "Desarrollos Urbanos SA", tasks: 8, done: 3, docs: 9, deadline: "ago. 2026", description: "Remodelación planta baja comercial" },
+    { id: "p4", name: "Duplex Belgrano R", status: "completed", budget: 28000000, progress: 100, client: "Inmobiliaria Costa del Sol", tasks: 20, done: 20, docs: 22, deadline: "ene. 2026", description: "2 duplex premium finalizados" },
+  ];
+  const demoTransactions = [
+    { id: "t1", desc: "Anticipo Torre Norte", description: "Anticipo Torre Norte", amount: 12000000, status: "paid", date: "20/02", contact: "Inmobiliaria Costa del Sol", project: "Torre Norte - CABA", pid: "p1" },
+    { id: "t2", desc: "Cemento x 200 bolsas", description: "Cemento x 200 bolsas", amount: -1850000, status: "paid", date: "18/02", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1" },
+    { id: "t3", desc: "Honorarios arquitectura feb", description: "Honorarios arquitectura feb", amount: -950000, status: "pending", date: "15/02", contact: "Estudio Arq. Vega & Asoc.", project: "Oficinas Rosario Centro", pid: "p3" },
+    { id: "t4", desc: "Cuota 2/6 Casa Pinamar", description: "Cuota 2/6 Casa Pinamar", amount: 2500000, status: "pending", date: "10/02", contact: "Familia Rodríguez", project: "Casa Pinamar 2026", pid: "p2" },
+    { id: "t5", desc: "Hierro estructural", description: "Hierro estructural", amount: -3200000, status: "overdue", date: "05/02", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1" },
+    { id: "t6", desc: "Cuota final Duplex Belgrano", description: "Cuota final Duplex Belgrano", amount: 8000000, status: "paid", date: "28/01", contact: "Inmobiliaria Costa del Sol", project: "Duplex Belgrano R", pid: "p4" },
+    { id: "t7", desc: "Electricidad y cableado", description: "Electricidad y cableado", amount: -1100000, status: "paid", date: "25/01", contact: "Corralón El Constructor", project: "Oficinas Rosario Centro", pid: "p3" },
+  ];
+  const demoTasks = [
+    { id: "k1", title: "Inspección estructura piso 6", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-26", st: "pending", tag: "obra" },
+    { id: "k2", title: "Pedir presupuesto sanitarios", project: "Casa Pinamar 2026", pid: "p2", who: "Ana", pri: "medium", due: "2026-02-28", st: "pending", tag: "compras" },
+    { id: "k3", title: "Enviar certificado avance a Costa", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-25", st: "in_progress", tag: "admin" },
+    { id: "k4", title: "Revisar planos eléctricos oficina", project: "Oficinas Rosario Centro", pid: "p3", who: "Martín", pri: "medium", due: "2026-03-01", st: "pending", tag: "diseño" },
+    { id: "k5", title: "Contratar pintor para duplex", project: "Duplex Belgrano R", pid: "p4", who: "Lucas", pri: "low", due: "2026-03-05", st: "done", tag: "contratos" },
+    { id: "k6", title: "Buscar terreno La Frontera", project: "Casa Pinamar 2026", pid: "p2", who: "Lucas", pri: "high", due: "2026-03-10", st: "pending", tag: "gestión" },
+  ];
+  const demoDocuments = [
+    { id: "dc1", name: "Factura Corralón #4521", type: "invoice", status: "approved", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1", date: "20/02", size: "245 KB" },
+    { id: "dc2", name: "Plano estructura P6.dwg", type: "blueprint", status: "active", contact: null, project: "Torre Norte - CABA", pid: "p1", date: "18/02", size: "1.2 MB" },
+    { id: "dc3", name: "Contrato Rodríguez", type: "contract", status: "approved", contact: "Familia Rodríguez", project: "Casa Pinamar 2026", pid: "p2", date: "15/02", size: "380 KB" },
+    { id: "dc4", name: "Presupuesto sanitarios", type: "budget", status: "pending", contact: "Estudio Arq. Vega & Asoc.", project: "Oficinas Rosario Centro", pid: "p3", date: "12/02", size: "156 KB" },
+  ];
+  const noop = () => {};
+  return (
+    <DataContext.Provider value={{ clients: demoClients, projects: demoProjects, transactions: demoTransactions, tasks: demoTasks, documents: demoDocuments, loading: false, reload: noop, companyId: "demo", setClients: noop, setProjects: noop, setTransactions: noop, setTasks: noop, setDocuments: noop }}>
       {children}
     </DataContext.Provider>
   );
@@ -253,6 +299,7 @@ function Crd({ children, t, style: s }) {
 }
 
 function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) {
+  const isSuperAdmin = user?.email === "lucastomas13@gmail.com";
   const allNav = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ["owner","admin","accountant","pm","employee"] },
     { id: "clients", icon: Users, label: "Clientes / Proveedores", roles: ["owner","admin","accountant"] },
@@ -292,6 +339,22 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) 
             </div>
           );
         })}
+        {isSuperAdmin && (
+          <>
+            {!collapsed && <div style={{ fontSize: 9, fontWeight: 700, color: t.orange, textTransform: "uppercase", letterSpacing: "1.2px", padding: "16px 10px 6px", marginBottom: 2, borderTop: "1px solid " + t.border, marginTop: 8 }}>Super Admin</div>}
+            {collapsed && <div style={{ borderTop: "1px solid " + t.border, marginTop: 8, marginBottom: 8 }} />}
+            <div onClick={() => onNav("superadmin")} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: collapsed ? "10px 16px" : "9px 12px",
+              borderRadius: 9, cursor: "pointer", marginBottom: 2,
+              background: active === "superadmin" ? "rgba(251,191,36,0.10)" : "transparent",
+              borderLeft: active === "superadmin" ? "3px solid " + t.orange : "3px solid transparent",
+            }}>
+              <Shield size={17} color={active === "superadmin" ? t.orange : t.dim} style={{ flexShrink: 0 }} />
+              {!collapsed && <span style={{ fontSize: 13, fontWeight: active === "superadmin" ? 600 : 400, color: active === "superadmin" ? t.orange : t.muted }}>Panel de Control</span>}
+            </div>
+          </>
+        )}
       </div>
       <div style={{ padding: collapsed ? 10 : 14, borderTop: "1px solid " + t.border }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)", marginBottom: 8 }}>
@@ -2335,7 +2398,7 @@ function Reports({ t }) {
   );
 }
 
-function Landing({ onEnter }) {
+function Landing({ onEnter, onLogin }) {
   const [scrollY, setScrollY] = useState(0);
   const handleScroll = (e) => setScrollY(e.target.scrollTop);
 
@@ -2392,6 +2455,9 @@ function Landing({ onEnter }) {
           <span onClick={() => document.getElementById("features").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Funcionalidades</span>
           <span onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
           <span onClick={() => document.getElementById("pricing").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Planes</span>
+          <button onClick={onLogin} style={{ background: "transparent", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Iniciar sesión
+          </button>
           <button onClick={onEnter} style={{ background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 16px rgba(124,109,240,0.35)" }}>
             Ver Demo
           </button>
@@ -2426,12 +2492,19 @@ function Landing({ onEnter }) {
         </p>
 
         <div style={{ display: "flex", gap: 14, marginTop: 36, animation: "fadeUp 0.8s ease-out 0.3s both" }}>
-          <button onClick={onEnter} style={{
+          <button onClick={onLogin} style={{
             background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
             borderRadius: 12, padding: "15px 36px", fontSize: 16, fontWeight: 700, cursor: "pointer",
             boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "flex", alignItems: "center", gap: 8,
           }}>
-            Probar demo gratis <ArrowUpRight size={18} />
+            Iniciar sesión <ArrowUpRight size={18} />
+          </button>
+          <button onClick={onEnter} style={{
+            background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 12, padding: "15px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            Probar demo gratis
           </button>
           <button style={{
             background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
@@ -2551,13 +2624,22 @@ function Landing({ onEnter }) {
         }}>
           <h2 style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-1px" }}>¿Listo para dejar las planillas?</h2>
           <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, marginBottom: 28 }}>Probá GestiónAI gratis y empezá a tomar mejores decisiones financieras hoy.</p>
-          <button onClick={onEnter} style={{
-            background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
-            borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer",
-            boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "inline-flex", alignItems: "center", gap: 8,
-          }}>
-            Probar demo gratis <ArrowUpRight size={18} />
-          </button>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+            <button onClick={onLogin} style={{
+              background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
+              borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer",
+              boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "inline-flex", alignItems: "center", gap: 8,
+            }}>
+              Comenzar ahora <ArrowUpRight size={18} />
+            </button>
+            <button onClick={onEnter} style={{
+              background: "transparent", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 12, padding: "16px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 8,
+            }}>
+              Ver demo
+            </button>
+          </div>
         </div>
       </section>
 
@@ -2589,13 +2671,13 @@ function LoadingScreen({ t }) {
   );
 }
 
-function AppContent({ user, profile, onLogout }) {
+function AppContent({ user, profile, onLogout, isDemo }) {
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
   const { loading } = useData();
   const t = themes[theme];
-  const role = profile?.role || user?.user_metadata?.role || "owner";
+  const role = isDemo ? "owner" : (profile?.role || user?.user_metadata?.role || "owner");
 
   if (loading) return <LoadingScreen t={t} />;
 
@@ -2606,8 +2688,9 @@ function AppContent({ user, profile, onLogout }) {
     treasury: ["Tesorería", "Cuentas y cash flow"], documents: ["Documentos", "Facturas y comprobantes"],
     reports: ["Reportes", "Informes financieros"],
     team: ["Equipo", "Gestión de usuarios e invitaciones"],
+    superadmin: ["Panel de Control", "Administración de todas las empresas"],
   };
-  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage };
+  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, superadmin: SuperAdminPage };
   const Page = pages[page] || Dashboard;
 
   return (
@@ -2615,20 +2698,480 @@ function AppContent({ user, profile, onLogout }) {
       <style>{
         "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');" +
         "@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}" +
+        "@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}" +
         "*{box-sizing:border-box;margin:0;padding:0}" +
         "body{font-family:'DM Sans',-apple-system,sans-serif}" +
         "::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:" + t.border + ";border-radius:3px}" +
         "input::placeholder{color:" + t.dim + "}" +
         "select{color:" + t.text + "}option{background:" + t.card + ";color:" + t.text + "}"
       }</style>
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s" }}>
+      <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s", flexDirection: "column" }}>
+        {isDemo && (
+          <div style={{ background: "linear-gradient(90deg, #7C6DF0, #34D399)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🎯 Estás viendo la demo con datos ficticios</span>
+            <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+              Crear cuenta gratis →
+            </button>
+          </div>
+        )}
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} role={role} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} profile={profile} onLogout={onLogout} onNav={setPage} />
           <Page t={t} onNav={setPage} user={user} profile={profile} />
         </div>
+        </div>
       </div>
     </>
+  );
+}
+
+// ─── SUPER ADMIN PAGE ───
+function SuperAdminPage({ t }) {
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null); // company detail view
+  const [companyData, setCompanyData] = useState(null);
+  const [tab, setTab] = useState("overview"); // overview, clients, projects, transactions, tasks, users, whatsapp
+  const [refreshing, setRefreshing] = useState(false);
+  const [editingCompany, setEditingCompany] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [notes, setNotes] = useState({});
+
+  const Crd = ({ children, style }) => <div style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, padding: 20, ...style }}>{children}</div>;
+
+  // Load all companies with stats
+  const loadCompanies = async () => {
+    setLoading(true);
+    const { data: comps } = await supabase.from("companies").select("*").order("created_at", { ascending: false });
+    if (!comps) { setLoading(false); return; }
+
+    // Get stats for each company
+    const enriched = await Promise.all(comps.map(async (c) => {
+      const [users, clients, projects, transactions, tasks, waUsers, waMessages] = await Promise.all([
+        supabase.from("user_profiles").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+        supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+        supabase.from("projects").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+        supabase.from("transactions").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+        supabase.from("tasks").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+        supabase.from("whatsapp_users").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+        supabase.from("whatsapp_messages").select("id", { count: "exact", head: true }).eq("company_id", c.id),
+      ]);
+      return {
+        ...c,
+        stats: {
+          users: users.count || 0,
+          clients: clients.count || 0,
+          projects: projects.count || 0,
+          transactions: transactions.count || 0,
+          tasks: tasks.count || 0,
+          waUsers: waUsers.count || 0,
+          waMessages: waMessages.count || 0,
+        },
+      };
+    }));
+    setCompanies(enriched);
+    setLoading(false);
+  };
+
+  // Load detailed data for a specific company
+  const loadCompanyDetail = async (companyId) => {
+    setRefreshing(true);
+    const [users, clients, projects, transactions, tasks, documents, waUsers, waMessages] = await Promise.all([
+      supabase.from("user_profiles").select("*").eq("company_id", companyId),
+      supabase.from("clients").select("*").eq("company_id", companyId).order("name"),
+      supabase.from("projects").select("*").eq("company_id", companyId).order("name"),
+      supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").eq("company_id", companyId).order("date", { ascending: false }),
+      supabase.from("tasks").select("*, project:projects(name)").eq("company_id", companyId).order("due_date"),
+      supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
+      supabase.from("whatsapp_users").select("*").eq("company_id", companyId),
+      supabase.from("whatsapp_messages").select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(50),
+    ]);
+    setCompanyData({
+      users: users.data || [],
+      clients: clients.data || [],
+      projects: projects.data || [],
+      transactions: transactions.data || [],
+      tasks: tasks.data || [],
+      documents: documents.data || [],
+      waUsers: waUsers.data || [],
+      waMessages: waMessages.data || [],
+    });
+    setRefreshing(false);
+  };
+
+  const selectCompany = (comp) => {
+    setSelected(comp);
+    setTab("overview");
+    loadCompanyDetail(comp.id);
+  };
+
+  const saveCompanyEdit = async () => {
+    if (!editingCompany) return;
+    await supabase.from("companies").update(editForm).eq("id", editingCompany.id);
+    setEditingCompany(null);
+    loadCompanies();
+    if (selected?.id === editingCompany.id) {
+      setSelected({ ...selected, ...editForm });
+    }
+  };
+
+  const saveNote = async (companyId) => {
+    const note = notes[companyId];
+    if (!note) return;
+    await supabase.from("companies").update({ admin_notes: note }).eq("id", companyId);
+    loadCompanies();
+  };
+
+  useEffect(() => { loadCompanies(); }, []);
+
+  const statBadge = (val, icon, label, color) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, background: color + "12", border: "1px solid " + color + "25" }}>
+      {icon}
+      <span style={{ fontSize: 14, fontWeight: 700, color }}>{val}</span>
+      <span style={{ fontSize: 10, color: t.dim }}>{label}</span>
+    </div>
+  );
+
+  // ─── Company List View ───
+  if (!selected) {
+    if (loading) return <div style={{ padding: 30, color: t.muted }}>Cargando empresas...</div>;
+    
+    const totalUsers = companies.reduce((s, c) => s + c.stats.users, 0);
+    const totalMessages = companies.reduce((s, c) => s + c.stats.waMessages, 0);
+
+    return (
+      <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
+        {/* Global Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+          {[
+            { label: "Empresas", value: companies.length, icon: <Building2 size={18} color={t.accent} />, color: t.accentBg },
+            { label: "Usuarios totales", value: totalUsers, icon: <Users size={18} color={t.green} />, color: t.greenBg },
+            { label: "Mensajes WhatsApp", value: totalMessages, icon: <MessageSquare size={18} color="#25D366" />, color: "rgba(37,211,102,0.1)" },
+            { label: "Hoy activas", value: companies.filter(c => c.stats.waMessages > 0).length, icon: <Activity size={18} color={t.orange} />, color: t.orangeBg },
+          ].map((s, i) => (
+            <Crd key={i}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: t.text }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: t.dim }}>{s.label}</div>
+                </div>
+              </div>
+            </Crd>
+          ))}
+        </div>
+
+        {/* Company Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 14 }}>
+          {companies.map(comp => (
+            <Crd key={comp.id} style={{ cursor: "pointer", transition: "all 0.15s", border: "1px solid " + t.border }} onClick={() => selectCompany(comp)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Building2 size={18} color="#fff" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{comp.name}</div>
+                      <div style={{ fontSize: 11, color: t.dim }}>{comp.cuit || "Sin CUIT"} · {comp.phone || "Sin tel"}</div>
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={t.dim} />
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                {statBadge(comp.stats.users, <Users size={12} color={t.accent} />, "usuarios", t.accent)}
+                {statBadge(comp.stats.clients, <Users size={12} color={t.green} />, "clientes", t.green)}
+                {statBadge(comp.stats.projects, <FolderKanban size={12} color={t.blue} />, "obras", t.blue)}
+                {statBadge(comp.stats.transactions, <Receipt size={12} color={t.orange} />, "movs", t.orange)}
+                {statBadge(comp.stats.tasks, <Target size={12} color={t.accentL} />, "tareas", t.accentL)}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 10, borderTop: "1px solid " + t.border }}>
+                <MessageSquare size={12} color="#25D366" />
+                <span style={{ fontSize: 11, color: t.dim }}>{comp.stats.waMessages} mensajes WA · {comp.stats.waUsers} usuarios vinculados</span>
+              </div>
+
+              <div style={{ fontSize: 10, color: t.dim, marginTop: 8 }}>
+                Creada: {new Date(comp.created_at).toLocaleDateString("es-AR")} · ID: {comp.id.substring(0, 8)}...
+              </div>
+            </Crd>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Company Detail View ───
+  const tabs = [
+    { id: "overview", label: "Resumen", icon: LayoutDashboard },
+    { id: "users", label: `Usuarios (${companyData?.users?.length || 0})`, icon: Users },
+    { id: "clients", label: `Clientes (${companyData?.clients?.length || 0})`, icon: Users },
+    { id: "projects", label: `Proyectos (${companyData?.projects?.length || 0})`, icon: FolderKanban },
+    { id: "transactions", label: `Finanzas (${companyData?.transactions?.length || 0})`, icon: Receipt },
+    { id: "tasks", label: `Tareas (${companyData?.tasks?.length || 0})`, icon: Target },
+    { id: "whatsapp", label: `WhatsApp (${companyData?.waMessages?.length || 0})`, icon: MessageSquare },
+  ];
+
+  const totalIncome = (companyData?.transactions || []).filter(tx => Number(tx.amount) > 0).reduce((s, tx) => s + Number(tx.amount), 0);
+  const totalExpense = (companyData?.transactions || []).filter(tx => Number(tx.amount) < 0).reduce((s, tx) => s + Math.abs(Number(tx.amount)), 0);
+
+  const Table = ({ headers, rows }) => (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <thead>
+          <tr>{headers.map((h, i) => <th key={i} style={{ textAlign: "left", padding: "8px 10px", color: t.dim, fontWeight: 600, borderBottom: "1px solid " + t.border, fontSize: 11 }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri} style={{ borderBottom: "1px solid " + t.border + "60" }}>
+              {row.map((cell, ci) => <td key={ci} style={{ padding: "8px 10px", color: t.text }}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin datos</div>}
+    </div>
+  );
+
+  const statusPill = (status) => {
+    const colors = { active: t.green, in_progress: t.blue, pending: t.orange, completed: t.accent, overdue: t.red, paid: t.green, done: t.green };
+    const col = colors[status] || t.dim;
+    return <span style={{ ...pill(col + "18", col) }}>{status}</span>;
+  };
+
+  return (
+    <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <div onClick={() => { setSelected(null); setCompanyData(null); }} style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 6 }}>
+          <ChevronLeft size={14} color={t.muted} />
+          <span style={{ fontSize: 12, color: t.muted }}>Volver</span>
+        </div>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Building2 size={20} color="#fff" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{selected.name}</div>
+          <div style={{ fontSize: 12, color: t.dim }}>{selected.cuit || "Sin CUIT"} · {selected.phone || "Sin tel"} · ID: {selected.id.substring(0, 12)}...</div>
+        </div>
+        <div onClick={() => { setEditingCompany(selected); setEditForm({ name: selected.name, cuit: selected.cuit || "", phone: selected.phone || "" }); }} style={{ cursor: "pointer", padding: "8px 16px", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", fontSize: 12, fontWeight: 600, color: t.accentL }}>
+          Editar empresa
+        </div>
+        <div onClick={() => { loadCompanyDetail(selected.id); }} style={{ cursor: "pointer", padding: "8px", borderRadius: 8, background: t.hover }}>
+          <RefreshCw size={14} color={refreshing ? t.accent : t.dim} style={refreshing ? { animation: "spin 1s linear infinite" } : {}} />
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      {editingCompany && (
+        <Crd style={{ marginBottom: 16, border: "1px solid " + t.accent + "40" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>Editar empresa</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[
+              { label: "Nombre", key: "name" },
+              { label: "CUIT", key: "cuit" },
+              { label: "Teléfono", key: "phone" },
+            ].map(f => (
+              <div key={f.key}>
+                <div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>{f.label}</div>
+                <input value={editForm[f.key] || ""} onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={saveCompanyEdit} style={{ padding: "8px 20px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Guardar</button>
+            <button onClick={() => setEditingCompany(null)} style={{ padding: "8px 20px", borderRadius: 8, background: t.hover, color: t.muted, border: "1px solid " + t.border, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+          </div>
+        </Crd>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid " + t.border, paddingBottom: 2 }}>
+        {tabs.map(tb => (
+          <div key={tb.id} onClick={() => setTab(tb.id)} style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", cursor: "pointer",
+            borderBottom: tab === tb.id ? "2px solid " + t.accent : "2px solid transparent",
+            color: tab === tb.id ? t.accentL : t.dim, fontSize: 12, fontWeight: tab === tb.id ? 600 : 400,
+          }}>
+            <tb.icon size={13} />
+            {tb.label}
+          </div>
+        ))}
+      </div>
+
+      {refreshing && <div style={{ padding: 10, textAlign: "center", color: t.dim, fontSize: 12 }}>Actualizando...</div>}
+
+      {/* Tab Content */}
+      {tab === "overview" && companyData && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Crd>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>📊 Estadísticas</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                { label: "Usuarios", value: companyData.users.length, color: t.accent },
+                { label: "Clientes", value: companyData.clients.length, color: t.green },
+                { label: "Proyectos", value: companyData.projects.length, color: t.blue },
+                { label: "Transacciones", value: companyData.transactions.length, color: t.orange },
+                { label: "Tareas", value: companyData.tasks.length, color: t.accentL },
+                { label: "Documentos", value: companyData.documents.length, color: t.dim },
+              ].map((s, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, background: s.color + "10" }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: t.muted }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </Crd>
+
+          <Crd>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>💰 Finanzas</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: t.greenBg }}>
+                <span style={{ fontSize: 12, color: t.muted }}>Ingresos</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: t.green }}>{fmt(totalIncome)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: t.redBg }}>
+                <span style={{ fontSize: 12, color: t.muted }}>Egresos</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: t.red }}>{fmt(totalExpense)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: t.accentBg }}>
+                <span style={{ fontSize: 12, color: t.muted }}>Balance</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: totalIncome - totalExpense >= 0 ? t.green : t.red }}>{fmt(totalIncome - totalExpense)}</span>
+              </div>
+            </div>
+          </Crd>
+
+          <Crd style={{ gridColumn: "1 / -1" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>📝 Notas internas (solo vos las ves)</div>
+            <textarea
+              value={notes[selected.id] ?? selected.admin_notes ?? ""}
+              onChange={e => setNotes({ ...notes, [selected.id]: e.target.value })}
+              placeholder="Escribí notas sobre este cliente, particularidades, acuerdos, etc..."
+              style={{ width: "100%", minHeight: 80, padding: 12, borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }}
+            />
+            <button onClick={() => saveNote(selected.id)} style={{ marginTop: 8, padding: "8px 20px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Guardar nota</button>
+          </Crd>
+        </div>
+      )}
+
+      {tab === "users" && companyData && (
+        <Crd>
+          <Table
+            headers={["Nombre", "Rol", "Email", "Creado"]}
+            rows={companyData.users.map(u => [
+              u.full_name || "—",
+              <span style={pill(t.accentBg, t.accentL)}>{u.role}</span>,
+              u.id?.substring(0, 12) + "...",
+              new Date(u.created_at).toLocaleDateString("es-AR"),
+            ])}
+          />
+        </Crd>
+      )}
+
+      {tab === "clients" && companyData && (
+        <Crd>
+          <Table
+            headers={["Nombre", "Tipo", "Teléfono", "Email", "Ciudad"]}
+            rows={companyData.clients.map(c => [
+              c.name,
+              <span style={pill(c.type === "client" ? t.greenBg : t.blueBg, c.type === "client" ? t.green : t.blue)}>{c.type === "client" ? "Cliente" : "Proveedor"}</span>,
+              c.phone || "—",
+              c.email || "—",
+              c.city || "—",
+            ])}
+          />
+        </Crd>
+      )}
+
+      {tab === "projects" && companyData && (
+        <Crd>
+          <Table
+            headers={["Nombre", "Estado", "Presupuesto", "Avance", "Deadline"]}
+            rows={companyData.projects.map(p => [
+              p.name,
+              statusPill(p.status),
+              p.budget ? fmt(Number(p.budget)) : "—",
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 60, height: 6, borderRadius: 3, background: t.hover }}>
+                  <div style={{ width: (p.progress || 0) + "%", height: "100%", borderRadius: 3, background: (p.progress || 0) > 75 ? t.green : (p.progress || 0) > 40 ? t.orange : t.red }} />
+                </div>
+                <span style={{ fontSize: 11, color: t.muted }}>{p.progress || 0}%</span>
+              </div>,
+              p.deadline || "—",
+            ])}
+          />
+        </Crd>
+      )}
+
+      {tab === "transactions" && companyData && (
+        <Crd>
+          <Table
+            headers={["Fecha", "Descripción", "Monto", "Contacto", "Proyecto", "Estado"]}
+            rows={companyData.transactions.map(tx => [
+              tx.date ? new Date(tx.date).toLocaleDateString("es-AR") : "—",
+              tx.description || "—",
+              <span style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? t.green : t.red }}>{fmt(Number(tx.amount))}</span>,
+              tx.contact?.name || "—",
+              tx.project?.name || "—",
+              statusPill(tx.status),
+            ])}
+          />
+        </Crd>
+      )}
+
+      {tab === "tasks" && companyData && (
+        <Crd>
+          <Table
+            headers={["Tarea", "Proyecto", "Prioridad", "Asignado", "Vence", "Estado"]}
+            rows={companyData.tasks.map(tk => [
+              tk.title,
+              tk.project?.name || "—",
+              <span style={pill(tk.priority === "high" ? t.redBg : tk.priority === "medium" ? t.orangeBg : t.greenBg, tk.priority === "high" ? t.red : tk.priority === "medium" ? t.orange : t.green)}>{tk.priority}</span>,
+              tk.assignee || "—",
+              tk.due_date || "—",
+              statusPill(tk.status),
+            ])}
+          />
+        </Crd>
+      )}
+
+      {tab === "whatsapp" && companyData && (
+        <div style={{ display: "grid", gridTemplateColumns: "250px 1fr", gap: 14 }}>
+          <Crd>
+            <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>Usuarios WA</div>
+            {companyData.waUsers.map(wu => (
+              <div key={wu.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "40" }}>
+                <MessageSquare size={12} color="#25D366" />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{wu.name || "—"}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{wu.phone}</div>
+                </div>
+                <span style={pill(wu.verified ? t.greenBg : t.redBg, wu.verified ? t.green : t.red)}>{wu.verified ? "✓" : "✗"}</span>
+              </div>
+            ))}
+            {companyData.waUsers.length === 0 && <div style={{ fontSize: 11, color: t.dim }}>Sin usuarios vinculados</div>}
+          </Crd>
+
+          <Crd style={{ maxHeight: 500, overflowY: "auto" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>Mensajes recientes</div>
+            {companyData.waMessages.map(msg => (
+              <div key={msg.id} style={{ marginBottom: 10, padding: 10, borderRadius: 8, background: msg.direction === "inbound" ? t.hover : t.accentBg, borderLeft: "3px solid " + (msg.direction === "inbound" ? t.blue : t.accent) }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: msg.direction === "inbound" ? t.blue : t.accentL }}>{msg.direction === "inbound" ? "📩 Usuario" : "🤖 IA"}</span>
+                  <span style={{ fontSize: 10, color: t.dim }}>{new Date(msg.created_at).toLocaleString("es-AR")}</span>
+                </div>
+                <div style={{ fontSize: 12, color: t.text, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto" }}>{msg.content?.substring(0, 500) || "—"}</div>
+                {msg.ai_action && <span style={{ fontSize: 10, color: t.dim, marginTop: 4, display: "inline-block" }}>Acción: {msg.ai_action}</span>}
+              </div>
+            ))}
+            {companyData.waMessages.length === 0 && <div style={{ fontSize: 11, color: t.dim }}>Sin mensajes</div>}
+          </Crd>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -3148,12 +3691,17 @@ export default function App() {
   };
 
   if (view === "loading") return <div style={{ minHeight: "100vh", background: "#0B0F1A", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
-  if (view === "landing") return <Landing onEnter={() => setView("login")} />;
+  if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => setView("login")} />;
   if (view === "login") return <LoginPage onLogin={() => setView("app")} />;
+  if (view === "demo") return (
+    <DemoDataProvider>
+      <AppContent user={{ email: "demo@gestionai.com", user_metadata: { full_name: "Usuario Demo" } }} profile={{ full_name: "Usuario Demo", role: "owner", company: { name: "Constructora Demo SA" } }} onLogout={() => setView("login")} isDemo={true} />
+    </DemoDataProvider>
+  );
 
   return (
     <DataProvider>
-      <AppContent user={user} profile={profile} onLogout={handleLogout} />
+      <AppContent user={user} profile={profile} onLogout={handleLogout} isDemo={false} />
     </DataProvider>
   );
 }
