@@ -306,6 +306,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) 
     { id: "projects", icon: FolderKanban, label: "Proyectos / Obras", roles: ["owner","admin","pm","employee"] },
     { id: "tasks", icon: Target, label: "Tareas", roles: ["owner","admin","pm","employee"] },
     { id: "transactions", icon: Receipt, label: "Finanzas", roles: ["owner","admin","accountant"] },
+    { id: "payroll", icon: CreditCard, label: "Sueldos", roles: ["owner","admin","accountant"] },
     { id: "treasury", icon: Wallet, label: "Tesorería", roles: ["owner","admin"] },
     { id: "documents", icon: FileText, label: "Documentos", roles: ["owner","admin","accountant","pm"] },
     { id: "reports", icon: BarChart3, label: "Reportes", roles: ["owner","admin","accountant"] },
@@ -2330,8 +2331,8 @@ function Reports({ t }) {
               { l: "Egresos totales", v: fmt(totalEg), c: t.red, sub: TXS.filter(tx => tx.amount < 0).length + " transacciones" },
               { l: "Resultado neto", v: fmt(totalInc - totalEg), c: totalInc - totalEg >= 0 ? t.green : t.red, sub: "Margen: " + (totalInc > 0 ? Math.round((totalInc - totalEg) / totalInc * 100) : 0) + "%" },
               { l: "Ticket promedio ingreso", v: fmt(TXS.filter(tx => tx.amount > 0).length > 0 ? totalInc / TXS.filter(tx => tx.amount > 0).length : 0), c: t.accent, sub: "Por transacción" },
-              { l: "CxC / CxP ratio", v: (13700000 / 8760000).toFixed(2), c: t.blue, sub: "CxC: " + fmt(13700000) },
-              { l: "Liquidez", v: (18400000 / 8760000).toFixed(2), c: 18400000 / 8760000 > 1.5 ? t.green : t.orange, sub: "Caja / Pasivo corriente" },
+              { l: "CxC pendientes", v: fmt(TXS.filter(tx => tx.amount > 0 && tx.status === "pending").reduce((s, tx) => s + tx.amount, 0)), c: t.blue, sub: TXS.filter(tx => tx.amount > 0 && tx.status === "pending").length + " cobros pendientes" },
+              { l: "CxP pendientes", v: fmt(TXS.filter(tx => tx.amount < 0 && tx.status === "pending").reduce((s, tx) => s + Math.abs(tx.amount), 0)), c: t.orange, sub: TXS.filter(tx => tx.amount < 0 && tx.status === "pending").length + " pagos pendientes" },
             ].map((k, i) => (
               <div key={i} style={{ padding: 12, background: t.hover, borderRadius: 8, borderLeft: "3px solid " + k.c }}>
                 <div style={{ fontSize: 10, color: t.dim }}>{k.l}</div>
@@ -2347,7 +2348,7 @@ function Reports({ t }) {
               { l: "Proyectos activos", v: PROJECTS.length, c: t.accent, sub: "Total registrados" },
               { l: "Tareas completadas", v: doneTasks + "/" + totalTasks, c: t.green, sub: totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + "% completado" : "Sin tareas" },
               { l: "Tareas urgentes", v: tasks.filter(tk => tk.pri === "high" && tk.st !== "done").length, c: t.red, sub: "Prioridad alta pendientes" },
-              { l: "Clientes activos", v: clients.length, c: t.blue, sub: clients.filter(c => c.type === "client").length + " clientes, " + clients.filter(c => c.type === "supplier").length + " proveedores" },
+              { l: "Clientes activos", v: clients.length, c: t.blue, sub: clients.filter(c => c.type === "client").length + " clientes, " + clients.filter(c => c.type === "provider").length + " proveedores" },
               { l: "Documentos", v: totalDocs, c: t.orange, sub: documents.filter(d => d.status === "pending").length + " pendientes de procesar" },
               { l: "Productividad", v: totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + "%" : "—", c: t.green, sub: "Tasa de completitud" },
             ].map((k, i) => (
@@ -2363,7 +2364,8 @@ function Reports({ t }) {
           {PROJECTS.map(p => {
             const pTasks = tasks.filter(tk => tk.pid === p.id);
             const done = pTasks.filter(tk => tk.st === "done").length;
-            const prog = pTasks.length > 0 ? Math.round(done / pTasks.length * 100) : 0;
+            const taskProg = pTasks.length > 0 ? Math.round(done / pTasks.length * 100) : 0;
+            const prog = p.progress > 0 ? p.progress : taskProg;
             return (
               <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
                 <div style={{ width: 120, fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
@@ -2671,7 +2673,7 @@ function LoadingScreen({ t }) {
   );
 }
 
-function AppContent({ user, profile, onLogout, isDemo }) {
+function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
@@ -2685,12 +2687,13 @@ function AppContent({ user, profile, onLogout, isDemo }) {
     dashboard: ["Dashboard", "Resumen financiero"], clients: ["Clientes / Proveedores", "Gestión de contactos"],
     projects: ["Proyectos / Obras", "Seguimiento y presupuestos"], tasks: ["Tareas", "Gestión de actividades"],
     transactions: ["Finanzas", "Transacciones y contabilidad"],
+    payroll: ["Sueldos", "Liquidación de haberes"],
     treasury: ["Tesorería", "Cuentas y cash flow"], documents: ["Documentos", "Facturas y comprobantes"],
     reports: ["Reportes", "Informes financieros"],
     team: ["Equipo", "Gestión de usuarios e invitaciones"],
     superadmin: ["Panel de Control", "Administración de todas las empresas"],
   };
-  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, superadmin: SuperAdminPage };
+  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, payroll: PayrollPage, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, superadmin: SuperAdminPage };
   const Page = pages[page] || Dashboard;
 
   return (
@@ -2709,7 +2712,7 @@ function AppContent({ user, profile, onLogout, isDemo }) {
         {isDemo && (
           <div style={{ background: "linear-gradient(90deg, #7C6DF0, #34D399)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🎯 Estás viendo la demo con datos ficticios</span>
-            <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+            <button onClick={onRegister || onLogout} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
               Crear cuenta gratis →
             </button>
           </div>
@@ -2726,133 +2729,281 @@ function AppContent({ user, profile, onLogout, isDemo }) {
   );
 }
 
+// ─── PAYROLL PAGE ───
+function PayrollPage({ t }) {
+  const { companyId } = useData();
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [period, setPeriod] = useState(new Date().toISOString().substring(0, 7)); // "2026-02"
+  const [form, setForm] = useState({ employee_name: "", role: "", base_salary: "", overtime: "", bonus: "", deductions: "", notes: "" });
+  const [editId, setEditId] = useState(null);
+
+  const Crd = ({ children, style }) => <div style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, padding: 20, ...style }}>{children}</div>;
+
+  const loadPayroll = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("payroll").select("*").eq("company_id", companyId).order("period", { ascending: false });
+    setRecords(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { if (companyId && companyId !== "demo") loadPayroll(); else setLoading(false); }, [companyId]);
+
+  const handleSave = async () => {
+    const payload = {
+      company_id: companyId,
+      employee_name: form.employee_name,
+      role: form.role || null,
+      period,
+      base_salary: Number(form.base_salary) || 0,
+      overtime: Number(form.overtime) || 0,
+      bonus: Number(form.bonus) || 0,
+      deductions: Number(form.deductions) || 0,
+      notes: form.notes || null,
+    };
+    if (editId) {
+      await supabase.from("payroll").update(payload).eq("id", editId);
+    } else {
+      await supabase.from("payroll").insert(payload);
+    }
+    setShowForm(false);
+    setEditId(null);
+    setForm({ employee_name: "", role: "", base_salary: "", overtime: "", bonus: "", deductions: "", notes: "" });
+    loadPayroll();
+  };
+
+  const editRecord = (r) => {
+    setForm({ employee_name: r.employee_name, role: r.role || "", base_salary: String(r.base_salary), overtime: String(r.overtime), bonus: String(r.bonus), deductions: String(r.deductions), notes: r.notes || "" });
+    setPeriod(r.period);
+    setEditId(r.id);
+    setShowForm(true);
+  };
+
+  const deleteRecord = async (id) => {
+    if (!window.confirm("¿Eliminar esta liquidación?")) return;
+    await supabase.from("payroll").delete().eq("id", id);
+    loadPayroll();
+  };
+
+  const updateStatus = async (id, status) => {
+    const updates = { status };
+    if (status === "paid") updates.payment_date = new Date().toISOString().split("T")[0];
+    await supabase.from("payroll").update(updates).eq("id", id);
+    loadPayroll();
+  };
+
+  const periodRecords = records.filter(r => r.period === period);
+  const allPeriods = [...new Set(records.map(r => r.period))].sort().reverse();
+  const totalPeriod = periodRecords.reduce((s, r) => s + Number(r.total || 0), 0);
+  const totalPaid = periodRecords.filter(r => r.status === "paid").reduce((s, r) => s + Number(r.total || 0), 0);
+  const totalPending = totalPeriod - totalPaid;
+
+  const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" };
+
+  return (
+    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Liquidación de Sueldos</div>
+          <div style={{ fontSize: 12, color: t.muted }}>{periodRecords.length} liquidaciones en {period}</div>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <input type="month" value={period} onChange={e => setPeriod(e.target.value)} style={{ ...inputStyle, width: 160 }} />
+          <button onClick={() => { setShowForm(true); setEditId(null); setForm({ employee_name: "", role: "", base_salary: "", overtime: "", bonus: "", deductions: "", notes: "" }); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, background: t.accent, color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <Plus size={15} /> Nueva liquidación
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+        <Crd>
+          <div style={{ fontSize: 11, color: t.dim }}>Total período</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: t.text }}>{fmt(totalPeriod)}</div>
+        </Crd>
+        <Crd>
+          <div style={{ fontSize: 11, color: t.dim }}>Pagado</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: t.green }}>{fmt(totalPaid)}</div>
+        </Crd>
+        <Crd>
+          <div style={{ fontSize: 11, color: t.dim }}>Pendiente</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: t.orange }}>{fmt(totalPending)}</div>
+        </Crd>
+      </div>
+
+      {/* Form */}
+      {showForm && (
+        <Crd style={{ marginBottom: 20, border: "1px solid " + t.accent + "30" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>{editId ? "Editar" : "Nueva"} liquidación — {period}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Empleado *</div><input value={form.employee_name} onChange={e => setForm({ ...form, employee_name: e.target.value })} placeholder="Nombre completo" style={inputStyle} /></div>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Cargo</div><input value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} placeholder="Ej: Albañil, Capataz" style={inputStyle} /></div>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Sueldo básico *</div><input type="number" value={form.base_salary} onChange={e => setForm({ ...form, base_salary: e.target.value })} placeholder="0" style={inputStyle} /></div>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Horas extra</div><input type="number" value={form.overtime} onChange={e => setForm({ ...form, overtime: e.target.value })} placeholder="0" style={inputStyle} /></div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 10, marginBottom: 10 }}>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Bonificación</div><input type="number" value={form.bonus} onChange={e => setForm({ ...form, bonus: e.target.value })} placeholder="0" style={inputStyle} /></div>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Deducciones</div><input type="number" value={form.deductions} onChange={e => setForm({ ...form, deductions: e.target.value })} placeholder="0" style={inputStyle} /></div>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Notas</div><input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Observaciones..." style={inputStyle} /></div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: t.accent }}>Total: {fmt((Number(form.base_salary) || 0) + (Number(form.overtime) || 0) + (Number(form.bonus) || 0) - (Number(form.deductions) || 0))}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ padding: "9px 20px", borderRadius: 8, background: t.hover, color: t.muted, border: "1px solid " + t.border, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleSave} disabled={!form.employee_name || !form.base_salary} style={{ padding: "9px 24px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: !form.employee_name || !form.base_salary ? 0.5 : 1 }}>Guardar</button>
+            </div>
+          </div>
+        </Crd>
+      )}
+
+      {/* Table */}
+      <Crd>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr>{["Empleado", "Cargo", "Básico", "Extras", "Bonif.", "Deduc.", "Total", "Estado", "Acciones"].map((h, i) => <th key={i} style={{ textAlign: "left", padding: "10px 10px", color: t.dim, fontWeight: 600, borderBottom: "1px solid " + t.border, fontSize: 11 }}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {periodRecords.map(r => (
+              <tr key={r.id} style={{ borderBottom: "1px solid " + t.border + "60" }}>
+                <td style={{ padding: "10px", color: t.text, fontWeight: 600 }}>{r.employee_name}</td>
+                <td style={{ padding: "10px", color: t.muted }}>{r.role || "—"}</td>
+                <td style={{ padding: "10px", color: t.text }}>{fmt(Number(r.base_salary))}</td>
+                <td style={{ padding: "10px", color: t.blue }}>{r.overtime > 0 ? "+" + fmt(Number(r.overtime)) : "—"}</td>
+                <td style={{ padding: "10px", color: t.green }}>{r.bonus > 0 ? "+" + fmt(Number(r.bonus)) : "—"}</td>
+                <td style={{ padding: "10px", color: t.red }}>{r.deductions > 0 ? "-" + fmt(Number(r.deductions)) : "—"}</td>
+                <td style={{ padding: "10px", fontWeight: 800, color: t.accent }}>{fmt(Number(r.total))}</td>
+                <td style={{ padding: "10px" }}>
+                  <span style={pill(r.status === "paid" ? t.greenBg : r.status === "approved" ? t.blueBg : t.orangeBg, r.status === "paid" ? t.green : r.status === "approved" ? t.blue : t.orange)}>
+                    {r.status === "paid" ? "Pagado" : r.status === "approved" ? "Aprobado" : "Borrador"}
+                  </span>
+                </td>
+                <td style={{ padding: "10px" }}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {r.status === "draft" && <div onClick={() => updateStatus(r.id, "approved")} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.blueBg, fontSize: 10, color: t.blue, fontWeight: 600 }}>Aprobar</div>}
+                    {r.status === "approved" && <div onClick={() => updateStatus(r.id, "paid")} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.greenBg, fontSize: 10, color: t.green, fontWeight: 600 }}>Pagar</div>}
+                    <div onClick={() => editRecord(r)} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.hover, fontSize: 10, color: t.muted }}>Editar</div>
+                    <div onClick={() => deleteRecord(r.id)} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.redBg, fontSize: 10, color: t.red }}>×</div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {periodRecords.length === 0 && <tr><td colSpan={9} style={{ padding: 30, textAlign: "center", color: t.dim }}>No hay liquidaciones para {period}. Usá "Nueva liquidación" para agregar.</td></tr>}
+          </tbody>
+        </table>
+      </Crd>
+
+      {allPeriods.length > 1 && (
+        <div style={{ marginTop: 16, fontSize: 11, color: t.dim }}>
+          Períodos anteriores: {allPeriods.filter(p => p !== period).map((p, i) => (
+            <span key={p} onClick={() => setPeriod(p)} style={{ cursor: "pointer", color: t.accentL, marginLeft: i > 0 ? 8 : 4 }}>{p}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SUPER ADMIN PAGE ───
 function SuperAdminPage({ t }) {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null); // company detail view
+  const [selected, setSelected] = useState(null);
   const [companyData, setCompanyData] = useState(null);
-  const [tab, setTab] = useState("overview"); // overview, clients, projects, transactions, tasks, users, whatsapp
+  const [tab, setTab] = useState("overview");
   const [refreshing, setRefreshing] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [notes, setNotes] = useState({});
+  const [noteText, setNoteText] = useState("");
 
   const Crd = ({ children, style }) => <div style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, padding: 20, ...style }}>{children}</div>;
 
-  // Load all companies with stats
   const loadCompanies = async () => {
     setLoading(true);
-    const { data: comps } = await supabase.from("companies").select("*").order("created_at", { ascending: false });
-    if (!comps) { setLoading(false); return; }
-
-    // Get stats for each company
-    const enriched = await Promise.all(comps.map(async (c) => {
-      const [users, clients, projects, transactions, tasks, waUsers, waMessages] = await Promise.all([
-        supabase.from("user_profiles").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-        supabase.from("clients").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-        supabase.from("projects").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-        supabase.from("transactions").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-        supabase.from("tasks").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-        supabase.from("whatsapp_users").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-        supabase.from("whatsapp_messages").select("id", { count: "exact", head: true }).eq("company_id", c.id),
-      ]);
-      return {
-        ...c,
-        stats: {
-          users: users.count || 0,
-          clients: clients.count || 0,
-          projects: projects.count || 0,
-          transactions: transactions.count || 0,
-          tasks: tasks.count || 0,
-          waUsers: waUsers.count || 0,
-          waMessages: waMessages.count || 0,
-        },
-      };
-    }));
-    setCompanies(enriched);
+    const { data } = await supabase.rpc("admin_get_companies");
+    setCompanies(data || []);
     setLoading(false);
   };
 
-  // Load detailed data for a specific company
   const loadCompanyDetail = async (companyId) => {
     setRefreshing(true);
-    const [users, clients, projects, transactions, tasks, documents, waUsers, waMessages] = await Promise.all([
-      supabase.from("user_profiles").select("*").eq("company_id", companyId),
-      supabase.from("clients").select("*").eq("company_id", companyId).order("name"),
-      supabase.from("projects").select("*").eq("company_id", companyId).order("name"),
-      supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").eq("company_id", companyId).order("date", { ascending: false }),
-      supabase.from("tasks").select("*, project:projects(name)").eq("company_id", companyId).order("due_date"),
-      supabase.from("documents").select("*").eq("company_id", companyId).order("created_at", { ascending: false }),
-      supabase.from("whatsapp_users").select("*").eq("company_id", companyId),
-      supabase.from("whatsapp_messages").select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(50),
-    ]);
-    setCompanyData({
-      users: users.data || [],
-      clients: clients.data || [],
-      projects: projects.data || [],
-      transactions: transactions.data || [],
-      tasks: tasks.data || [],
-      documents: documents.data || [],
-      waUsers: waUsers.data || [],
-      waMessages: waMessages.data || [],
-    });
+    const { data } = await supabase.rpc("admin_get_company_detail", { p_company_id: companyId });
+    if (data) {
+      setCompanyData({
+        users: data.users || [],
+        clients: data.clients || [],
+        projects: data.projects || [],
+        transactions: data.transactions || [],
+        tasks: data.tasks || [],
+        documents: data.documents || [],
+        waUsers: data.wa_users || [],
+        waMessages: data.wa_messages || [],
+      });
+    }
     setRefreshing(false);
   };
 
   const selectCompany = (comp) => {
     setSelected(comp);
     setTab("overview");
+    setNoteText(comp.admin_notes || "");
     loadCompanyDetail(comp.id);
   };
 
   const saveCompanyEdit = async () => {
     if (!editingCompany) return;
-    await supabase.from("companies").update(editForm).eq("id", editingCompany.id);
+    await supabase.rpc("admin_update_company", {
+      p_company_id: editingCompany.id,
+      p_name: editForm.name || "",
+      p_cuit: editForm.cuit || "",
+      p_phone: editForm.phone || "",
+      p_notes: editingCompany.admin_notes || "",
+    });
     setEditingCompany(null);
     loadCompanies();
-    if (selected?.id === editingCompany.id) {
-      setSelected({ ...selected, ...editForm });
-    }
+    if (selected?.id === editingCompany.id) setSelected({ ...selected, ...editForm });
   };
 
-  const saveNote = async (companyId) => {
-    const note = notes[companyId];
-    if (!note) return;
-    await supabase.from("companies").update({ admin_notes: note }).eq("id", companyId);
-    loadCompanies();
+  const saveNote = async () => {
+    if (!selected) return;
+    await supabase.rpc("admin_update_company", {
+      p_company_id: selected.id,
+      p_name: selected.name,
+      p_cuit: selected.cuit || "",
+      p_phone: selected.phone || "",
+      p_notes: noteText,
+    });
+    setSelected({ ...selected, admin_notes: noteText });
   };
 
   useEffect(() => { loadCompanies(); }, []);
 
-  const statBadge = (val, icon, label, color) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, background: color + "12", border: "1px solid " + color + "25" }}>
-      {icon}
+  const statBadge = (val, label, color) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, background: color + "15" }}>
       <span style={{ fontSize: 14, fontWeight: 700, color }}>{val}</span>
       <span style={{ fontSize: 10, color: t.dim }}>{label}</span>
     </div>
   );
 
-  // ─── Company List View ───
+  // ─── Company List ───
   if (!selected) {
     if (loading) return <div style={{ padding: 30, color: t.muted }}>Cargando empresas...</div>;
-    
-    const totalUsers = companies.reduce((s, c) => s + c.stats.users, 0);
-    const totalMessages = companies.reduce((s, c) => s + c.stats.waMessages, 0);
+
+    const totalUsers = companies.reduce((s, c) => s + (c.user_count || 0), 0);
+    const totalMessages = companies.reduce((s, c) => s + (c.wa_message_count || 0), 0);
 
     return (
       <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
-        {/* Global Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
           {[
-            { label: "Empresas", value: companies.length, icon: <Building2 size={18} color={t.accent} />, color: t.accentBg },
-            { label: "Usuarios totales", value: totalUsers, icon: <Users size={18} color={t.green} />, color: t.greenBg },
-            { label: "Mensajes WhatsApp", value: totalMessages, icon: <MessageSquare size={18} color="#25D366" />, color: "rgba(37,211,102,0.1)" },
-            { label: "Hoy activas", value: companies.filter(c => c.stats.waMessages > 0).length, icon: <Activity size={18} color={t.orange} />, color: t.orangeBg },
+            { label: "Empresas", value: companies.length, icon: <Building2 size={18} color={t.accent} />, bg: t.accentBg },
+            { label: "Usuarios totales", value: totalUsers, icon: <Users size={18} color={t.green} />, bg: t.greenBg },
+            { label: "Mensajes WA", value: totalMessages, icon: <MessageSquare size={18} color="#25D366" />, bg: "rgba(37,211,102,0.1)" },
+            { label: "Con actividad WA", value: companies.filter(c => (c.wa_message_count || 0) > 0).length, icon: <Activity size={18} color={t.orange} />, bg: t.orangeBg },
           ].map((s, i) => (
             <Crd key={i}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: t.text }}>{s.value}</div>
                   <div style={{ fontSize: 11, color: t.dim }}>{s.label}</div>
@@ -2862,40 +3013,34 @@ function SuperAdminPage({ t }) {
           ))}
         </div>
 
-        {/* Company Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 14 }}>
           {companies.map(comp => (
-            <Crd key={comp.id} style={{ cursor: "pointer", transition: "all 0.15s", border: "1px solid " + t.border }} onClick={() => selectCompany(comp)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Building2 size={18} color="#fff" />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{comp.name}</div>
-                      <div style={{ fontSize: 11, color: t.dim }}>{comp.cuit || "Sin CUIT"} · {comp.phone || "Sin tel"}</div>
-                    </div>
+            <Crd key={comp.id} style={{ cursor: "pointer" }}>
+              <div onClick={() => selectCompany(comp)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Building2 size={18} color="#fff" />
                   </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{comp.name}</div>
+                    <div style={{ fontSize: 11, color: t.dim }}>{comp.cuit || "Sin CUIT"} · {comp.phone || "Sin tel"}</div>
+                  </div>
+                  <ChevronRight size={16} color={t.dim} />
                 </div>
-                <ChevronRight size={16} color={t.dim} />
-              </div>
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                {statBadge(comp.stats.users, <Users size={12} color={t.accent} />, "usuarios", t.accent)}
-                {statBadge(comp.stats.clients, <Users size={12} color={t.green} />, "clientes", t.green)}
-                {statBadge(comp.stats.projects, <FolderKanban size={12} color={t.blue} />, "obras", t.blue)}
-                {statBadge(comp.stats.transactions, <Receipt size={12} color={t.orange} />, "movs", t.orange)}
-                {statBadge(comp.stats.tasks, <Target size={12} color={t.accentL} />, "tareas", t.accentL)}
-              </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {statBadge(comp.user_count || 0, "usuarios", t.accent)}
+                  {statBadge(comp.client_count || 0, "clientes", t.green)}
+                  {statBadge(comp.project_count || 0, "obras", t.blue)}
+                  {statBadge(comp.transaction_count || 0, "movs", t.orange)}
+                  {statBadge(comp.task_count || 0, "tareas", t.accentL)}
+                </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 10, borderTop: "1px solid " + t.border }}>
-                <MessageSquare size={12} color="#25D366" />
-                <span style={{ fontSize: 11, color: t.dim }}>{comp.stats.waMessages} mensajes WA · {comp.stats.waUsers} usuarios vinculados</span>
-              </div>
-
-              <div style={{ fontSize: 10, color: t.dim, marginTop: 8 }}>
-                Creada: {new Date(comp.created_at).toLocaleDateString("es-AR")} · ID: {comp.id.substring(0, 8)}...
+                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 10, borderTop: "1px solid " + t.border }}>
+                  <MessageSquare size={12} color="#25D366" />
+                  <span style={{ fontSize: 11, color: t.dim }}>{comp.wa_message_count || 0} mensajes WA · {comp.wa_user_count || 0} vinculados</span>
+                </div>
+                <div style={{ fontSize: 10, color: t.dim, marginTop: 6 }}>Creada: {comp.created_at ? new Date(comp.created_at).toLocaleDateString("es-AR") : "—"}</div>
               </div>
             </Crd>
           ))}
@@ -2904,37 +3049,19 @@ function SuperAdminPage({ t }) {
     );
   }
 
-  // ─── Company Detail View ───
+  // ─── Company Detail ───
   const tabs = [
     { id: "overview", label: "Resumen", icon: LayoutDashboard },
-    { id: "users", label: `Usuarios (${companyData?.users?.length || 0})`, icon: Users },
-    { id: "clients", label: `Clientes (${companyData?.clients?.length || 0})`, icon: Users },
-    { id: "projects", label: `Proyectos (${companyData?.projects?.length || 0})`, icon: FolderKanban },
-    { id: "transactions", label: `Finanzas (${companyData?.transactions?.length || 0})`, icon: Receipt },
-    { id: "tasks", label: `Tareas (${companyData?.tasks?.length || 0})`, icon: Target },
-    { id: "whatsapp", label: `WhatsApp (${companyData?.waMessages?.length || 0})`, icon: MessageSquare },
+    { id: "users", label: "Usuarios", icon: Users },
+    { id: "clients", label: "Clientes", icon: Users },
+    { id: "projects", label: "Proyectos", icon: FolderKanban },
+    { id: "transactions", label: "Finanzas", icon: Receipt },
+    { id: "tasks", label: "Tareas", icon: Target },
+    { id: "whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
 
   const totalIncome = (companyData?.transactions || []).filter(tx => Number(tx.amount) > 0).reduce((s, tx) => s + Number(tx.amount), 0);
   const totalExpense = (companyData?.transactions || []).filter(tx => Number(tx.amount) < 0).reduce((s, tx) => s + Math.abs(Number(tx.amount)), 0);
-
-  const Table = ({ headers, rows }) => (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr>{headers.map((h, i) => <th key={i} style={{ textAlign: "left", padding: "8px 10px", color: t.dim, fontWeight: 600, borderBottom: "1px solid " + t.border, fontSize: 11 }}>{h}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map((row, ri) => (
-            <tr key={ri} style={{ borderBottom: "1px solid " + t.border + "60" }}>
-              {row.map((cell, ci) => <td key={ci} style={{ padding: "8px 10px", color: t.text }}>{cell}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rows.length === 0 && <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin datos</div>}
-    </div>
-  );
 
   const statusPill = (status) => {
     const colors = { active: t.green, in_progress: t.blue, pending: t.orange, completed: t.accent, overdue: t.red, paid: t.green, done: t.green };
@@ -2942,39 +3069,42 @@ function SuperAdminPage({ t }) {
     return <span style={{ ...pill(col + "18", col) }}>{status}</span>;
   };
 
+  const Table = ({ headers, rows }) => (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <thead><tr>{headers.map((h, i) => <th key={i} style={{ textAlign: "left", padding: "8px 10px", color: t.dim, fontWeight: 600, borderBottom: "1px solid " + t.border, fontSize: 11 }}>{h}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri} style={{ borderBottom: "1px solid " + t.border + "60" }}>
+              {row.map((cell, ci) => <td key={ci} style={{ padding: "8px 10px", color: t.text }}>{cell}</td>)}
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={headers.length} style={{ padding: 20, textAlign: "center", color: t.dim }}>Sin datos</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
         <div onClick={() => { setSelected(null); setCompanyData(null); }} style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 6 }}>
-          <ChevronLeft size={14} color={t.muted} />
-          <span style={{ fontSize: 12, color: t.muted }}>Volver</span>
+          <ChevronLeft size={14} color={t.muted} /><span style={{ fontSize: 12, color: t.muted }}>Volver</span>
         </div>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Building2 size={20} color="#fff" />
-        </div>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}><Building2 size={20} color="#fff" /></div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{selected.name}</div>
-          <div style={{ fontSize: 12, color: t.dim }}>{selected.cuit || "Sin CUIT"} · {selected.phone || "Sin tel"} · ID: {selected.id.substring(0, 12)}...</div>
+          <div style={{ fontSize: 12, color: t.dim }}>{selected.cuit || "—"} · {selected.phone || "—"}</div>
         </div>
-        <div onClick={() => { setEditingCompany(selected); setEditForm({ name: selected.name, cuit: selected.cuit || "", phone: selected.phone || "" }); }} style={{ cursor: "pointer", padding: "8px 16px", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", fontSize: 12, fontWeight: 600, color: t.accentL }}>
-          Editar empresa
-        </div>
-        <div onClick={() => { loadCompanyDetail(selected.id); }} style={{ cursor: "pointer", padding: "8px", borderRadius: 8, background: t.hover }}>
-          <RefreshCw size={14} color={refreshing ? t.accent : t.dim} style={refreshing ? { animation: "spin 1s linear infinite" } : {}} />
-        </div>
+        <div onClick={() => { setEditingCompany(selected); setEditForm({ name: selected.name, cuit: selected.cuit || "", phone: selected.phone || "" }); }} style={{ cursor: "pointer", padding: "8px 16px", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", fontSize: 12, fontWeight: 600, color: t.accentL }}>Editar</div>
+        <div onClick={() => loadCompanyDetail(selected.id)} style={{ cursor: "pointer", padding: 8, borderRadius: 8, background: t.hover }}><RefreshCw size={14} color={refreshing ? t.accent : t.dim} /></div>
       </div>
 
-      {/* Edit Modal */}
       {editingCompany && (
         <Crd style={{ marginBottom: 16, border: "1px solid " + t.accent + "40" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>Editar empresa</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            {[
-              { label: "Nombre", key: "name" },
-              { label: "CUIT", key: "cuit" },
-              { label: "Teléfono", key: "phone" },
-            ].map(f => (
+            {[{ label: "Nombre", key: "name" }, { label: "CUIT", key: "cuit" }, { label: "Teléfono", key: "phone" }].map(f => (
               <div key={f.key}>
                 <div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>{f.label}</div>
                 <input value={editForm[f.key] || ""} onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })} style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" }} />
@@ -2989,22 +3119,16 @@ function SuperAdminPage({ t }) {
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid " + t.border, paddingBottom: 2 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid " + t.border, paddingBottom: 2, overflowX: "auto" }}>
         {tabs.map(tb => (
-          <div key={tb.id} onClick={() => setTab(tb.id)} style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", cursor: "pointer",
-            borderBottom: tab === tb.id ? "2px solid " + t.accent : "2px solid transparent",
-            color: tab === tb.id ? t.accentL : t.dim, fontSize: 12, fontWeight: tab === tb.id ? 600 : 400,
-          }}>
-            <tb.icon size={13} />
-            {tb.label}
+          <div key={tb.id} onClick={() => setTab(tb.id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", cursor: "pointer", borderBottom: tab === tb.id ? "2px solid " + t.accent : "2px solid transparent", color: tab === tb.id ? t.accentL : t.dim, fontSize: 12, fontWeight: tab === tb.id ? 600 : 400, whiteSpace: "nowrap" }}>
+            <tb.icon size={13} />{tb.label}
           </div>
         ))}
       </div>
 
       {refreshing && <div style={{ padding: 10, textAlign: "center", color: t.dim, fontSize: 12 }}>Actualizando...</div>}
 
-      {/* Tab Content */}
       {tab === "overview" && companyData && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Crd>
@@ -3025,118 +3149,36 @@ function SuperAdminPage({ t }) {
               ))}
             </div>
           </Crd>
-
           <Crd>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>💰 Finanzas</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: t.greenBg }}>
-                <span style={{ fontSize: 12, color: t.muted }}>Ingresos</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: t.green }}>{fmt(totalIncome)}</span>
+            {[
+              { label: "Ingresos", value: fmt(totalIncome), color: t.green, bg: t.greenBg },
+              { label: "Egresos", value: fmt(totalExpense), color: t.red, bg: t.redBg },
+              { label: "Balance", value: fmt(totalIncome - totalExpense), color: totalIncome - totalExpense >= 0 ? t.green : t.red, bg: t.accentBg },
+            ].map((r, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: r.bg, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, color: t.muted }}>{r.label}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>{r.value}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: t.redBg }}>
-                <span style={{ fontSize: 12, color: t.muted }}>Egresos</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: t.red }}>{fmt(totalExpense)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: 8, borderRadius: 8, background: t.accentBg }}>
-                <span style={{ fontSize: 12, color: t.muted }}>Balance</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: totalIncome - totalExpense >= 0 ? t.green : t.red }}>{fmt(totalIncome - totalExpense)}</span>
-              </div>
-            </div>
+            ))}
           </Crd>
-
           <Crd style={{ gridColumn: "1 / -1" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>📝 Notas internas (solo vos las ves)</div>
-            <textarea
-              value={notes[selected.id] ?? selected.admin_notes ?? ""}
-              onChange={e => setNotes({ ...notes, [selected.id]: e.target.value })}
-              placeholder="Escribí notas sobre este cliente, particularidades, acuerdos, etc..."
-              style={{ width: "100%", minHeight: 80, padding: 12, borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }}
-            />
-            <button onClick={() => saveNote(selected.id)} style={{ marginTop: 8, padding: "8px 20px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Guardar nota</button>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>📝 Notas internas</div>
+            <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Notas sobre este cliente..." style={{ width: "100%", minHeight: 80, padding: 12, borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+            <button onClick={saveNote} style={{ marginTop: 8, padding: "8px 20px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Guardar nota</button>
           </Crd>
         </div>
       )}
 
-      {tab === "users" && companyData && (
-        <Crd>
-          <Table
-            headers={["Nombre", "Rol", "Email", "Creado"]}
-            rows={companyData.users.map(u => [
-              u.full_name || "—",
-              <span style={pill(t.accentBg, t.accentL)}>{u.role}</span>,
-              u.id?.substring(0, 12) + "...",
-              new Date(u.created_at).toLocaleDateString("es-AR"),
-            ])}
-          />
-        </Crd>
-      )}
+      {tab === "users" && companyData && <Crd><Table headers={["Nombre", "Rol", "Creado"]} rows={companyData.users.map(u => [u.full_name || "—", <span key="r" style={pill(t.accentBg, t.accentL)}>{u.role}</span>, u.created_at ? new Date(u.created_at).toLocaleDateString("es-AR") : "—"])} /></Crd>}
 
-      {tab === "clients" && companyData && (
-        <Crd>
-          <Table
-            headers={["Nombre", "Tipo", "Teléfono", "Email", "Ciudad"]}
-            rows={companyData.clients.map(c => [
-              c.name,
-              <span style={pill(c.type === "client" ? t.greenBg : t.blueBg, c.type === "client" ? t.green : t.blue)}>{c.type === "client" ? "Cliente" : "Proveedor"}</span>,
-              c.phone || "—",
-              c.email || "—",
-              c.city || "—",
-            ])}
-          />
-        </Crd>
-      )}
+      {tab === "clients" && companyData && <Crd><Table headers={["Nombre", "Tipo", "Teléfono", "Email", "Ciudad"]} rows={companyData.clients.map(c => [c.name, <span key="t" style={pill(c.type === "client" ? t.greenBg : t.blueBg, c.type === "client" ? t.green : t.blue)}>{c.type === "client" ? "Cliente" : "Proveedor"}</span>, c.phone || "—", c.email || "—", c.city || "—"])} /></Crd>}
 
-      {tab === "projects" && companyData && (
-        <Crd>
-          <Table
-            headers={["Nombre", "Estado", "Presupuesto", "Avance", "Deadline"]}
-            rows={companyData.projects.map(p => [
-              p.name,
-              statusPill(p.status),
-              p.budget ? fmt(Number(p.budget)) : "—",
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 60, height: 6, borderRadius: 3, background: t.hover }}>
-                  <div style={{ width: (p.progress || 0) + "%", height: "100%", borderRadius: 3, background: (p.progress || 0) > 75 ? t.green : (p.progress || 0) > 40 ? t.orange : t.red }} />
-                </div>
-                <span style={{ fontSize: 11, color: t.muted }}>{p.progress || 0}%</span>
-              </div>,
-              p.deadline || "—",
-            ])}
-          />
-        </Crd>
-      )}
+      {tab === "projects" && companyData && <Crd><Table headers={["Nombre", "Estado", "Presupuesto", "Avance", "Deadline"]} rows={companyData.projects.map(p => [p.name, statusPill(p.status), p.budget ? fmt(Number(p.budget)) : "—", <div key="prog" style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 60, height: 6, borderRadius: 3, background: t.hover }}><div style={{ width: (p.progress || 0) + "%", height: "100%", borderRadius: 3, background: (p.progress || 0) > 75 ? t.green : (p.progress || 0) > 40 ? t.orange : t.red }} /></div><span style={{ fontSize: 11, color: t.muted }}>{p.progress || 0}%</span></div>, p.deadline || "—"])} /></Crd>}
 
-      {tab === "transactions" && companyData && (
-        <Crd>
-          <Table
-            headers={["Fecha", "Descripción", "Monto", "Contacto", "Proyecto", "Estado"]}
-            rows={companyData.transactions.map(tx => [
-              tx.date ? new Date(tx.date).toLocaleDateString("es-AR") : "—",
-              tx.description || "—",
-              <span style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? t.green : t.red }}>{fmt(Number(tx.amount))}</span>,
-              tx.contact?.name || "—",
-              tx.project?.name || "—",
-              statusPill(tx.status),
-            ])}
-          />
-        </Crd>
-      )}
+      {tab === "transactions" && companyData && <Crd><Table headers={["Fecha", "Descripción", "Monto", "Contacto", "Proyecto", "Estado"]} rows={companyData.transactions.map(tx => [tx.date ? new Date(tx.date).toLocaleDateString("es-AR") : "—", tx.description || "—", <span key="a" style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? t.green : t.red }}>{fmt(Number(tx.amount))}</span>, tx.client_name || "—", tx.project_name || "—", statusPill(tx.status)])} /></Crd>}
 
-      {tab === "tasks" && companyData && (
-        <Crd>
-          <Table
-            headers={["Tarea", "Proyecto", "Prioridad", "Asignado", "Vence", "Estado"]}
-            rows={companyData.tasks.map(tk => [
-              tk.title,
-              tk.project?.name || "—",
-              <span style={pill(tk.priority === "high" ? t.redBg : tk.priority === "medium" ? t.orangeBg : t.greenBg, tk.priority === "high" ? t.red : tk.priority === "medium" ? t.orange : t.green)}>{tk.priority}</span>,
-              tk.assignee || "—",
-              tk.due_date || "—",
-              statusPill(tk.status),
-            ])}
-          />
-        </Crd>
-      )}
+      {tab === "tasks" && companyData && <Crd><Table headers={["Tarea", "Proyecto", "Prioridad", "Asignado", "Vence", "Estado"]} rows={companyData.tasks.map(tk => [tk.title, tk.project_name || "—", <span key="p" style={pill(tk.priority === "high" ? t.redBg : tk.priority === "medium" ? t.orangeBg : t.greenBg, tk.priority === "high" ? t.red : tk.priority === "medium" ? t.orange : t.green)}>{tk.priority}</span>, tk.assignee || "—", tk.due_date || "—", statusPill(tk.status)])} /></Crd>}
 
       {tab === "whatsapp" && companyData && (
         <div style={{ display: "grid", gridTemplateColumns: "250px 1fr", gap: 14 }}>
@@ -3145,26 +3187,21 @@ function SuperAdminPage({ t }) {
             {companyData.waUsers.map(wu => (
               <div key={wu.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "40" }}>
                 <MessageSquare size={12} color="#25D366" />
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{wu.name || "—"}</div>
-                  <div style={{ fontSize: 10, color: t.dim }}>{wu.phone}</div>
-                </div>
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{wu.name || "—"}</div><div style={{ fontSize: 10, color: t.dim }}>{wu.phone}</div></div>
                 <span style={pill(wu.verified ? t.greenBg : t.redBg, wu.verified ? t.green : t.red)}>{wu.verified ? "✓" : "✗"}</span>
               </div>
             ))}
             {companyData.waUsers.length === 0 && <div style={{ fontSize: 11, color: t.dim }}>Sin usuarios vinculados</div>}
           </Crd>
-
           <Crd style={{ maxHeight: 500, overflowY: "auto" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>Mensajes recientes</div>
             {companyData.waMessages.map(msg => (
-              <div key={msg.id} style={{ marginBottom: 10, padding: 10, borderRadius: 8, background: msg.direction === "inbound" ? t.hover : t.accentBg, borderLeft: "3px solid " + (msg.direction === "inbound" ? t.blue : t.accent) }}>
+              <div key={msg.id} style={{ marginBottom: 8, padding: 10, borderRadius: 8, background: msg.direction === "inbound" ? t.hover : t.accentBg, borderLeft: "3px solid " + (msg.direction === "inbound" ? t.blue : t.accent) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: msg.direction === "inbound" ? t.blue : t.accentL }}>{msg.direction === "inbound" ? "📩 Usuario" : "🤖 IA"}</span>
                   <span style={{ fontSize: 10, color: t.dim }}>{new Date(msg.created_at).toLocaleString("es-AR")}</span>
                 </div>
-                <div style={{ fontSize: 12, color: t.text, lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto" }}>{msg.content?.substring(0, 500) || "—"}</div>
-                {msg.ai_action && <span style={{ fontSize: 10, color: t.dim, marginTop: 4, display: "inline-block" }}>Acción: {msg.ai_action}</span>}
+                <div style={{ fontSize: 12, color: t.text, lineHeight: 1.4, whiteSpace: "pre-wrap", maxHeight: 100, overflow: "auto" }}>{(msg.content || "—").substring(0, 400)}</div>
               </div>
             ))}
             {companyData.waMessages.length === 0 && <div style={{ fontSize: 11, color: t.dim }}>Sin mensajes</div>}
@@ -3677,8 +3714,12 @@ export default function App() {
       else setView("landing");
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) { setUser(session.user); loadProfile(session.user.id); setView("app"); }
-      else { setUser(null); setProfile(null); setView("landing"); }
+      if (session?.user) {
+        setUser(session.user);
+        loadProfile(session.user.id);
+        // Only auto-redirect to app if not in demo mode
+        setView(prev => prev === "demo" ? prev : "app");
+      } else { setUser(null); setProfile(null); setView("landing"); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -3691,11 +3732,11 @@ export default function App() {
   };
 
   if (view === "loading") return <div style={{ minHeight: "100vh", background: "#0B0F1A", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
-  if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => setView("login")} />;
+  if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => { if (user) { setView("app"); } else { setView("login"); } }} />;
   if (view === "login") return <LoginPage onLogin={() => setView("app")} />;
   if (view === "demo") return (
     <DemoDataProvider>
-      <AppContent user={{ email: "demo@gestionai.com", user_metadata: { full_name: "Usuario Demo" } }} profile={{ full_name: "Usuario Demo", role: "owner", company: { name: "Constructora Demo SA" } }} onLogout={() => setView("login")} isDemo={true} />
+      <AppContent user={{ email: "demo@gestionai.com", user_metadata: { full_name: "Usuario Demo" } }} profile={{ full_name: "Usuario Demo", role: "owner", company: { name: "Constructora Demo SA" } }} onLogout={() => setView("landing")} onRegister={() => setView("login")} isDemo={true} />
     </DemoDataProvider>
   );
 
