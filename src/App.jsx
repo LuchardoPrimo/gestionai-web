@@ -16,7 +16,7 @@ import {
   CheckCircle2, AlertCircle, Phone, Mail, MapPin, Tag, MessageSquare, BarChart3,
   CreditCard, FileUp, Download, Zap, ChevronLeft, X, Check, Bot, CircleDollarSign,
   Layers, Target, Activity, Archive, Sun, Moon, Upload, Link2, List, Grid3X3,
-  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus, Shield, Building2, ExternalLink, ChevronRight, RefreshCw
+  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus, Shield, Building2, ExternalLink, ChevronRight, RefreshCw, Trash2
 } from "lucide-react";
 
 // Data context for Supabase
@@ -709,6 +709,13 @@ function Clients({ t }) {
     setShowNew(false);
   };
 
+  const deleteClient = async (id, name) => {
+    if (!window.confirm("¿Eliminar a " + name + "? Se perderán los datos asociados.")) return;
+    await supabase.from("clients").delete().eq("id", id);
+    await reload();
+    setSel(null);
+  };
+
   if (sel) {
     const c = clients.find(x => x.id === sel);
     if (!c) { setSel(null); return null; }
@@ -724,6 +731,7 @@ function Clients({ t }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}><I size={12} color={t.dim} /><div><div style={{ fontSize: 10, color: t.dim }}>{l}</div><div style={{ fontSize: 12, color: t.text }}>{v || "—"}</div></div></div>
             ))}
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid " + t.border }}><div style={{ fontSize: 10, color: t.dim }}>Saldo</div><div style={{ fontSize: 20, fontWeight: 700, color: c.balance >= 0 ? t.green : t.red }}>{fmt(c.balance)}</div></div>
+            <button onClick={() => deleteClient(c.id, c.name)} style={{ marginTop: 14, width: "100%", padding: "8px 0", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Trash2 size={12} />Eliminar contacto</button>
           </Crd>
           <div>
             <Crd t={t} style={{ padding: 16, marginBottom: 14 }}>
@@ -822,6 +830,13 @@ function ProjectsPage({ t }) {
     setShowNew(false);
   };
 
+  const deleteProject = async (id, name) => {
+    if (!window.confirm("¿Eliminar el proyecto \"" + name + "\"? Esta acción no se puede deshacer.")) return;
+    await supabase.from("projects").delete().eq("id", id);
+    await reload();
+    setSel(null);
+  };
+
   if (sel) {
     const p = PROJECTS.find(x => x.id === sel);
     return (
@@ -886,6 +901,9 @@ function ProjectsPage({ t }) {
             </div>
           )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin documentos aún</div>}
         </Crd>
+        <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={() => deleteProject(p.id, p.name)} style={{ padding: "9px 18px", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Trash2 size={13} />Eliminar proyecto</button>
+        </div>
       </div>
     );
   }
@@ -1138,6 +1156,13 @@ function Transactions({ t }) {
     setSel(null);
   };
 
+  const deleteTx = async (id) => {
+    if (!window.confirm("¿Eliminar esta transacción? Esta acción no se puede deshacer.")) return;
+    await supabase.from("transactions").delete().eq("id", id);
+    await reload();
+    setSel(null);
+  };
+
   const list = tab === "accounting" ? TXS : TXS.filter(tx => {
     if (filterProject && tx.project !== filterProject) return false;
     return tab === "income" ? tx.amount > 0 : tab === "expense" ? tx.amount < 0 : tab === "pending" ? (tx.status === "pending" || tx.status === "overdue") : true;
@@ -1187,6 +1212,12 @@ function Transactions({ t }) {
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <Btn primary t={t} onClick={() => markPaid(tx.id)}><Check size={12} />Marcar como pagado</Btn>
                 <Btn t={t} onClick={() => window.alert("📱 Recordatorio para " + tx.contact + ":\n\nHola, le recordamos que tiene un pago/cobro pendiente:\n• " + tx.desc + "\n• Monto: " + fmt(tx.amount) + "\n\n(Próximamente se enviará por WhatsApp automáticamente)")}><Mail size={12} />Enviar recordatorio</Btn>
+                <Btn t={t} onClick={() => deleteTx(tx.id)} style={{ color: t.red }}><Trash2 size={12} />Eliminar</Btn>
+              </div>
+            )}
+            {tx.status === "paid" && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <Btn t={t} onClick={() => deleteTx(tx.id)} style={{ color: t.red }}><Trash2 size={12} />Eliminar</Btn>
               </div>
             )}
           </div>
