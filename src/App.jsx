@@ -1748,7 +1748,6 @@ function Treasury({ t }) {
               <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(cxc.reduce((s,c) => s + c.amt, 0))}</div>
             </div>
           </div>}
-          </div>
         </Crd>
 
         <Crd t={t} style={{ padding: 14 }}>
@@ -1774,7 +1773,6 @@ function Treasury({ t }) {
               <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(cxp.reduce((s,c) => s + c.amt, 0))}</div>
             </div>
           </div>}
-          </div>
         </Crd>
       </div>
 
@@ -3788,14 +3786,11 @@ export default function App() {
       if (session?.user) {
         setUser(session.user);
         loadProfile(session.user.id);
-        // After login/register or initial session, go to app — BUT always preserve demo mode
-        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-          setView(prev => prev === "demo" ? prev : "app");
-        }
+        // After login/register, go to app
+        if (event === "SIGNED_IN") setView("app");
       } else {
         setUser(null); setProfile(null);
-        // Only go to landing if not in demo
-        setView(prev => prev === "demo" ? prev : "landing");
+        setView("landing");
       }
     });
     return () => subscription.unsubscribe();
