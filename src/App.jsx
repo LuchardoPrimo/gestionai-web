@@ -113,9 +113,9 @@ function DemoDataProvider({ children }) {
     { id: "d5", name: "Familia Rodríguez", type: "client", phone: "2254-55-1234", email: "jrodriguez@gmail.com", city: "Pinamar", tags: [], lastAct: "Hace 2 días", projects: 1, contact: "Jorge Rodríguez" },
   ];
   const demoProjects = [
-    { id: "p1", name: "Torre Norte - CABA", status: "active", budget: 85000000, progress: 65, client: "Inmobiliaria Costa del Sol", tasks: 12, done: 8, docs: 15, deadline: "dic. 2026", description: "Edificio 8 pisos, 24 departamentos" },
-    { id: "p2", name: "Casa Pinamar 2026", status: "pending", budget: 15000000, progress: 10, client: "Familia Rodríguez", tasks: 5, done: 1, docs: 3, deadline: "mar. 2027", description: "Casa familiar en La Frontera" },
-    { id: "p3", name: "Oficinas Rosario Centro", status: "active", budget: 42000000, progress: 40, client: "Desarrollos Urbanos SA", tasks: 8, done: 3, docs: 9, deadline: "ago. 2026", description: "Remodelación planta baja comercial" },
+    { id: "p1", name: "Torre Norte - CABA", status: "in_progress", budget: 85000000, progress: 65, client: "Inmobiliaria Costa del Sol", tasks: 12, done: 8, docs: 15, deadline: "dic. 2026", description: "Edificio 8 pisos, 24 departamentos" },
+    { id: "p2", name: "Casa Pinamar 2026", status: "planning", budget: 15000000, progress: 10, client: "Familia Rodríguez", tasks: 5, done: 1, docs: 3, deadline: "mar. 2027", description: "Casa familiar en La Frontera" },
+    { id: "p3", name: "Oficinas Rosario Centro", status: "in_progress", budget: 42000000, progress: 40, client: "Desarrollos Urbanos SA", tasks: 8, done: 3, docs: 9, deadline: "ago. 2026", description: "Remodelación planta baja comercial" },
     { id: "p4", name: "Duplex Belgrano R", status: "completed", budget: 28000000, progress: 100, client: "Inmobiliaria Costa del Sol", tasks: 20, done: 20, docs: 22, deadline: "ene. 2026", description: "2 duplex premium finalizados" },
   ];
   const demoTransactions = [
@@ -128,12 +128,12 @@ function DemoDataProvider({ children }) {
     { id: "t7", desc: "Electricidad y cableado", description: "Electricidad y cableado", amount: -1100000, status: "paid", date: "25/01", contact: "Corralón El Constructor", project: "Oficinas Rosario Centro", pid: "p3" },
   ];
   const demoTasks = [
-    { id: "k1", title: "Inspección estructura piso 6", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-26", st: "pending", tag: "obra" },
-    { id: "k2", title: "Pedir presupuesto sanitarios", project: "Casa Pinamar 2026", pid: "p2", who: "Ana", pri: "medium", due: "2026-02-28", st: "pending", tag: "compras" },
+    { id: "k1", title: "Inspección estructura piso 6", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-26", st: "todo", tag: "obra" },
+    { id: "k2", title: "Pedir presupuesto sanitarios", project: "Casa Pinamar 2026", pid: "p2", who: "Ana", pri: "medium", due: "2026-02-28", st: "todo", tag: "compras" },
     { id: "k3", title: "Enviar certificado avance a Costa", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-25", st: "in_progress", tag: "admin" },
-    { id: "k4", title: "Revisar planos eléctricos oficina", project: "Oficinas Rosario Centro", pid: "p3", who: "Martín", pri: "medium", due: "2026-03-01", st: "pending", tag: "diseño" },
+    { id: "k4", title: "Revisar planos eléctricos oficina", project: "Oficinas Rosario Centro", pid: "p3", who: "Martín", pri: "medium", due: "2026-03-01", st: "todo", tag: "diseño" },
     { id: "k5", title: "Contratar pintor para duplex", project: "Duplex Belgrano R", pid: "p4", who: "Lucas", pri: "low", due: "2026-03-05", st: "done", tag: "contratos" },
-    { id: "k6", title: "Buscar terreno La Frontera", project: "Casa Pinamar 2026", pid: "p2", who: "Lucas", pri: "high", due: "2026-03-10", st: "pending", tag: "gestión" },
+    { id: "k6", title: "Buscar terreno La Frontera", project: "Casa Pinamar 2026", pid: "p2", who: "Lucas", pri: "high", due: "2026-03-10", st: "todo", tag: "gestión" },
   ];
   const demoDocuments = [
     { id: "dc1", name: "Factura Corralón #4521", type: "invoice", status: "approved", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1", date: "20/02", size: "245 KB" },
@@ -812,7 +812,7 @@ function ProjectsPage({ t }) {
   const [showNew, setShowNew] = useState(false);
   const [nf, setNf] = useState({ name: "", client_id: "", budget: "", deadline: "", priority: "medium", description: "" });
   const projFileRef = useRef(null);
-  const list = PROJECTS.filter(p => filter === "all" ? true : filter === "active" ? (p.status === "in_progress" || p.status === "planning") : p.status === "completed");
+  const list = PROJECTS.filter(p => filter === "all" ? true : filter === "active" ? (p.status === "in_progress" || p.status === "planning" || p.status === "active") : p.status === "completed");
 
   const saveProject = async () => {
     if (!nf.name.trim()) return;
@@ -1305,14 +1305,38 @@ function Transactions({ t }) {
 }
 
 function Accounting({ t }) {
+  const { transactions: TXS, companyId } = useData();
   const [tab, setTab] = useState("journal");
   const [selEntry, setSelEntry] = useState(null);
-  const [entries, setEntries] = useState([
-    { id:1, date:"12/02/2026", desc:"Certificado Obra #47 — Torre Belgrano", st:"posted", dr:"Cuentas por Cobrar", cr:"Ingresos por Servicios", amt:3200000, src:"ai", note:"Asiento generado automáticamente desde factura FE-2026-0892. Certificación de avance de obra correspondiente al período enero 2026.", txRef:"Certificado Obra #47 — Torre Belgrano", contact:"Constructora Vial SA" },
-    { id:2, date:"11/02/2026", desc:"Compra barras Ø12 — 500 unidades", st:"proposed", dr:"Materiales de Obra", cr:"Cuentas por Pagar", amt:1850000, src:"ai", note:"Propuesto por IA: detectada factura de Hierros del Sur SRL por compra de 500 barras de acero Ø12mm para Torre Belgrano.", txRef:"Compra barras Ø12 — 500 unidades", contact:"Hierros del Sur SRL" },
-    { id:3, date:"10/02/2026", desc:"Anticipo Fase 2 — Nordelta", st:"posted", dr:"Banco Galicia Cta Cte", cr:"Anticipos de Clientes", amt:5000000, src:"user", note:"Anticipo recibido de Inmobiliaria Costa para inicio de Fase 2 del complejo Nordelta. Transferencia bancaria confirmada.", txRef:"Anticipo Fase 2 — Nordelta", contact:"Inmobiliaria Costa" },
-    { id:4, date:"09/02/2026", desc:"Materiales eléctricos varios", st:"proposed", dr:"Materiales de Obra", cr:"Banco Galicia Cta Cte", amt:420000, src:"ai", note:"Propuesto por IA: pago con débito directo a Ferretería López por materiales eléctricos destinados a Nave Industrial Pilar.", txRef:"Materiales eléctricos varios", contact:"Ferretería López" },
-  ]);
+
+  // Generate accounting entries from real transactions
+  const generateEntries = () => {
+    if (companyId === "demo") {
+      return [
+        { id:1, date:"12/02/2026", desc:"Certificado Obra #47 — Torre Belgrano", st:"posted", dr:"Cuentas por Cobrar", cr:"Ingresos por Servicios", amt:3200000, src:"ai", note:"Asiento generado automáticamente desde factura.", txRef:"Certificado Obra #47", contact:"Constructora Vial SA" },
+        { id:2, date:"11/02/2026", desc:"Compra barras Ø12 — 500 unidades", st:"proposed", dr:"Materiales de Obra", cr:"Cuentas por Pagar", amt:1850000, src:"ai", note:"Propuesto por IA: compra de materiales.", txRef:"Compra barras Ø12", contact:"Hierros del Sur SRL" },
+        { id:3, date:"10/02/2026", desc:"Anticipo Fase 2 — Nordelta", st:"posted", dr:"Banco Cta Cte", cr:"Anticipos de Clientes", amt:5000000, src:"user", note:"Anticipo recibido por transferencia.", txRef:"Anticipo Fase 2", contact:"Inmobiliaria Costa" },
+        { id:4, date:"09/02/2026", desc:"Materiales eléctricos varios", st:"proposed", dr:"Materiales de Obra", cr:"Banco Cta Cte", amt:420000, src:"ai", note:"Pago con débito directo por materiales eléctricos.", txRef:"Materiales eléctricos", contact:"Ferretería López" },
+      ];
+    }
+    if (!TXS || TXS.length === 0) return [];
+    return TXS.map((tx, i) => ({
+      id: i + 1,
+      date: tx.date || "—",
+      desc: tx.desc || tx.description || "Transacción",
+      st: tx.status === "paid" ? "posted" : "proposed",
+      dr: tx.amount > 0 ? "Banco / Cuentas por Cobrar" : (tx.project !== "—" ? "Costos de Obra" : "Gastos Generales"),
+      cr: tx.amount > 0 ? "Ingresos" : "Banco / Cuentas por Pagar",
+      amt: Math.abs(tx.amount),
+      src: "user",
+      note: tx.project !== "—" ? "Proyecto: " + tx.project : "",
+      txRef: tx.desc || tx.description || "",
+      contact: tx.contact || "—",
+    }));
+  };
+
+  const [entries, setEntries] = useState(generateEntries());
+  useEffect(() => { setEntries(generateEntries()); }, [TXS, companyId]);
   const pending = entries.filter(e => e.st === "proposed").length;
   const approve = (id) => { setEntries(entries.map(e => e.id === id ? { ...e, st: "posted" } : e)); if (selEntry && selEntry.id === id) setSelEntry({ ...selEntry, st: "posted" }); };
   const reject = (id) => { setEntries(entries.filter(e => e.id !== id)); if (selEntry && selEntry.id === id) setSelEntry(null); };
@@ -1489,40 +1513,30 @@ function Accounting({ t }) {
 }
 
 function Treasury({ t }) {
+  const { transactions: TXS, companyId } = useData();
   const [selAcc, setSelAcc] = useState(null);
   const [showNewAcc, setShowNewAcc] = useState(false);
   const [newAcc, setNewAcc] = useState({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
-  const [accounts, setAccounts] = useState([
+  const demoAccs = [
     { id: 1, name: "Banco Galicia — Cta Cte", type: "ARS", bal: 12400000, color: t.accent, cbu: "0070999030004123456789", alias: "GESTION.AI.GALICIA", data: [8.2,9.5,8.8,10.1,11.3,12,12.4],
-      movs: [
-        { date: "13/02", desc: "Cobro Cert. Obra #47 — Vial SA", amt: 3200000, bal: 12400000 },
-        { date: "12/02", desc: "Pago proveedores — Hierros Sur", amt: -1850000, bal: 9200000 },
-        { date: "11/02", desc: "Cobro anticipo Nordelta — Costa", amt: 5000000, bal: 11050000 },
-        { date: "10/02", desc: "Débito automático — Alquiler oficina", amt: -350000, bal: 6050000 },
-        { date: "09/02", desc: "Transferencia desde Macro", amt: 2000000, bal: 6400000 },
-        { date: "08/02", desc: "Pago sueldos enero", amt: -3400000, bal: 4400000 },
-        { date: "07/02", desc: "Cobro Méndez — Honorarios diseño", amt: 780000, bal: 7800000 },
-        { date: "05/02", desc: "Pago AFIP — IVA enero", amt: -1200000, bal: 7020000 },
-      ]
-    },
+      movs: [{ date: "13/02", desc: "Cobro Cert. Obra #47", amt: 3200000, bal: 12400000 },{ date: "12/02", desc: "Pago proveedores", amt: -1850000, bal: 9200000 },{ date: "11/02", desc: "Cobro anticipo Nordelta", amt: 5000000, bal: 11050000 },{ date: "10/02", desc: "Alquiler oficina", amt: -350000, bal: 6050000 }] },
     { id: 2, name: "Banco Macro — Cta Cte", type: "ARS", bal: 4800000, color: t.blue, cbu: "2850999030004987654321", alias: "GESTION.AI.MACRO", data: [3.2,3.8,4.1,3.9,4.5,4.7,4.8],
-      movs: [
-        { date: "12/02", desc: "Cobro factura #887 — Vial SA", amt: 1500000, bal: 4800000 },
-        { date: "10/02", desc: "Transferencia a Galicia", amt: -2000000, bal: 3300000 },
-        { date: "08/02", desc: "Débito — Seguro obra", amt: -280000, bal: 5300000 },
-        { date: "06/02", desc: "Cobro certificado Pilar", amt: 2200000, bal: 5580000 },
-        { date: "04/02", desc: "Pago Ferretería López", amt: -500000, bal: 3380000 },
-      ]
-    },
+      movs: [{ date: "12/02", desc: "Cobro factura #887", amt: 1500000, bal: 4800000 },{ date: "10/02", desc: "Transferencia a Galicia", amt: -2000000, bal: 3300000 }] },
     { id: 3, name: "Mercado Pago", type: "ARS", bal: 1200000, color: t.green, cbu: "—", alias: "GESTION.AI.MP", data: [0.6,0.8,0.9,1.0,1.1,1.15,1.2],
-      movs: [
-        { date: "13/02", desc: "Cobro QR — Venta mostrador", amt: 85000, bal: 1200000 },
-        { date: "12/02", desc: "Cobro QR — Materiales menores", amt: 45000, bal: 1115000 },
-        { date: "11/02", desc: "Transferencia a Galicia", amt: -500000, bal: 1070000 },
-        { date: "09/02", desc: "Cobros varios", amt: 320000, bal: 1570000 },
-      ]
-    },
-  ]);
+      movs: [{ date: "13/02", desc: "Cobro QR", amt: 85000, bal: 1200000 }] },
+  ];
+  const [accounts, setAccounts] = useState(companyId === "demo" ? demoAccs : []);
+
+  const pendingIncome = TXS.filter(tx => tx.amount > 0 && (tx.status === "pending" || tx.status === "overdue"));
+  const pendingExpense = TXS.filter(tx => tx.amount < 0 && (tx.status === "pending" || tx.status === "overdue"));
+  const cxc = companyId === "demo" ? [
+    { contact: "Constructora Vial SA", amt: 7500000, days: 0, status: "vigente" },
+    { contact: "Inmobiliaria Costa", amt: 2100000, days: 15, status: "1-30" },
+  ] : pendingIncome.map(tx => ({ contact: tx.contact || "—", amt: tx.amount, days: 0, status: tx.status === "overdue" ? "+60" : "vigente" }));
+  const cxp = companyId === "demo" ? [
+    { contact: "Hierros del Sur SRL", amt: 1850000, days: 5, status: "vigente" },
+    { contact: "Ferretería López", amt: 920000, days: 20, status: "1-30" },
+  ] : pendingExpense.map(tx => ({ contact: tx.contact || "—", amt: Math.abs(tx.amount), days: 0, status: tx.status === "overdue" ? "+60" : "vigente" }));
   const colors = [t.accent, t.blue, t.green, t.orange, t.red, "#EC4899"];
   const totalBal = accounts.reduce((s, a) => s + a.bal, 0);
 
@@ -1538,18 +1552,6 @@ function Treasury({ t }) {
     setAccounts(accounts.filter(a => a.id !== id));
     setSelAcc(null);
   };
-
-  // CxC / CxP
-  const cxc = [
-    { contact: "Constructora Vial SA", amt: 7500000, days: 0, status: "vigente" },
-    { contact: "Inmobiliaria Costa", amt: 2100000, days: 15, status: "1-30" },
-    { contact: "Estudio Arq. Méndez", amt: 780000, days: 45, status: "31-60" },
-  ];
-  const cxp = [
-    { contact: "Hierros del Sur SRL", amt: 1850000, days: 5, status: "vigente" },
-    { contact: "Ferretería López", amt: 920000, days: 20, status: "1-30" },
-    { contact: "Transportes Rápido", amt: 340000, days: 60, status: "+60" },
-  ];
 
   if (selAcc) {
     const acc = accounts.find(a => a.id === selAcc);
@@ -1685,6 +1687,7 @@ function Treasury({ t }) {
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}><Bot size={12} color={t.accentL} /><span style={{ fontSize: 10, color: t.accentL }}>Estimación IA</span></div>
         </div>
         <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>Cuánta plata se estima que entra y sale cada semana — basado en cobros pendientes, pagos programados y patrones históricos.</div>
+        {companyId === "demo" ? (<>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 12 }}>
           {[
             ["Sem 1 (17-21 Feb)", 8200000, 2455000],
@@ -1706,11 +1709,18 @@ function Treasury({ t }) {
             );
           })}
         </div>
-        {/* Projected balance line */}
         <div style={{ padding: 10, background: t.accentBg, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 11, color: t.text }}>Saldo proyectado al 14/03</span>
           <span style={{ fontSize: 15, fontWeight: 700, color: t.accent }}>{fmt(totalBal + (8200000-2455000) + (3500000-4200000) + (6800000-3100000) + (2200000-5400000))}</span>
         </div>
+        </>) : (
+          <div style={{ padding: 30, textAlign: "center" }}>
+            <TrendingUp size={28} color={t.dim} style={{ marginBottom: 8 }} />
+            <div style={{ fontSize: 12, color: t.muted }}>Registrá más transacciones para generar proyecciones automáticas</div>
+            <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>Cobros pendientes: {fmt(TXS.filter(tx => tx.amount > 0 && tx.status === "pending").reduce((s, tx) => s + tx.amount, 0))}</div>
+            <div style={{ fontSize: 11, color: t.dim }}>Pagos pendientes: {fmt(TXS.filter(tx => tx.amount < 0 && tx.status === "pending").reduce((s, tx) => s + Math.abs(tx.amount), 0))}</div>
+          </div>
+        )}
       </Crd>
 
       {/* CxC / CxP + Alerts */}
@@ -1732,13 +1742,12 @@ function Treasury({ t }) {
               </div>
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 4, marginTop: 10 }}>
-            {[["Vigente", 7500000, t.green], ["1-30d", 2100000, t.orange], ["31-60d", 780000, t.red]].map(([l, a, c], i) => (
-              <div key={i} style={{ textAlign: "center", padding: 6, background: t.hover, borderRadius: 6 }}>
-                <div style={{ fontSize: 9, color: c }}>{l}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(a)}</div>
-              </div>
-            ))}
+          {cxc.length > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 4, marginTop: 10 }}>
+            <div style={{ textAlign: "center", padding: 6, background: t.hover, borderRadius: 6 }}>
+              <div style={{ fontSize: 9, color: t.green }}>Total: {cxc.length} cobros</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(cxc.reduce((s,c) => s + c.amt, 0))}</div>
+            </div>
+          </div>}
           </div>
         </Crd>
 
@@ -1759,13 +1768,12 @@ function Treasury({ t }) {
               </div>
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 4, marginTop: 10 }}>
-            {[["Vigente", 1850000, t.green], ["1-30d", 920000, t.orange], ["+60d", 340000, t.red]].map(([l, a, c], i) => (
-              <div key={i} style={{ textAlign: "center", padding: 6, background: t.hover, borderRadius: 6 }}>
-                <div style={{ fontSize: 9, color: c }}>{l}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(a)}</div>
-              </div>
-            ))}
+          {cxp.length > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 4, marginTop: 10 }}>
+            <div style={{ textAlign: "center", padding: 6, background: t.hover, borderRadius: 6 }}>
+              <div style={{ fontSize: 9, color: t.red }}>Total: {cxp.length} pagos</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(cxp.reduce((s,c) => s + c.amt, 0))}</div>
+            </div>
+          </div>}
           </div>
         </Crd>
       </div>
@@ -1773,20 +1781,29 @@ function Treasury({ t }) {
       {/* Alerts */}
       <Crd t={t} style={{ padding: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Alertas y recordatorios</div>
-        {[
-          { icon: AlertCircle, color: t.red, title: "Pago vencido — Hierros del Sur SRL", desc: "Factura por $1.85M venció hace 5 días. Contactar para gestionar pago.", action: "Gestionar", onClick: () => alert("Se enviará un recordatorio de pago a Hierros del Sur SRL por WhatsApp") },
-          { icon: Clock, color: t.orange, title: "Cobro próximo — Certificado #47 Vial SA", desc: "Vence en 2 días. Confirmar recepción de factura con el cliente.", action: "Recordar", onClick: () => alert("Recordatorio agendado para mañana a las 9:00") },
-          { icon: TrendingUp, color: t.blue, title: "Semana 2 con flujo negativo proyectado", desc: "La semana del 24-28 Feb tiene más pagos ($4.2M) que cobros ($3.5M). Considerar diferir pagos.", action: "Ver detalle", onClick: () => alert("Semana 24-28 Feb:\n• Cobros esperados: $3.5M\n• Pagos programados: $4.2M\n• Déficit proyectado: -$700K\n\nSugerencia: diferir pago a Ferretería López ($420K) a la semana siguiente") },
-          { icon: Bot, color: t.accent, title: "Sugerencia IA: transferir excedente", desc: "Mercado Pago tiene $1.2M sin rendimiento. Transferir a plazo fijo o FCI podría generar $8K/mes.", action: "Evaluar", onClick: () => alert("Opciones de inversión:\n• Plazo fijo 30d: ~$8K/mes (TNA 8%)\n• FCI Money Market: ~$6K/mes (variable)\n• Transferir a cuenta remunerada: ~$4K/mes\n\nPróximamente podrás ejecutar desde acá") },
-        ].map((alert, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: t.hover, borderRadius: 8, marginBottom: 6, borderLeft: "3px solid " + alert.color }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <alert.icon size={16} color={alert.color} />
-              <div><div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{alert.title}</div><div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{alert.desc}</div></div>
+        {(() => {
+          const overdueTx = TXS.filter(tx => tx.status === "overdue");
+          const pendTx = TXS.filter(tx => tx.status === "pending");
+          const alerts = companyId === "demo" ? [
+            { icon: AlertCircle, color: t.red, title: "Pago vencido — Hierros del Sur SRL", desc: "Factura por $1.85M venció hace 5 días.", action: "Gestionar" },
+            { icon: Clock, color: t.orange, title: "Cobro próximo — Certificado #47 Vial SA", desc: "Vence en 2 días. Confirmar recepción.", action: "Recordar" },
+            { icon: TrendingUp, color: t.blue, title: "Flujo negativo proyectado", desc: "Semana 24-28 Feb: más pagos que cobros.", action: "Ver detalle" },
+            { icon: Bot, color: t.accent, title: "Sugerencia IA: optimizar excedente", desc: "Mercado Pago tiene $1.2M sin rendimiento.", action: "Evaluar" },
+          ] : [
+            ...overdueTx.map(tx => ({ icon: AlertCircle, color: t.red, title: "Vencido: " + (tx.desc || tx.description || "Transacción"), desc: fmt(Math.abs(tx.amount)) + " · " + (tx.contact || "—"), action: "Ver" })),
+            ...pendTx.slice(0, 3).map(tx => ({ icon: Clock, color: t.orange, title: "Pendiente: " + (tx.desc || tx.description || "Transacción"), desc: fmt(Math.abs(tx.amount)) + " · " + (tx.contact || "—"), action: "Ver" })),
+          ];
+          if (alerts.length === 0) return <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay alertas pendientes</div>;
+          return alerts.map((al, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: t.hover, borderRadius: 8, marginBottom: 6, borderLeft: "3px solid " + al.color }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <al.icon size={16} color={al.color} />
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{al.title}</div><div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{al.desc}</div></div>
+              </div>
+              <Btn t={t}>{al.action}</Btn>
             </div>
-            <Btn t={t} onClick={alert.onClick}>{alert.action}</Btn>
-          </div>
-        ))}
+          ));
+        })()}
       </Crd>
     </div>
   );
@@ -1999,7 +2016,7 @@ function DocumentsPage({ t }) {
 }
 
 function Reports({ t }) {
-  const { projects: PROJECTS, transactions: TXS, tasks, clients, documents } = useData();
+  const { projects: PROJECTS, transactions: TXS, tasks, clients, documents, companyId } = useData();
   const [active, setActive] = useState("pnl");
   const reps = [
     { id: "pnl", label: "Estado de Resultados", icon: BarChart3 },
@@ -2011,28 +2028,50 @@ function Reports({ t }) {
   ];
 
   const renderPnl = () => {
-    const pnl = [
+    const totalInc = TXS.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
+    const totalEg = TXS.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const net = totalInc - totalEg;
+    const margenBruto = totalInc > 0 ? Math.round((totalInc - totalEg * 0.7) / totalInc * 100) : 0;
+    const margenNeto = totalInc > 0 ? Math.round(net / totalInc * 100) : 0;
+
+    // Group transactions by project for real data
+    const incByProject = {};
+    const egByProject = {};
+    TXS.forEach(tx => {
+      const proj = tx.project && tx.project !== "—" ? tx.project : "Sin proyecto";
+      if (tx.amount > 0) { incByProject[proj] = (incByProject[proj] || 0) + tx.amount; }
+      else { egByProject[proj] = (egByProject[proj] || 0) + Math.abs(tx.amount); }
+    });
+
+    const pnl = companyId === "demo" ? [
       { cat: "Ingresos", items: [["Certificados de obra", 12800000], ["Servicios profesionales", 3680000], ["Otros ingresos", 320000]], total: 16800000 },
       { cat: "Costos Directos", items: [["Materiales de construcción", -6200000], ["Mano de obra directa", -3400000], ["Subcontratistas", -1800000], ["Fletes y logística", -580000]], total: -11980000 },
       { cat: "Gastos Operativos", items: [["Sueldos administrativos", -890000], ["Alquiler oficina/obrador", -350000], ["Transporte y combustible", -420000], ["Seguros y ART", -280000], ["Servicios (luz, gas, tel)", -180000], ["Software y tecnología", -90000]], total: -2210000 },
       { cat: "Impuestos y Retenciones", items: [["IVA neto a pagar", -420000], ["IIBB", -168000], ["Retenciones sufridas", -85000]], total: -673000 },
+    ] : [
+      { cat: "Ingresos", items: Object.entries(incByProject).map(([k, v]) => [k, v]), total: totalInc },
+      { cat: "Egresos", items: Object.entries(egByProject).map(([k, v]) => [k, -v]), total: -totalEg },
     ];
-    const totalInc = 16800000; const totalCost = 11980000 + 2210000 + 673000; const net = totalInc - totalCost;
-    const margenBruto = Math.round((totalInc - 11980000) / totalInc * 100);
-    const margenNeto = Math.round(net / totalInc * 100);
+
+    if (companyId === "demo") {
+      const demoInc = 16800000; const demoCost = 11980000 + 2210000 + 673000; const demoNet = demoInc - demoCost;
+      var finalInc = demoInc, finalNet = demoNet, finalMargenBruto = Math.round((demoInc - 11980000) / demoInc * 100), finalMargenNeto = Math.round(demoNet / demoInc * 100);
+    } else {
+      var finalInc = totalInc, finalNet = net, finalMargenBruto = margenBruto, finalMargenNeto = margenNeto;
+    }
     return (
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
           <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Estado de Resultados</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
-          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados", [["<th>Categoría</th>","<th>Concepto</th>","<th>Monto</th>"],...pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, fmt(a)])),["<b>RESULTADO</b>","<b>NETO</b>","<b>" + fmt(net) + "</b>"]])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, a])))}><Download size={12} />Excel</Btn></div>
+          <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados", [["<th>Categoría</th>","<th>Concepto</th>","<th>Monto</th>"],...pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, fmt(a)])),["<b>RESULTADO</b>","<b>NETO</b>","<b>" + fmt(finalNet) + "</b>"]])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, a])))}><Download size={12} />Excel</Btn></div>
         </div>
         {/* KPI Summary */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
           {[
-            { l: "Ingresos totales", v: fmt(totalInc), c: t.green },
-            { l: "Costos totales", v: fmt(totalCost), c: t.red },
-            { l: "Margen bruto", v: margenBruto + "%", c: margenBruto > 25 ? t.green : t.orange },
-            { l: "Margen neto", v: margenNeto + "%", c: margenNeto > 10 ? t.green : t.orange },
+            { l: "Ingresos totales", v: fmt(finalInc), c: t.green },
+            { l: "Costos totales", v: fmt(finalInc - finalNet), c: t.red },
+            { l: "Margen bruto", v: finalMargenBruto + "%", c: finalMargenBruto > 25 ? t.green : t.orange },
+            { l: "Margen neto", v: finalMargenNeto + "%", c: finalMargenNeto > 10 ? t.green : t.orange },
           ].map((k, i) => (
             <div key={i} style={{ textAlign: "center", padding: 8, background: t.hover, borderRadius: 7 }}>
               <div style={{ fontSize: 9, color: t.dim }}>{k.l}</div>
@@ -2061,9 +2100,9 @@ function Reports({ t }) {
               </div>
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 16px", background: net >= 0 ? t.greenBg : t.redBg, borderRadius: 9, border: "1px solid " + (net >= 0 ? t.green : t.red) + "20" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 16px", background: finalNet >= 0 ? t.greenBg : t.redBg, borderRadius: 9, border: "1px solid " + (finalNet >= 0 ? t.green : t.red) + "20" }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>RESULTADO NETO</span>
-            <span style={{ fontSize: 20, fontWeight: 800, color: net >= 0 ? t.green : t.red }}>{fmt(net)}</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: finalNet >= 0 ? t.green : t.red }}>{fmt(finalNet)}</span>
           </div>
           {/* Monthly comparison */}
           <div style={{ marginTop: 16 }}>
@@ -2090,9 +2129,21 @@ function Reports({ t }) {
   };
 
   const renderBalance = () => {
-    const activos = [["Caja y Bancos", 18400000], ["Cuentas por Cobrar", 13700000], ["Materiales en Obra", 4200000], ["Anticipos a Proveedores", 1500000], ["Activos Fijos (neto)", 28000000], ["Intangibles", 600000]];
-    const pasivos = [["Cuentas por Pagar", 8760000], ["Préstamos Bancarios", 12000000], ["Anticipos de Clientes", 5000000], ["Deudas Fiscales", 3200000], ["Provisiones", 1440000]];
-    const patrimonio = [["Capital Social", 20000000], ["Reservas", 4000000], ["Resultados Acumulados", 7600000], ["Resultado del Ejercicio", 1937000]];
+    const totalIncBal = TXS.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
+    const totalEgBal = TXS.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const cxcBal = TXS.filter(tx => tx.amount > 0 && tx.status === "pending").reduce((s, tx) => s + tx.amount, 0);
+    const cxpBal = TXS.filter(tx => tx.amount < 0 && tx.status === "pending").reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const cajaBal = TXS.filter(tx => tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
+
+    const activos = companyId === "demo"
+      ? [["Caja y Bancos", 18400000], ["Cuentas por Cobrar", 13700000], ["Materiales en Obra", 4200000], ["Anticipos a Proveedores", 1500000], ["Activos Fijos (neto)", 28000000], ["Intangibles", 600000]]
+      : [["Caja y Bancos", Math.max(0, cajaBal)], ["Cuentas por Cobrar", cxcBal]].filter(([,v]) => v > 0);
+    const pasivos = companyId === "demo"
+      ? [["Cuentas por Pagar", 8760000], ["Préstamos Bancarios", 12000000], ["Anticipos de Clientes", 5000000], ["Deudas Fiscales", 3200000], ["Provisiones", 1440000]]
+      : [["Cuentas por Pagar", cxpBal]].filter(([,v]) => v > 0);
+    const patrimonio = companyId === "demo"
+      ? [["Capital Social", 20000000], ["Reservas", 4000000], ["Resultados Acumulados", 7600000], ["Resultado del Ejercicio", 1937000]]
+      : [["Resultado del Ejercicio", totalIncBal - totalEgBal]].filter(([,v]) => v !== 0);
     const totalA = activos.reduce((s, [,a]) => s + a, 0);
     const totalP = pasivos.reduce((s, [,a]) => s + a, 0);
     const totalPat = patrimonio.reduce((s, [,a]) => s + a, 0);
@@ -2129,9 +2180,9 @@ function Reports({ t }) {
           ))}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginTop: 8 }}>
             {[
-              { l: "Liquidez corriente", v: (18400000 / totalP).toFixed(2), ok: (18400000 / totalP) > 1 },
-              { l: "Endeudamiento", v: Math.round(totalP / totalA * 100) + "%", ok: (totalP / totalA) < 0.6 },
-              { l: "Solvencia", v: (totalA / totalP).toFixed(2), ok: (totalA / totalP) > 1.5 },
+              { l: "Liquidez corriente", v: totalP > 0 ? (totalA / totalP).toFixed(2) : "—", ok: totalP > 0 && (totalA / totalP) > 1 },
+              { l: "Endeudamiento", v: totalA > 0 ? Math.round(totalP / totalA * 100) + "%" : "0%", ok: totalA > 0 && (totalP / totalA) < 0.6 },
+              { l: "Solvencia", v: totalP > 0 ? (totalA / totalP).toFixed(2) : "—", ok: totalP > 0 && (totalA / totalP) > 1.5 },
             ].map((r, i) => (
               <div key={i} style={{ padding: 10, background: t.hover, borderRadius: 7, textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: t.dim }}>{r.l}</div>
@@ -2145,13 +2196,18 @@ function Reports({ t }) {
   };
 
   const renderCashflow = () => {
-    const secciones = [
+    const paidInc = TXS.filter(tx => tx.amount > 0 && tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
+    const paidEg = TXS.filter(tx => tx.amount < 0 && tx.status === "paid").reduce((s, tx) => s + Math.abs(tx.amount), 0);
+
+    const secciones = companyId === "demo" ? [
       { cat: "Actividades Operativas", items: [["Cobros de clientes", 16480000], ["Pagos a proveedores", -8955000], ["Sueldos y cargas sociales", -3400000], ["Impuestos pagados", -673000], ["Gastos operativos", -2210000]], total: 1242000 },
       { cat: "Actividades de Inversión", items: [["Compra de equipos", -1200000], ["Mejoras en obras", -800000], ["Venta de activos", 350000]], total: -1650000 },
       { cat: "Actividades de Financiamiento", items: [["Cuota préstamo bancario", -500000], ["Intereses pagados", -180000], ["Aportes de socios", 0]], total: -680000 },
+    ] : [
+      { cat: "Actividades Operativas", items: [["Cobros recibidos", paidInc], ["Pagos realizados", -paidEg]], total: paidInc - paidEg },
     ];
     const variacion = secciones.reduce((s, sec) => s + sec.total, 0);
-    const saldoInicial = 18400000;
+    const saldoInicial = companyId === "demo" ? 18400000 : 0;
     return (
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
@@ -2260,24 +2316,37 @@ function Reports({ t }) {
     </div>
   );
 
-  const renderAging = () => (
+  const renderAging = () => {
+    const realCxC = TXS.filter(tx => tx.amount > 0 && (tx.status === "pending" || tx.status === "overdue"));
+    const realCxP = TXS.filter(tx => tx.amount < 0 && (tx.status === "pending" || tx.status === "overdue"));
+    const totalCxC = realCxC.reduce((s, tx) => s + tx.amount, 0);
+    const totalCxP = realCxP.reduce((s, tx) => s + Math.abs(tx.amount), 0);
+
+    const agingData = companyId === "demo" ? [
+      { title: "Cuentas por Cobrar", total: 13700000, data: [["Vigentes", 7500000, t.green, 55], ["1-30 días", 3200000, t.orange, 23], ["31-60 días", 1800000, t.red, 13], ["+60 días", 1200000, "#FF4757", 9]],
+        detail: [["Constructora Vial SA", 7500000, 0, "vigente"], ["Inmobiliaria Costa", 2100000, 15, "1-30"], ["Estudio Arq. Méndez", 1800000, 45, "31-60"], ["Varios menores", 2300000, 70, "+60"]] },
+      { title: "Cuentas por Pagar", total: 8760000, data: [["Vigentes", 4200000, t.green, 48], ["1-30 días", 2100000, t.orange, 24], ["31-60 días", 1500000, t.red, 17], ["+60 días", 960000, "#FF4757", 11]],
+        detail: [["Hierros del Sur SRL", 1850000, 5, "vigente"], ["Ferretería López", 920000, 20, "1-30"], ["Transportes Rápido", 1500000, 50, "31-60"], ["Varios proveedores", 4490000, 30, "1-30"]] },
+    ] : [
+      { title: "Cuentas por Cobrar", total: totalCxC, data: totalCxC > 0 ? [["Pendientes", totalCxC, t.green, 100]] : [],
+        detail: realCxC.map(tx => [tx.contact || "—", tx.amount, 0, tx.status === "overdue" ? "+60" : "vigente"]) },
+      { title: "Cuentas por Pagar", total: totalCxP, data: totalCxP > 0 ? [["Pendientes", totalCxP, t.red, 100]] : [],
+        detail: realCxP.map(tx => [tx.contact || "—", Math.abs(tx.amount), 0, tx.status === "overdue" ? "+60" : "vigente"]) },
+    ];
+
+    return (
     <div>
       <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
         <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Aging de Cartera</div><div style={{ fontSize: 11, color: t.muted }}>Antigüedad de CxC y CxP</div></div>
-        <Btn t={t} onClick={() => exportCSV("aging_cartera", ["Tipo","Rango","Monto","Porcentaje"], [["CxC","Vigentes",7500000,"55%"],["CxC","1-30d",3200000,"23%"],["CxC","31-60d",1800000,"13%"],["CxC","+60d",1200000,"9%"],["CxP","Vigentes",4200000,"48%"],["CxP","1-30d",2100000,"24%"],["CxP","31-60d",1500000,"17%"],["CxP","+60d",960000,"11%"]])}><Download size={12} />Excel</Btn>
+        <Btn t={t} onClick={() => exportCSV("aging_cartera", ["Tipo","Contacto","Monto","Estado"], agingData.flatMap(sec => sec.detail.map(([n,a,,s]) => [sec.title,n,a,s])))}><Download size={12} />Excel</Btn>
       </div>
       {/* Summary */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
-        <div style={{ textAlign: "center", padding: 10, background: t.greenBg, borderRadius: 7 }}><div style={{ fontSize: 10, color: t.green }}>Total CxC</div><div style={{ fontSize: 18, fontWeight: 700, color: t.green }}>{fmt(13700000)}</div></div>
-        <div style={{ textAlign: "center", padding: 10, background: t.redBg, borderRadius: 7 }}><div style={{ fontSize: 10, color: t.red }}>Total CxP</div><div style={{ fontSize: 18, fontWeight: 700, color: t.red }}>{fmt(8760000)}</div></div>
+        <div style={{ textAlign: "center", padding: 10, background: t.greenBg, borderRadius: 7 }}><div style={{ fontSize: 10, color: t.green }}>Total CxC</div><div style={{ fontSize: 18, fontWeight: 700, color: t.green }}>{fmt(totalCxC)}</div></div>
+        <div style={{ textAlign: "center", padding: 10, background: t.redBg, borderRadius: 7 }}><div style={{ fontSize: 10, color: t.red }}>Total CxP</div><div style={{ fontSize: 18, fontWeight: 700, color: t.red }}>{fmt(totalCxP)}</div></div>
       </div>
       <div style={{ padding: 16 }}>
-        {[
-          { title: "Cuentas por Cobrar", total: 13700000, data: [["Vigentes", 7500000, t.green, 55], ["1-30 días", 3200000, t.orange, 23], ["31-60 días", 1800000, t.red, 13], ["+60 días", 1200000, "#FF4757", 9]],
-            detail: [["Constructora Vial SA", 7500000, 0, "vigente"], ["Inmobiliaria Costa", 2100000, 15, "1-30"], ["Estudio Arq. Méndez", 1800000, 45, "31-60"], ["Varios menores", 2300000, 70, "+60"]] },
-          { title: "Cuentas por Pagar", total: 8760000, data: [["Vigentes", 4200000, t.green, 48], ["1-30 días", 2100000, t.orange, 24], ["31-60 días", 1500000, t.red, 17], ["+60 días", 960000, "#FF4757", 11]],
-            detail: [["Hierros del Sur SRL", 1850000, 5, "vigente"], ["Ferretería López", 920000, 20, "1-30"], ["Transportes Rápido", 1500000, 50, "31-60"], ["Varios proveedores", 4490000, 30, "1-30"]] },
-        ].map((sec, si) => (
+        {agingData.map((sec, si) => (
           <div key={si} style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>{sec.title}</div>
             {sec.data.map(([l, a, c, p], i) => (
@@ -2309,6 +2378,7 @@ function Reports({ t }) {
       </div>
     </div>
   );
+  };
 
   const renderKpi = () => {
     const totalInc = TXS.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
@@ -2400,7 +2470,7 @@ function Reports({ t }) {
   );
 }
 
-function Landing({ onEnter, onLogin }) {
+function Landing({ onEnter, onLogin, isLoggedIn }) {
   const [scrollY, setScrollY] = useState(0);
   const handleScroll = (e) => setScrollY(e.target.scrollTop);
 
@@ -2457,8 +2527,8 @@ function Landing({ onEnter, onLogin }) {
           <span onClick={() => document.getElementById("features").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Funcionalidades</span>
           <span onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
           <span onClick={() => document.getElementById("pricing").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Planes</span>
-          <button onClick={onLogin} style={{ background: "transparent", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            Iniciar sesión
+          <button onClick={onLogin} style={{ background: isLoggedIn ? "linear-gradient(135deg, #34D399, #10B981)" : "transparent", color: "#ECF0F6", border: isLoggedIn ? "none" : "1px solid rgba(255,255,255,0.15)", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            {isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión"}
           </button>
           <button onClick={onEnter} style={{ background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 16px rgba(124,109,240,0.35)" }}>
             Ver Demo
@@ -2499,7 +2569,7 @@ function Landing({ onEnter, onLogin }) {
             borderRadius: 12, padding: "15px 36px", fontSize: 16, fontWeight: 700, cursor: "pointer",
             boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "flex", alignItems: "center", gap: 8,
           }}>
-            Iniciar sesión <ArrowUpRight size={18} />
+            {isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión"} <ArrowUpRight size={18} />
           </button>
           <button onClick={onEnter} style={{
             background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
@@ -3699,9 +3769,10 @@ function LoginPage({ onLogin }) {
 }
 
 export default function App() {
-  const [view, setView] = useState("loading");
+  const [view, setView] = useState("landing"); // Always start at landing
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("user_profiles").select("*, company:companies(name)").eq("id", userId).single();
@@ -3710,16 +3781,22 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) { setUser(session.user); loadProfile(session.user.id); setView("app"); }
-      else setView("landing");
+      if (session?.user) { setUser(session.user); loadProfile(session.user.id); }
+      setAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(session.user);
         loadProfile(session.user.id);
-        // Only auto-redirect to app if not in demo mode
-        setView(prev => prev === "demo" ? prev : "app");
-      } else { setUser(null); setProfile(null); setView("landing"); }
+        // After login/register or initial session, go to app — BUT always preserve demo mode
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+          setView(prev => prev === "demo" ? prev : "app");
+        }
+      } else {
+        setUser(null); setProfile(null);
+        // Only go to landing if not in demo
+        setView(prev => prev === "demo" ? prev : "landing");
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -3731,8 +3808,9 @@ export default function App() {
     setView("landing");
   };
 
-  if (view === "loading") return <div style={{ minHeight: "100vh", background: "#0B0F1A", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
-  if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => { if (user) { setView("app"); } else { setView("login"); } }} />;
+  if (!authReady) return <div style={{ minHeight: "100vh", background: "#0B0F1A", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
+
+  if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => { if (user) { setView("app"); } else { setView("login"); } }} isLoggedIn={!!user} />;
   if (view === "login") return <LoginPage onLogin={() => setView("app")} />;
   if (view === "demo") return (
     <DemoDataProvider>
@@ -3740,6 +3818,7 @@ export default function App() {
     </DemoDataProvider>
   );
 
+  // view === "app"
   return (
     <DataProvider>
       <AppContent user={user} profile={profile} onLogout={handleLogout} isDemo={false} />
