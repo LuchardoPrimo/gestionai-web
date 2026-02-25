@@ -684,7 +684,7 @@ function Inp({ label, val, onChange, t, placeholder, type = "text" }) {
           <option value="supplier">Proveedor</option>
         </select>
       ) : (
-        <input value={val} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12, outline: "none" }} />
+        <input type={type} value={val} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12, outline: "none", colorScheme: t.bg === "#0B0F1A" ? "dark" : "light" }} />
       )}
     </div>
   );
@@ -915,7 +915,7 @@ function ProjectsPage({ t }) {
                 <Inp label="Título de la tarea" val={newTask.title} onChange={v => setNewTask({...newTask, title: v})} t={t} placeholder="Ej: Revisar planos..." />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
                   <Inp label="Responsable" val={newTask.assignee} onChange={v => setNewTask({...newTask, assignee: v})} t={t} placeholder="Nombre" />
-                  <Inp label="Fecha límite" val={newTask.due_date} onChange={v => setNewTask({...newTask, due_date: v})} t={t} placeholder="2026-03-15" />
+                  <Inp label="Fecha límite" val={newTask.due_date} onChange={v => setNewTask({...newTask, due_date: v})} t={t} type="date" />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
                   <div>
@@ -1000,7 +1000,7 @@ function ProjectsPage({ t }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
             <Inp label="Presupuesto ($)" val={nf.budget} onChange={v => setNf({ ...nf, budget: v })} t={t} placeholder="45000000" />
-            <Inp label="Fecha límite" val={nf.deadline} onChange={v => setNf({ ...nf, deadline: v })} t={t} placeholder="2026-06-30" />
+            <Inp label="Fecha límite" val={nf.deadline} onChange={v => setNf({ ...nf, deadline: v })} t={t} type="date" />
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Prioridad</div>
               <select value={nf.priority} onChange={e => setNf({ ...nf, priority: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
@@ -1036,6 +1036,7 @@ function TasksPage({ t }) {
   const [tasks, setTasks] = useState([]);
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [calDate, setCalDate] = useState(new Date());
   const cols = [{ id: "todo", label: "Por hacer", color: t.muted, icon: Clock }, { id: "in_progress", label: "En progreso", color: t.blue, icon: Activity }, { id: "review", label: "Revisión", color: t.yellow, icon: Eye }, { id: "done", label: "Completado", color: t.green, icon: CheckCircle2 }];
 
   useEffect(() => { setTasks(dbTasks); }, [dbTasks]);
@@ -1054,7 +1055,8 @@ function TasksPage({ t }) {
     setEditing(null); setEditForm(null);
   };
   const addTask = async () => {
-    const { data } = await supabase.from("tasks").insert([{ title: "Nueva tarea", assignee: "MR", priority: "medium", due_date: "2026-02-20", status: "todo", tag: "General", company_id: companyId }]).select();
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase.from("tasks").insert([{ title: "Nueva tarea", assignee: "", priority: "medium", due_date: todayDate, status: "todo", tag: "General", company_id: companyId }]).select();
     if (data && data[0]) {
       const nt = { ...data[0], project: "Admin", pid: null, who: data[0].assignee, pri: data[0].priority, due: data[0].due_date, st: data[0].status, tag: data[0].tag };
       setTasks([nt, ...tasks]);
@@ -1083,7 +1085,7 @@ function TasksPage({ t }) {
         </select>
       </div>
       <Inp label="Asignado" val={editForm.who} onChange={v => setEditForm({...editForm, who: v})} t={t} />
-      <Inp label="Fecha de vencimiento (YYYY-MM-DD)" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} />
+      <Inp label="Fecha de vencimiento" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} type="date" />
       <Inp label="Etiqueta" val={editForm.tag} onChange={v => setEditForm({...editForm, tag: v})} t={t} />
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
         <Btn t={t} onClick={() => deleteTask(editForm.id)} style={{ color: t.red }}><X size={12} />Eliminar</Btn>
@@ -1146,10 +1148,21 @@ function TasksPage({ t }) {
           </table>
         </Crd>
       )}
-      {view === "calendar" && (
+      {view === "calendar" && (() => {
+        const [calYear, calMonth] = [calDate.getFullYear(), calDate.getMonth()];
+        const firstDay = new Date(calYear, calMonth, 1).getDay();
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        const blanks = firstDay === 0 ? 6 : firstDay - 1; // Monday start
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const monthName = new Date(calYear, calMonth).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+
+        return (
         <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Febrero 2026</span>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, marginBottom: 16 }}>
+            <button onClick={() => setCalDate(new Date(calYear, calMonth - 1, 1))} style={{ background: t.hover, border: "1px solid " + t.border, borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: t.text, fontSize: 14, fontWeight: 600 }}>‹</button>
+            <span style={{ fontSize: 16, fontWeight: 700, color: t.text, textTransform: "capitalize", minWidth: 180, textAlign: "center" }}>{monthName}</span>
+            <button onClick={() => setCalDate(new Date(calYear, calMonth + 1, 1))} style={{ background: t.hover, border: "1px solid " + t.border, borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: t.text, fontSize: 14, fontWeight: 600 }}>›</button>
+            <button onClick={() => setCalDate(new Date())} style={{ background: t.accentBg, border: "1px solid " + t.accent + "40", borderRadius: 6, padding: "5px 12px", cursor: "pointer", color: t.accentL, fontSize: 11, fontWeight: 600 }}>Hoy</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
             {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(d => (
@@ -1157,21 +1170,22 @@ function TasksPage({ t }) {
                 {d}
               </div>
             ))}
-            {Array(6).fill(null).map((_, i) => <div key={"e" + i} style={{ minHeight: 80 }} />)}
-            {Array.from({ length: 28 }, (_, i) => i + 1).map(d => {
-              const ds = "2026-02-" + String(d).padStart(2, "0");
+            {Array(blanks).fill(null).map((_, i) => <div key={"e" + i} style={{ minHeight: 80 }} />)}
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
+              const ds = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const dt = tasks.filter(tk => tk.due === ds);
-              const today = d === 20;
-              const isWeekend = (() => { const dow = new Date(2026, 1, d).getDay(); return dow === 0 || dow === 6; })();
+              const isToday = ds === todayStr;
+              const dow = new Date(calYear, calMonth, d).getDay();
+              const isWeekend = dow === 0 || dow === 6;
               return (
                 <div key={d} style={{
                   minHeight: 80, padding: 6, borderRadius: 8,
-                  border: today ? "2px solid " + t.accent : "1px solid " + t.border + "30",
-                  background: today ? t.accentBg : isWeekend ? t.hover + "50" : "transparent",
+                  border: isToday ? "2px solid " + t.accent : "1px solid " + t.border + "30",
+                  background: isToday ? t.accentBg : isWeekend ? t.hover + "50" : "transparent",
                 }}>
                   <div style={{
-                    fontSize: 12, fontWeight: today ? 800 : 500,
-                    color: today ? t.accentL : isWeekend ? t.dim : t.text,
+                    fontSize: 12, fontWeight: isToday ? 800 : 500,
+                    color: isToday ? t.accentL : isWeekend ? t.dim : t.text,
                     textAlign: "right", padding: "0 2px", marginBottom: 4,
                   }}>
                     {d}
@@ -1201,7 +1215,8 @@ function TasksPage({ t }) {
             ))}
           </div>
         </Crd>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -1344,7 +1359,7 @@ function Transactions({ t }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
             <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Contacto</div><select value={nf.contact_id} onChange={e => setNf({ ...nf, contact_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">— Seleccionar —</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
             <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Proyecto</div><select value={nf.project_id} onChange={e => setNf({ ...nf, project_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">— Seleccionar —</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-            <Inp label="Fecha" val={nf.date} onChange={v => setNf({ ...nf, date: v })} t={t} placeholder="2026-02-23" />
+            <Inp label="Fecha" val={nf.date} onChange={v => setNf({ ...nf, date: v })} t={t} type="date" />
             <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Estado</div><select value={nf.status} onChange={e => setNf({ ...nf, status: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="paid">Pagado</option><option value="pending">Pendiente</option></select></div>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
