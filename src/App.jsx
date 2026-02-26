@@ -1631,19 +1631,30 @@ function Accounting({ t }) {
 }
 
 function Treasury({ t }) {
-  const { transactions: TXS, companyId } = useData();
+  const { transactions: TXS, companyId, reload } = useData();
   const [selAcc, setSelAcc] = useState(null);
   const [showNewAcc, setShowNewAcc] = useState(false);
   const [newAcc, setNewAcc] = useState({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
-  const demoAccs = [
-    { id: 1, name: "Banco Galicia — Cta Cte", type: "ARS", bal: 12400000, color: t.accent, cbu: "0070999030004123456789", alias: "GESTION.AI.GALICIA", data: [8.2,9.5,8.8,10.1,11.3,12,12.4],
-      movs: [{ date: "13/02", desc: "Cobro Cert. Obra #47", amt: 3200000, bal: 12400000 },{ date: "12/02", desc: "Pago proveedores", amt: -1850000, bal: 9200000 },{ date: "11/02", desc: "Cobro anticipo Nordelta", amt: 5000000, bal: 11050000 },{ date: "10/02", desc: "Alquiler oficina", amt: -350000, bal: 6050000 }] },
-    { id: 2, name: "Banco Macro — Cta Cte", type: "ARS", bal: 4800000, color: t.blue, cbu: "2850999030004987654321", alias: "GESTION.AI.MACRO", data: [3.2,3.8,4.1,3.9,4.5,4.7,4.8],
-      movs: [{ date: "12/02", desc: "Cobro factura #887", amt: 1500000, bal: 4800000 },{ date: "10/02", desc: "Transferencia a Galicia", amt: -2000000, bal: 3300000 }] },
-    { id: 3, name: "Mercado Pago", type: "ARS", bal: 1200000, color: t.green, cbu: "—", alias: "GESTION.AI.MP", data: [0.6,0.8,0.9,1.0,1.1,1.15,1.2],
-      movs: [{ date: "13/02", desc: "Cobro QR", amt: 85000, bal: 1200000 }] },
-  ];
-  const [accounts, setAccounts] = useState(companyId === "demo" ? demoAccs : []);
+  const [accounts, setAccounts] = useState([]);
+  const [loadingAccs, setLoadingAccs] = useState(true);
+  const colors = [t.accent, t.blue, t.green, t.orange, t.red, "#EC4899"];
+
+  const loadAccounts = async () => {
+    if (companyId === "demo") {
+      setAccounts([
+        { id: "d1", name: "Banco Galicia — Cta Cte", currency: "ARS", balance: 12400000, cbu: "0070999030004123456789", alias: "GESTION.AI.GALICIA" },
+        { id: "d2", name: "Banco Macro — Cta Cte", currency: "ARS", balance: 4800000, cbu: "2850999030004987654321", alias: "GESTION.AI.MACRO" },
+        { id: "d3", name: "Mercado Pago", currency: "ARS", balance: 1200000, cbu: "—", alias: "GESTION.AI.MP" },
+      ]);
+      setLoadingAccs(false);
+      return;
+    }
+    const { data, error } = await supabase.from("bank_accounts").select("*").eq("company_id", companyId).order("created_at");
+    if (error) console.error("Load accounts error:", error.message);
+    setAccounts(data || []);
+    setLoadingAccs(false);
+  };
+  useEffect(() => { if (companyId) loadAccounts(); }, [companyId]);
 
   const pendingIncome = TXS.filter(tx => tx.amount > 0 && (tx.status === "pending" || tx.status === "overdue"));
   const pendingExpense = TXS.filter(tx => tx.amount < 0 && (tx.status === "pending" || tx.status === "overdue"));
@@ -1655,38 +1666,57 @@ function Treasury({ t }) {
     { contact: "Hierros del Sur SRL", amt: 1850000, days: 5, status: "vigente" },
     { contact: "Ferretería López", amt: 920000, days: 20, status: "1-30" },
   ] : pendingExpense.map(tx => ({ contact: tx.contact || "—", amt: Math.abs(tx.amount), days: 0, status: tx.status === "overdue" ? "+60" : "vigente" }));
-  const colors = [t.accent, t.blue, t.green, t.orange, t.red, "#EC4899"];
-  const totalBal = accounts.reduce((s, a) => s + a.bal, 0);
+  const totalBal = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+  const totalCxP = cxp.reduce((s, c) => s + c.amt, 0);
+  const ratioLiq = totalCxP > 0 ? (totalBal / totalCxP) : accounts.length > 0 ? 99.9 : 0;
 
-  const addAccount = () => {
+  const addAccount = async () => {
     if (!newAcc.name.trim()) return;
-    setAccounts([...accounts, { id: Date.now(), name: newAcc.name, type: newAcc.type, bal: Number(newAcc.bal) || 0, color: colors[accounts.length % colors.length], cbu: newAcc.cbu || "—", alias: newAcc.alias || "—", data: [0], movs: [] }]);
+    if (companyId === "demo") return;
+    const { data, error } = await supabase.from("bank_accounts").insert({
+      company_id: companyId, name: newAcc.name, currency: newAcc.type,
+      balance: Number(newAcc.bal) || 0, cbu: newAcc.cbu || null, alias: newAcc.alias || null,
+    }).select().single();
+    if (error) { console.error("Add account error:", error.message); return; }
+    setAccounts([...accounts, data]);
     setNewAcc({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
     setShowNewAcc(false);
   };
 
-  const removeAccount = (id) => {
+  const removeAccount = async (id) => {
     if (!window.confirm("¿Eliminar esta cuenta?")) return;
+    if (companyId !== "demo") await supabase.from("bank_accounts").delete().eq("id", id);
     setAccounts(accounts.filter(a => a.id !== id));
     setSelAcc(null);
   };
 
+  const getMovements = (acc) => {
+    if (companyId === "demo") {
+      if (acc.id === "d1") return [{ date: "13/02", desc: "Cobro Cert. Obra #47", amt: 3200000 },{ date: "12/02", desc: "Pago proveedores", amt: -1850000 },{ date: "11/02", desc: "Cobro anticipo Nordelta", amt: 5000000 }];
+      if (acc.id === "d2") return [{ date: "12/02", desc: "Cobro factura #887", amt: 1500000 },{ date: "10/02", desc: "Transferencia a Galicia", amt: -2000000 }];
+      return [{ date: "13/02", desc: "Cobro QR", amt: 85000 }];
+    }
+    return TXS.filter(tx => tx.status === "paid").slice(0, 10).map(tx => ({
+      date: tx.date ? new Date(tx.date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : "—",
+      desc: tx.desc || tx.description || "—", amt: tx.amount,
+    }));
+  };
+
   if (selAcc) {
     const acc = accounts.find(a => a.id === selAcc);
+    if (!acc) { setSelAcc(null); return null; }
+    const movs = getMovements(acc);
+    const color = colors[accounts.indexOf(acc) % colors.length];
     return (
       <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
         <div onClick={() => setSelAcc(null)} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 16, cursor: "pointer", color: t.muted, fontSize: 12 }}><ChevronLeft size={14} /> Volver</div>
         <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 14 }}>
           <div>
-            <Crd t={t} style={{ padding: 16, borderTop: "3px solid " + acc.color, marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <CreditCard size={18} color={acc.color} />
-                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{acc.name}</div>
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: t.text, marginBottom: 12 }}>{fmt(acc.bal)}</div>
-              <Chart data={acc.data} color={acc.color} w={220} h={40} />
+            <Crd t={t} style={{ padding: 16, borderTop: "3px solid " + color, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><CreditCard size={18} color={color} /><div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{acc.name}</div></div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: t.text }}>{fmt(Number(acc.balance || 0))}</div>
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid " + t.border }}>
-                {[["CBU", acc.cbu], ["Alias", acc.alias], ["Moneda", acc.type]].map(([l, v], i) => (
+                {[["CBU", acc.cbu || "—"], ["Alias", acc.alias || "—"], ["Moneda", acc.currency || "ARS"]].map(([l, v], i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 10, color: t.dim }}>{l}</span>
                     <span style={{ fontSize: 11, color: t.text, fontFamily: "monospace" }}>{v}</span>
@@ -1696,36 +1726,32 @@ function Treasury({ t }) {
               <button onClick={() => removeAccount(acc.id)} style={{ marginTop: 10, width: "100%", padding: "7px 0", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Eliminar cuenta</button>
             </Crd>
             <Crd t={t} style={{ padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 8 }}>Resumen del mes</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 8 }}>Resumen</div>
               {(() => {
-                const ingresos = acc.movs.filter(m => m.amt > 0).reduce((s, m) => s + m.amt, 0);
-                const egresos = acc.movs.filter(m => m.amt < 0).reduce((s, m) => s + Math.abs(m.amt), 0);
-                return (
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 11, color: t.green }}>Ingresos</span><span style={{ fontSize: 12, fontWeight: 600, color: t.green }}>{fmt(ingresos)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 11, color: t.red }}>Egresos</span><span style={{ fontSize: 12, fontWeight: 600, color: t.red }}>{fmt(egresos)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: "1px solid " + t.border }}><span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>Neto</span><span style={{ fontSize: 13, fontWeight: 700, color: ingresos - egresos >= 0 ? t.green : t.red }}>{fmt(ingresos - egresos)}</span></div>
-                    <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>{acc.movs.length} movimientos en el período</div>
-                  </div>
-                );
+                const ingresos = movs.filter(m => m.amt > 0).reduce((s, m) => s + m.amt, 0);
+                const egresos = movs.filter(m => m.amt < 0).reduce((s, m) => s + Math.abs(m.amt), 0);
+                return (<div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 11, color: t.green }}>Ingresos</span><span style={{ fontSize: 12, fontWeight: 600, color: t.green }}>{fmt(ingresos)}</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 11, color: t.red }}>Egresos</span><span style={{ fontSize: 12, fontWeight: 600, color: t.red }}>{fmt(egresos)}</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: "1px solid " + t.border }}><span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>Neto</span><span style={{ fontSize: 13, fontWeight: 700, color: ingresos - egresos >= 0 ? t.green : t.red }}>{fmt(ingresos - egresos)}</span></div>
+                </div>);
               })()}
             </Crd>
           </div>
           <Crd t={t} style={{ overflow: "hidden" }}>
             <div style={{ padding: "10px 14px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Últimos movimientos</span>
-              <Btn t={t} onClick={() => exportCSV("movimientos_" + acc.name.replace(/\s/g,"_"), ["Fecha","Descripción","Monto","Saldo"], acc.movs.map(m => [m.date, m.desc, m.amt, m.bal]))}><Download size={12} />Exportar</Btn>
+              <Btn t={t} onClick={() => exportCSV("movimientos_" + acc.name.replace(/\s/g,"_"), ["Fecha","Descripción","Monto"], movs.map(m => [m.date, m.desc, m.amt]))}><Download size={12} />Exportar</Btn>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr style={{ background: t.hover }}>{["Fecha","Descripción","Monto","Saldo"].map(h => <th key={h} style={{ padding: "8px 14px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
-              <tbody>{acc.movs.map((m, i) => (
+              <thead><tr style={{ background: t.hover }}>{["Fecha","Descripción","Monto"].map(h => <th key={h} style={{ padding: "8px 14px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
+              <tbody>{movs.length > 0 ? movs.map((m, i) => (
                 <tr key={i}>
                   <td style={{ padding: "9px 14px", fontSize: 11, color: t.muted, borderBottom: "1px solid " + t.border + "15" }}>{m.date}</td>
                   <td style={{ padding: "9px 14px", fontSize: 12, color: t.text, fontWeight: 500, borderBottom: "1px solid " + t.border + "15" }}>{m.desc}</td>
                   <td style={{ padding: "9px 14px", fontSize: 12, fontWeight: 600, color: m.amt > 0 ? t.green : t.red, borderBottom: "1px solid " + t.border + "15" }}>{m.amt > 0 ? "+" : ""}{fmt(m.amt)}</td>
-                  <td style={{ padding: "9px 14px", fontSize: 12, fontWeight: 500, color: t.text, borderBottom: "1px solid " + t.border + "15" }}>{fmt(m.bal)}</td>
                 </tr>
-              ))}</tbody>
+              )) : <tr><td colSpan={3} style={{ padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin movimientos registrados</td></tr>}</tbody>
             </table>
           </Crd>
         </div>
@@ -1735,13 +1761,12 @@ function Treasury({ t }) {
 
   return (
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
-      {/* KPI Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
         {[
-          { label: "Disponible total", val: fmt(totalBal), color: t.accent, icon: CircleDollarSign, sub: "3 cuentas activas" },
+          { label: "Disponible total", val: fmt(totalBal), color: t.accent, icon: CircleDollarSign, sub: accounts.length + " cuentas" },
           { label: "CxC total", val: fmt(cxc.reduce((s, c) => s + c.amt, 0)), color: t.green, icon: ArrowUpRight, sub: cxc.length + " clientes" },
-          { label: "CxP total", val: fmt(cxp.reduce((s, c) => s + c.amt, 0)), color: t.red, icon: ArrowDownRight, sub: cxp.length + " proveedores" },
-          { label: "Ratio liquidez", val: (totalBal / cxp.reduce((s, c) => s + c.amt, 0)).toFixed(1) + "x", color: t.blue, icon: TrendingUp, sub: totalBal / cxp.reduce((s, c) => s + c.amt, 0) > 2 ? "Saludable" : "Ajustado" },
+          { label: "CxP total", val: fmt(totalCxP), color: t.red, icon: ArrowDownRight, sub: cxp.length + " proveedores" },
+          { label: "Ratio liquidez", val: ratioLiq > 99 ? "∞" : ratioLiq.toFixed(1) + "x", color: t.blue, icon: TrendingUp, sub: ratioLiq > 2 ? "Saludable" : ratioLiq > 0 ? "Ajustado" : "—" },
         ].map((k, i) => (
           <Crd key={i} t={t} style={{ padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -1754,7 +1779,6 @@ function Treasury({ t }) {
         ))}
       </div>
 
-      {/* Bank Accounts */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Cuentas bancarias</div>
         <Btn primary t={t} onClick={() => setShowNewAcc(!showNewAcc)}><Plus size={12} />Nueva cuenta</Btn>
@@ -1782,29 +1806,30 @@ function Treasury({ t }) {
           </div>
         </Crd>
       )}
+      {loadingAccs ? <div style={{ textAlign: "center", padding: 30, color: t.dim }}>Cargando cuentas...</div> : (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
-        {accounts.map(acc => (
-          <Crd key={acc.id} t={t} style={{ padding: 14, borderTop: "3px solid " + acc.color, cursor: "pointer" }}>
+        {accounts.map((acc, idx) => (
+          <Crd key={acc.id} t={t} style={{ padding: 14, borderTop: "3px solid " + colors[idx % colors.length], cursor: "pointer" }}>
             <div onClick={() => setSelAcc(acc.id)}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{acc.name}</div>
-                <CreditCard size={15} color={acc.color} />
+                <CreditCard size={15} color={colors[idx % colors.length]} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: t.text, marginBottom: 4 }}>{fmt(acc.bal)}</div>
-              <Chart data={acc.data} color={acc.color} w={170} h={26} />
-              <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>{acc.movs.length} movimientos · Click para ver detalle</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: t.text, marginBottom: 4 }}>{fmt(Number(acc.balance || 0))}</div>
+              <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>{acc.currency || "ARS"} · Click para ver detalle</div>
             </div>
           </Crd>
         ))}
+        {accounts.length === 0 && <div style={{ gridColumn: "1/-1", padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay cuentas bancarias. Usá "Nueva cuenta" para agregar.</div>}
       </div>
+      )}
 
-      {/* Cash Flow Projection */}
       <Crd t={t} style={{ padding: 14, marginBottom: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Proyección de flujo de caja</div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}><Bot size={12} color={t.accentL} /><span style={{ fontSize: 10, color: t.accentL }}>Estimación IA</span></div>
         </div>
-        <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>Cuánta plata se estima que entra y sale cada semana — basado en cobros pendientes, pagos programados y patrones históricos.</div>
+        <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>Cuánta plata se estima que entra y sale — basado en cobros pendientes, pagos programados y patrones.</div>
         {companyId === "demo" ? (<>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 12 }}>
           {[
@@ -1835,13 +1860,12 @@ function Treasury({ t }) {
           <div style={{ padding: 30, textAlign: "center" }}>
             <TrendingUp size={28} color={t.dim} style={{ marginBottom: 8 }} />
             <div style={{ fontSize: 12, color: t.muted }}>Registrá más transacciones para generar proyecciones automáticas</div>
-            <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>Cobros pendientes: {fmt(TXS.filter(tx => tx.amount > 0 && tx.status === "pending").reduce((s, tx) => s + tx.amount, 0))}</div>
-            <div style={{ fontSize: 11, color: t.dim }}>Pagos pendientes: {fmt(TXS.filter(tx => tx.amount < 0 && tx.status === "pending").reduce((s, tx) => s + Math.abs(tx.amount), 0))}</div>
+            <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>Cobros pendientes: {fmt(pendingIncome.reduce((s, tx) => s + tx.amount, 0))}</div>
+            <div style={{ fontSize: 11, color: t.dim }}>Pagos pendientes: {fmt(pendingExpense.reduce((s, tx) => s + Math.abs(tx.amount), 0))}</div>
           </div>
         )}
       </Crd>
 
-      {/* CxC / CxP + Alerts */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
         <Crd t={t} style={{ padding: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
@@ -1860,18 +1884,13 @@ function Treasury({ t }) {
               </div>
             </div>
           ))}
-          {cxc.length > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 4, marginTop: 10 }}>
-            <div style={{ textAlign: "center", padding: 6, background: t.hover, borderRadius: 6 }}>
-              <div style={{ fontSize: 9, color: t.green }}>Total: {cxc.length} cobros</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(cxc.reduce((s,c) => s + c.amt, 0))}</div>
-            </div>
-          </div>}
+          {cxc.length === 0 && <div style={{ padding: 16, textAlign: "center", color: t.dim, fontSize: 11 }}>Sin cobros pendientes</div>}
         </Crd>
 
         <Crd t={t} style={{ padding: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Cuentas por Pagar</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: t.red }}>{fmt(cxp.reduce((s, c) => s + c.amt, 0))}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: t.red }}>{fmt(totalCxP)}</span>
           </div>
           {cxp.map((c, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
@@ -1885,29 +1904,22 @@ function Treasury({ t }) {
               </div>
             </div>
           ))}
-          {cxp.length > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 4, marginTop: 10 }}>
-            <div style={{ textAlign: "center", padding: 6, background: t.hover, borderRadius: 6 }}>
-              <div style={{ fontSize: 9, color: t.red }}>Total: {cxp.length} pagos</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(cxp.reduce((s,c) => s + c.amt, 0))}</div>
-            </div>
-          </div>}
+          {cxp.length === 0 && <div style={{ padding: 16, textAlign: "center", color: t.dim, fontSize: 11 }}>Sin pagos pendientes</div>}
         </Crd>
       </div>
 
-      {/* Alerts */}
       <Crd t={t} style={{ padding: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Alertas y recordatorios</div>
         {(() => {
           const overdueTx = TXS.filter(tx => tx.status === "overdue");
           const pendTx = TXS.filter(tx => tx.status === "pending");
           const alerts = companyId === "demo" ? [
-            { icon: AlertCircle, color: t.red, title: "Pago vencido — Hierros del Sur SRL", desc: "Factura por $1.85M venció hace 5 días.", action: "Gestionar" },
-            { icon: Clock, color: t.orange, title: "Cobro próximo — Certificado #47 Vial SA", desc: "Vence en 2 días. Confirmar recepción.", action: "Recordar" },
-            { icon: TrendingUp, color: t.blue, title: "Flujo negativo proyectado", desc: "Semana 24-28 Feb: más pagos que cobros.", action: "Ver detalle" },
-            { icon: Bot, color: t.accent, title: "Sugerencia IA: optimizar excedente", desc: "Mercado Pago tiene $1.2M sin rendimiento.", action: "Evaluar" },
+            { icon: AlertCircle, color: t.red, title: "Pago vencido — Hierros del Sur SRL", desc: "Factura por $1.85M venció hace 5 días." },
+            { icon: Clock, color: t.orange, title: "Cobro próximo — Certificado #47 Vial SA", desc: "Vence en 2 días. Confirmar recepción." },
+            { icon: TrendingUp, color: t.blue, title: "Flujo negativo proyectado", desc: "Semana 24-28 Feb: más pagos que cobros." },
           ] : [
-            ...overdueTx.map(tx => ({ icon: AlertCircle, color: t.red, title: "Vencido: " + (tx.desc || tx.description || "Transacción"), desc: fmt(Math.abs(tx.amount)) + " · " + (tx.contact || "—"), action: "Ver" })),
-            ...pendTx.slice(0, 3).map(tx => ({ icon: Clock, color: t.orange, title: "Pendiente: " + (tx.desc || tx.description || "Transacción"), desc: fmt(Math.abs(tx.amount)) + " · " + (tx.contact || "—"), action: "Ver" })),
+            ...overdueTx.map(tx => ({ icon: AlertCircle, color: t.red, title: "Vencido: " + (tx.desc || tx.description || "Transacción"), desc: fmt(Math.abs(tx.amount)) + " · " + (tx.contact || "—") })),
+            ...pendTx.slice(0, 3).map(tx => ({ icon: Clock, color: t.orange, title: "Pendiente: " + (tx.desc || tx.description || "Transacción"), desc: fmt(Math.abs(tx.amount)) + " · " + (tx.contact || "—") })),
           ];
           if (alerts.length === 0) return <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay alertas pendientes</div>;
           return alerts.map((al, i) => (
@@ -1916,7 +1928,6 @@ function Treasury({ t }) {
                 <al.icon size={16} color={al.color} />
                 <div><div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{al.title}</div><div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{al.desc}</div></div>
               </div>
-              <Btn t={t}>{al.action}</Btn>
             </div>
           ));
         })()}
@@ -2924,8 +2935,8 @@ function PayrollPage({ t }) {
   const [period, setPeriod] = useState(new Date().toISOString().substring(0, 7)); // "2026-02"
   const [form, setForm] = useState({ employee_name: "", role: "", base_salary: "", overtime: "", bonus: "", deductions: "", notes: "" });
   const [editId, setEditId] = useState(null);
-
-  const Crd = ({ children, style }) => <div style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, padding: 20, ...style }}>{children}</div>;
+  const [viewMode, setViewMode] = useState("period"); // "period" | "employees"
+  const [selEmployee, setSelEmployee] = useState(null);
 
   const loadPayroll = async () => {
     setLoading(true);
@@ -2984,43 +2995,119 @@ function PayrollPage({ t }) {
   const totalPeriod = periodRecords.reduce((s, r) => s + Number(r.total || 0), 0);
   const totalPaid = periodRecords.filter(r => r.status === "paid").reduce((s, r) => s + Number(r.total || 0), 0);
   const totalPending = totalPeriod - totalPaid;
+  const employees = [...new Set(records.map(r => r.employee_name))].sort();
 
   const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" };
+
+  // Employee detail view
+  if (selEmployee) {
+    const empRecords = records.filter(r => r.employee_name === selEmployee).sort((a, b) => b.period.localeCompare(a.period));
+    const empTotal = empRecords.reduce((s, r) => s + Number(r.total || 0), 0);
+    const empRole = empRecords[0]?.role || "—";
+    return (
+      <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+        <div onClick={() => setSelEmployee(null)} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 16, cursor: "pointer", color: t.muted, fontSize: 12 }}><ChevronLeft size={14} /> Volver</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Av name={selEmployee} size={48} />
+            <div><div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{selEmployee}</div><div style={{ fontSize: 12, color: t.muted }}>{empRole} · {empRecords.length} liquidaciones</div></div>
+          </div>
+          <button onClick={() => { setShowForm(true); setEditId(null); setForm({ employee_name: selEmployee, role: empRole !== "—" ? empRole : "", base_salary: empRecords[0] ? String(empRecords[0].base_salary) : "", overtime: "", bonus: "", deductions: empRecords[0] ? String(empRecords[0].deductions) : "", notes: "" }); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, background: t.accent, color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <Plus size={15} /> Liquidar nuevo mes
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+          <Crd t={t}><div style={{ fontSize: 11, color: t.dim }}>Total histórico</div><div style={{ fontSize: 24, fontWeight: 800, color: t.text }}>{fmt(empTotal)}</div></Crd>
+          <Crd t={t}><div style={{ fontSize: 11, color: t.dim }}>Último sueldo</div><div style={{ fontSize: 24, fontWeight: 800, color: t.accent }}>{fmt(Number(empRecords[0]?.total || 0))}</div></Crd>
+          <Crd t={t}><div style={{ fontSize: 11, color: t.dim }}>Meses liquidados</div><div style={{ fontSize: 24, fontWeight: 800, color: t.blue }}>{empRecords.length}</div></Crd>
+        </div>
+
+        {showForm && (
+          <Crd t={t} style={{ marginBottom: 20, border: "1px solid " + t.accent + "30" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>{editId ? "Editar" : "Nueva"} liquidación — {selEmployee}</div>
+            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Período</div><input type="month" value={period} onChange={e => setPeriod(e.target.value)} style={inputStyle} /></div>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Cargo</div><input value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} placeholder="Ej: Capataz" style={inputStyle} /></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Sueldo básico *</div><input type="number" value={form.base_salary} onChange={e => setForm({ ...form, base_salary: e.target.value })} placeholder="0" style={inputStyle} /></div>
+              <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Horas extra</div><input type="number" value={form.overtime} onChange={e => setForm({ ...form, overtime: e.target.value })} placeholder="0" style={inputStyle} /></div>
+              <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Bonificación</div><input type="number" value={form.bonus} onChange={e => setForm({ ...form, bonus: e.target.value })} placeholder="0" style={inputStyle} /></div>
+              <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Deducciones</div><input type="number" value={form.deductions} onChange={e => setForm({ ...form, deductions: e.target.value })} placeholder="0" style={inputStyle} /></div>
+            </div>
+            <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Notas</div><input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Observaciones..." style={inputStyle} /></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: t.accent }}>Total: {fmt((Number(form.base_salary) || 0) + (Number(form.overtime) || 0) + (Number(form.bonus) || 0) - (Number(form.deductions) || 0))}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ padding: "9px 20px", borderRadius: 8, background: t.hover, color: t.muted, border: "1px solid " + t.border, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
+                <button onClick={handleSave} disabled={!form.base_salary} style={{ padding: "9px 24px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: !form.base_salary ? 0.5 : 1 }}>Guardar</button>
+              </div>
+            </div>
+          </Crd>
+        )}
+
+        <Crd t={t}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Historial de liquidaciones</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead><tr>{["Período", "Básico", "Extras", "Bonif.", "Deduc.", "Total", "Estado", ""].map((h, i) => <th key={i} style={{ textAlign: "left", padding: "10px", color: t.dim, fontWeight: 600, borderBottom: "1px solid " + t.border, fontSize: 11 }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {empRecords.map(r => (
+                <tr key={r.id} style={{ borderBottom: "1px solid " + t.border + "60" }}>
+                  <td style={{ padding: "10px", color: t.text, fontWeight: 600 }}>{r.period}</td>
+                  <td style={{ padding: "10px", color: t.text }}>{fmt(Number(r.base_salary))}</td>
+                  <td style={{ padding: "10px", color: t.blue }}>{r.overtime > 0 ? "+" + fmt(Number(r.overtime)) : "—"}</td>
+                  <td style={{ padding: "10px", color: t.green }}>{r.bonus > 0 ? "+" + fmt(Number(r.bonus)) : "—"}</td>
+                  <td style={{ padding: "10px", color: t.red }}>{r.deductions > 0 ? "-" + fmt(Number(r.deductions)) : "—"}</td>
+                  <td style={{ padding: "10px", fontWeight: 800, color: t.accent }}>{fmt(Number(r.total))}</td>
+                  <td style={{ padding: "10px" }}>
+                    <span style={pill(r.status === "paid" ? t.greenBg : r.status === "approved" ? t.blueBg : t.orangeBg, r.status === "paid" ? t.green : r.status === "approved" ? t.blue : t.orange)}>
+                      {r.status === "paid" ? "Pagado" : r.status === "approved" ? "Aprobado" : "Borrador"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px" }}>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {r.status === "draft" && <div onClick={() => updateStatus(r.id, "approved")} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.blueBg, fontSize: 10, color: t.blue, fontWeight: 600 }}>Aprobar</div>}
+                      {r.status === "approved" && <div onClick={() => updateStatus(r.id, "paid")} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.greenBg, fontSize: 10, color: t.green, fontWeight: 600 }}>Pagar</div>}
+                      <div onClick={() => editRecord(r)} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.hover, fontSize: 10, color: t.muted }}>Editar</div>
+                      <div onClick={() => deleteRecord(r.id)} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 6, background: t.redBg, fontSize: 10, color: t.red }}>×</div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Crd>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Liquidación de Sueldos</div>
-          <div style={{ fontSize: 12, color: t.muted }}>{periodRecords.length} liquidaciones en {period}</div>
+          <div style={{ fontSize: 12, color: t.muted }}>{viewMode === "period" ? periodRecords.length + " liquidaciones en " + period : employees.length + " empleados registrados"}</div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input type="month" value={period} onChange={e => setPeriod(e.target.value)} style={{ ...inputStyle, width: 160 }} />
+          <Tabs t={t} active={viewMode} onChange={setViewMode} items={[{ id: "period", label: "Por período" }, { id: "employees", label: "Por empleado" }]} />
+          {viewMode === "period" && <input type="month" value={period} onChange={e => setPeriod(e.target.value)} style={{ ...inputStyle, width: 160 }} />}
           <button onClick={() => { setShowForm(true); setEditId(null); setForm({ employee_name: "", role: "", base_salary: "", overtime: "", bonus: "", deductions: "", notes: "" }); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, background: t.accent, color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             <Plus size={15} /> Nueva liquidación
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {viewMode === "period" && <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
-        <Crd>
-          <div style={{ fontSize: 11, color: t.dim }}>Total período</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: t.text }}>{fmt(totalPeriod)}</div>
-        </Crd>
-        <Crd>
-          <div style={{ fontSize: 11, color: t.dim }}>Pagado</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: t.green }}>{fmt(totalPaid)}</div>
-        </Crd>
-        <Crd>
-          <div style={{ fontSize: 11, color: t.dim }}>Pendiente</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: t.orange }}>{fmt(totalPending)}</div>
-        </Crd>
+        <Crd t={t}><div style={{ fontSize: 11, color: t.dim }}>Total período</div><div style={{ fontSize: 24, fontWeight: 800, color: t.text }}>{fmt(totalPeriod)}</div></Crd>
+        <Crd t={t}><div style={{ fontSize: 11, color: t.dim }}>Pagado</div><div style={{ fontSize: 24, fontWeight: 800, color: t.green }}>{fmt(totalPaid)}</div></Crd>
+        <Crd t={t}><div style={{ fontSize: 11, color: t.dim }}>Pendiente</div><div style={{ fontSize: 24, fontWeight: 800, color: t.orange }}>{fmt(totalPending)}</div></Crd>
       </div>
+      </>}
 
-      {/* Form */}
       {showForm && (
-        <Crd style={{ marginBottom: 20, border: "1px solid " + t.accent + "30" }}>
+        <Crd t={t} style={{ marginBottom: 20, border: "1px solid " + t.accent + "30" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>{editId ? "Editar" : "Nueva"} liquidación — {period}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
             <div><div style={{ fontSize: 10, color: t.dim, marginBottom: 4 }}>Empleado *</div><input value={form.employee_name} onChange={e => setForm({ ...form, employee_name: e.target.value })} placeholder="Nombre completo" style={inputStyle} /></div>
@@ -3043,8 +3130,30 @@ function PayrollPage({ t }) {
         </Crd>
       )}
 
-      {/* Table */}
-      <Crd>
+      {viewMode === "employees" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+          {employees.length === 0 && <div style={{ padding: 40, textAlign: "center", color: t.dim, gridColumn: "1/-1" }}>No hay empleados registrados. Creá una liquidación para empezar.</div>}
+          {employees.map(emp => {
+            const empRecs = records.filter(r => r.employee_name === emp);
+            const lastRec = empRecs.sort((a, b) => b.period.localeCompare(a.period))[0];
+            const empTotal = empRecs.reduce((s, r) => s + Number(r.total || 0), 0);
+            return (
+              <Crd key={emp} t={t} style={{ padding: 16, cursor: "pointer" }} onClick={() => setSelEmployee(emp)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <Av name={emp} size={40} />
+                  <div><div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{emp}</div><div style={{ fontSize: 11, color: t.muted }}>{lastRec?.role || "—"}</div></div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div><div style={{ fontSize: 10, color: t.dim }}>Último sueldo</div><div style={{ fontSize: 15, fontWeight: 700, color: t.accent }}>{fmt(Number(lastRec?.total || 0))}</div></div>
+                  <div><div style={{ fontSize: 10, color: t.dim }}>Liquidaciones</div><div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{empRecs.length} meses</div></div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>Total acumulado: {fmt(empTotal)}</div>
+              </Crd>
+            );
+          })}
+        </div>
+      ) : (
+      <Crd t={t}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>{["Empleado", "Cargo", "Básico", "Extras", "Bonif.", "Deduc.", "Total", "Estado", "Acciones"].map((h, i) => <th key={i} style={{ textAlign: "left", padding: "10px 10px", color: t.dim, fontWeight: 600, borderBottom: "1px solid " + t.border, fontSize: 11 }}>{h}</th>)}</tr>
@@ -3052,7 +3161,7 @@ function PayrollPage({ t }) {
           <tbody>
             {periodRecords.map(r => (
               <tr key={r.id} style={{ borderBottom: "1px solid " + t.border + "60" }}>
-                <td style={{ padding: "10px", color: t.text, fontWeight: 600 }}>{r.employee_name}</td>
+                <td onClick={() => setSelEmployee(r.employee_name)} style={{ padding: "10px", color: t.text, fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: t.accent + "40" }}>{r.employee_name}</td>
                 <td style={{ padding: "10px", color: t.muted }}>{r.role || "—"}</td>
                 <td style={{ padding: "10px", color: t.text }}>{fmt(Number(r.base_salary))}</td>
                 <td style={{ padding: "10px", color: t.blue }}>{r.overtime > 0 ? "+" + fmt(Number(r.overtime)) : "—"}</td>
@@ -3078,8 +3187,9 @@ function PayrollPage({ t }) {
           </tbody>
         </table>
       </Crd>
+      )}
 
-      {allPeriods.length > 1 && (
+      {viewMode === "period" && allPeriods.length > 1 && (
         <div style={{ marginTop: 16, fontSize: 11, color: t.dim }}>
           Períodos anteriores: {allPeriods.filter(p => p !== period).map((p, i) => (
             <span key={p} onClick={() => setPeriod(p)} style={{ cursor: "pointer", color: t.accentL, marginLeft: i > 0 ? 8 : 4 }}>{p}</span>
