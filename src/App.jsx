@@ -312,9 +312,9 @@ function Tabs({ items, active, onChange, t }) {
   );
 }
 
-function Crd({ children, t, style: s }) {
+function Crd({ children, t, style: s, onClick, onMouseEnter, onMouseLeave }) {
   return (
-    <div style={{ background: t.card, borderRadius: 13, border: "1px solid " + t.border, boxShadow: t.shadow, ...s }}>
+    <div style={{ background: t.card, borderRadius: 13, border: "1px solid " + t.border, boxShadow: t.shadow, ...s }} onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {children}
     </div>
   );
@@ -2841,13 +2841,13 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
           }}>
             Probar demo gratis
           </button>
-          <button style={{
+          <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20info%20sobre%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{
             background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 12, padding: "15px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8,
+            display: "flex", alignItems: "center", gap: 8, textDecoration: "none",
           }}>
             <MessageSquare size={16} color="#25D366" /> Contactar por WhatsApp
-          </button>
+          </a>
         </div>
 
         {/* Stats strip */}
