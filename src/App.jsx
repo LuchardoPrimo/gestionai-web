@@ -2895,7 +2895,7 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           <span onClick={() => document.getElementById("features").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Funcionalidades</span>
           <span onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
-          <span onClick={() => document.getElementById("pricing").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Planes</span>
+          <span onClick={() => document.getElementById("pricing").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
           <button onClick={onLogin} style={{ background: isLoggedIn ? "linear-gradient(135deg, #34D399, #10B981)" : "transparent", color: "#ECF0F6", border: isLoggedIn ? "none" : "1px solid rgba(255,255,255,0.15)", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             {isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión"}
           </button>
@@ -2945,7 +2945,7 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
             borderRadius: 12, padding: "15px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
             display: "flex", alignItems: "center", gap: 8,
           }}>
-            Probar demo gratis
+            Ver demo interactiva
           </button>
           <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20info%20sobre%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{
             background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
@@ -3014,45 +3014,71 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* How it works */}
       <section id="pricing" style={{ padding: "100px 40px", maxWidth: 1000, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 60 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24", textTransform: "uppercase", letterSpacing: 2 }}>Planes</span>
-          <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Simple y transparente</h2>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24", textTransform: "uppercase", letterSpacing: 2 }}>Cómo funciona</span>
+          <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Tu plataforma, diseñada a medida</h2>
+          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, maxWidth: 600, margin: "12px auto 0" }}>Cada empresa es única. Por eso armamos un plan personalizado que se adapta a tu operación, tus obras y tu equipo.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+
+        {/* Steps */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginBottom: 60 }}>
           {[
-            { name: "Starter", price: "Gratis", sub: "Para probar", features: ["1 obra activa", "3 usuarios", "Dashboard y reportes", "Soporte por email"], cta: "Empezar gratis", primary: false },
-            { name: "Profesional", price: "$49.900", sub: "/mes · hasta 10 obras", features: ["10 obras activas", "15 usuarios", "Contabilidad con IA", "WhatsApp integrado", "OCR de comprobantes", "Soporte prioritario"], cta: "Elegir plan", primary: true },
-            { name: "Empresa", price: "Personalizado", sub: "Obras ilimitadas", features: ["Obras ilimitadas", "Usuarios ilimitados", "Integración AFIP y bancos", "API y webhooks", "Onboarding dedicado", "Soporte 24/7"], cta: "Contactar ventas", primary: false },
-          ].map((plan, i) => (
-            <div key={i} style={{
-              padding: 32, borderRadius: 16,
-              background: plan.primary ? "linear-gradient(160deg, rgba(124,109,240,0.12), rgba(52,211,153,0.06))" : "rgba(255,255,255,0.02)",
-              border: plan.primary ? "1px solid rgba(124,109,240,0.3)" : "1px solid rgba(255,255,255,0.06)",
-              position: "relative",
-            }}>
-              {plan.primary && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", padding: "4px 14px", borderRadius: 12, background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", fontSize: 11, fontWeight: 700, color: "#fff" }}>Más popular</div>}
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#9F92FF", marginBottom: 8 }}>{plan.name}</div>
-              <div style={{ fontSize: 36, fontWeight: 900, marginBottom: 2 }}>{plan.price}</div>
-              <div style={{ fontSize: 12, color: "#555B75", marginBottom: 24 }}>{plan.sub}</div>
-              {plan.features.map((f, fi) => (
-                <div key={fi} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <CheckCircle2 size={14} color="#34D399" />
-                  <span style={{ fontSize: 13, color: "#8890A8" }}>{f}</span>
-                </div>
-              ))}
-              <button onClick={plan.primary ? onEnter : undefined} style={{
-                width: "100%", marginTop: 20, padding: "13px 0", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer",
-                background: plan.primary ? "linear-gradient(135deg, #7C6DF0, #A78BFA)" : "transparent",
-                color: plan.primary ? "#fff" : "#9F92FF",
-                border: plan.primary ? "none" : "1px solid rgba(124,109,240,0.3)",
-                boxShadow: plan.primary ? "0 4px 20px rgba(124,109,240,0.3)" : "none",
-              }}>
-                {plan.cta}
-              </button>
+            { step: "01", title: "Nos contactás", desc: "Nos contás sobre tu empresa, tus obras activas, tu equipo y qué necesitás automatizar.", icon: MessageSquare },
+            { step: "02", title: "Diseñamos tu plan", desc: "Configuramos GestiónAI a medida: módulos, integraciones, usuarios y branding de tu empresa.", icon: LayoutDashboard },
+            { step: "03", title: "Arrancás a operar", desc: "En menos de 48hs tenés tu plataforma lista, con onboarding para todo tu equipo.", icon: Zap },
+          ].map((s, i) => (
+            <div key={i} style={{ padding: 28, borderRadius: 16, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+              <div style={{ fontSize: 48, fontWeight: 900, color: "rgba(124,109,240,0.15)", position: "absolute", top: 16, right: 20 }}>{s.step}</div>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(124,109,240,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                <s.icon size={20} color="#9F92FF" />
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{s.title}</div>
+              <div style={{ fontSize: 13, color: "#8890A8", lineHeight: 1.6 }}>{s.desc}</div>
             </div>
           ))}
+        </div>
+
+        {/* What's included */}
+        <div style={{
+          padding: 40, borderRadius: 20,
+          background: "linear-gradient(160deg, rgba(124,109,240,0.1), rgba(52,211,153,0.04))",
+          border: "1px solid rgba(124,109,240,0.2)",
+        }}>
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>Todas las implementaciones incluyen</div>
+            <div style={{ fontSize: 13, color: "#8890A8" }}>Sin sorpresas, sin costos ocultos</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }}>
+            {[
+              "Dashboard inteligente en tiempo real",
+              "Gestión de obras, clientes y proveedores",
+              "Control financiero con IA",
+              "Liquidación de sueldos integrada",
+              "WhatsApp Bot con OCR de facturas",
+              "Reportes automáticos personalizados",
+              "App web responsive (PC + celular)",
+              "Branding de tu empresa en la plataforma",
+              "Soporte técnico dedicado",
+              "Actualizaciones continuas sin costo extra",
+            ].map((f, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
+                <CheckCircle2 size={15} color="#34D399" />
+                <span style={{ fontSize: 13, color: "#B0B8CC" }}>{f}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 32 }}>
+            <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20info%20sobre%20Gesti%C3%B3nAI%20para%20mi%20empresa" target="_blank" rel="noopener noreferrer" style={{
+              display: "inline-flex", alignItems: "center", gap: 10, padding: "16px 40px", borderRadius: 12,
+              background: "#25D366", color: "#fff", fontSize: 16, fontWeight: 700, textDecoration: "none", cursor: "pointer",
+              boxShadow: "0 4px 20px rgba(37,211,102,0.3)",
+            }}>
+              <MessageSquare size={18} /> Hablemos por WhatsApp
+            </a>
+            <div style={{ fontSize: 12, color: "#555B75", marginTop: 10 }}>Respondemos en menos de 2 horas</div>
+          </div>
         </div>
       </section>
 
@@ -3063,16 +3089,16 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
           background: "linear-gradient(160deg, rgba(124,109,240,0.1), rgba(52,211,153,0.05))",
           border: "1px solid rgba(124,109,240,0.15)",
         }}>
-          <h2 style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-1px" }}>¿Listo para dejar las planillas?</h2>
-          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, marginBottom: 28 }}>Probá GestiónAI gratis y empezá a tomar mejores decisiones financieras hoy.</p>
+          <h2 style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-1px" }}>¿Listo para profesionalizar tu gestión?</h2>
+          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, marginBottom: 28 }}>Dejá las planillas de Excel. Armamos tu plataforma a medida en menos de 48 horas.</p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
-            <button onClick={onLogin} style={{
+            <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20una%20demo%20personalizada%20de%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{
               background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
-              borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer",
+              borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer", textDecoration: "none",
               boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "inline-flex", alignItems: "center", gap: 8,
             }}>
-              Comenzar ahora <ArrowUpRight size={18} />
-            </button>
+              Solicitar demo personalizada <ArrowUpRight size={18} />
+            </a>
             <button onClick={onEnter} style={{
               background: "transparent", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.15)",
               borderRadius: 12, padding: "16px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
@@ -3152,7 +3178,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
           <div style={{ background: "linear-gradient(90deg, #7C6DF0, #34D399)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🎯 Estás viendo la demo con datos ficticios</span>
             <button onClick={onRegister || onLogout} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-              Crear cuenta gratis →
+              Solicitar mi plataforma →
             </button>
           </div>
         )}
