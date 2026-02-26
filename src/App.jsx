@@ -405,13 +405,14 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
       <div style={{ padding: collapsed ? 10 : 14, borderTop: "1px solid " + t.border }}>
         <div onClick={() => setShowWaModal(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)", marginBottom: 8, cursor: "pointer", transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(37,211,102,0.12)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(37,211,102,0.06)"}>
           <MessageSquare size={16} color="#25D366" />
-          {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>{waPhone ? "Conectado" : "Configurar"}</div></div>}
+          {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>{waPhone ? "Conectado ✓" : "Configurar"}</div></div>}
         </div>
 
         {/* WhatsApp QR Modal */}
         {showWaModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowWaModal(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 20, border: "1px solid " + t.border, padding: 32, width: 380, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 20, border: "1px solid " + t.border, padding: 28, width: 400, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+              {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(37,211,102,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -429,29 +430,48 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
 
               {waPhone ? (
                 <>
+                  {/* QR Code - ready to share */}
                   <div style={{ background: "#ffffff", borderRadius: 16, padding: 20, textAlign: "center", marginBottom: 16, border: "1px solid " + t.border }}>
                     <img src={qrUrl} alt="QR WhatsApp" style={{ width: 220, height: 220, borderRadius: 8 }} />
                   </div>
-                  <div style={{ textAlign: "center", marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, color: t.text, fontWeight: 600, marginBottom: 4 }}>Escaneá el código QR</div>
-                    <div style={{ fontSize: 11, color: t.muted }}>O hacé click en el botón para abrir WhatsApp directamente</div>
+
+                  <div style={{ textAlign: "center", marginBottom: 14 }}>
+                    <div style={{ fontSize: 14, color: t.text, fontWeight: 700, marginBottom: 4 }}>Compartí este QR con tus clientes</div>
+                    <div style={{ fontSize: 11, color: t.muted }}>Al escanearlo, abren WhatsApp y hablan directo con la IA de tu empresa</div>
                   </div>
-                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 0", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", cursor: "pointer", border: "none", marginBottom: 12 }}>
+
+                  {/* Main CTA */}
+                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 0", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", cursor: "pointer", border: "none", marginBottom: 10 }}>
                     <MessageSquare size={16} /> Abrir WhatsApp
                   </a>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: t.hover, borderRadius: 9, marginBottom: 12 }}>
+
+                  {/* Share buttons row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    <div onClick={() => { navigator.clipboard.writeText(waLink); window.alert("Link copiado ✓"); }} style={{ cursor: "pointer", padding: "9px 0", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, textAlign: "center", fontSize: 12, fontWeight: 600, color: t.text }}>
+                      📋 Copiar link
+                    </div>
+                    <div onClick={() => { 
+                      const shareText = `Hola! Hablá con el asistente de ${companyName} por WhatsApp: ${waLink}`;
+                      if (navigator.share) { navigator.share({ title: companyName + " - WhatsApp", text: shareText, url: waLink }); }
+                      else { navigator.clipboard.writeText(shareText); window.alert("Texto copiado para compartir ✓"); }
+                    }} style={{ cursor: "pointer", padding: "9px 0", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", textAlign: "center", fontSize: 12, fontWeight: 600, color: t.accentL }}>
+                      📤 Compartir
+                    </div>
+                  </div>
+
+                  {/* Phone info */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: t.hover, borderRadius: 8, marginBottom: 8 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 10, color: t.dim }}>Número vinculado</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text, fontFamily: "monospace" }}>+{waPhone}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, fontFamily: "monospace" }}>+{waPhone}</div>
                     </div>
-                    <div onClick={() => { navigator.clipboard.writeText(waLink); }} style={{ cursor: "pointer", padding: "5px 10px", borderRadius: 6, background: t.accentBg, fontSize: 10, color: t.accentL, fontWeight: 600 }}>Copiar link</div>
+                    <div style={{ fontSize: 9, color: "#25D366", fontWeight: 600, padding: "3px 8px", background: "rgba(37,211,102,0.1)", borderRadius: 5 }}>Activo</div>
                   </div>
-                  <div style={{ fontSize: 10, color: t.dim, textAlign: "center" }}>
-                    Compartí este QR con tu equipo para que hablen con el asistente IA por WhatsApp
-                  </div>
+
+                  {/* Admin: change number */}
                   {(role === "owner" || role === "admin") && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + t.border }}>
-                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 6 }}>Cambiar número</div>
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + t.border }}>
+                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 5 }}>Cambiar número (solo admin)</div>
                       <div style={{ display: "flex", gap: 6 }}>
                         <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 5491155001234" style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, outline: "none" }} />
                         <button onClick={saveWaPhone} disabled={savingPhone} style={{ padding: "7px 14px", borderRadius: 7, background: t.accent, color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: savingPhone ? 0.5 : 1 }}>Guardar</button>
@@ -461,27 +481,33 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
                 </>
               ) : (
                 <>
-                  <div style={{ textAlign: "center", padding: 20, background: t.hover, borderRadius: 14, marginBottom: 16 }}>
-                    <MessageSquare size={36} color={t.dim} style={{ marginBottom: 10 }} />
-                    <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>Configurá WhatsApp</div>
-                    <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
-                      Ingresá el número de WhatsApp de Twilio para que tu equipo pueda chatear con el asistente IA
-                    </div>
-                  </div>
+                  {/* No number configured yet */}
                   {(role === "owner" || role === "admin") ? (
                     <>
-                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 6 }}>Número de WhatsApp (con código de país, sin +)</div>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                        <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 5491155001234" style={{ flex: 1, padding: "9px 12px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" }} />
-                        <button onClick={saveWaPhone} disabled={savingPhone || !waPhoneInput.trim()} style={{ padding: "9px 18px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: savingPhone || !waPhoneInput.trim() ? 0.5 : 1 }}>Conectar</button>
+                      <div style={{ textAlign: "center", padding: 16, background: t.hover, borderRadius: 14, marginBottom: 16 }}>
+                        <MessageSquare size={32} color={t.dim} style={{ marginBottom: 8 }} />
+                        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 6 }}>Configuración única</div>
+                        <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
+                          Ingresá tu número de Twilio WhatsApp una sola vez. Después, compartís el QR con tus clientes y ellos hablan directo con la IA.
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10, color: t.dim, lineHeight: 1.6 }}>
-                        Este es el número de Twilio que recibe los mensajes. Generalmente empieza con el código de país (ej: 1 para USA, 54 para Argentina).
+                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 6, fontWeight: 600 }}>Número de WhatsApp (con código de país, sin +)</div>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                        <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 14155238886" style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 14, outline: "none", fontFamily: "monospace" }} />
+                        <button onClick={saveWaPhone} disabled={savingPhone || !waPhoneInput.trim()} style={{ padding: "10px 20px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: savingPhone || !waPhoneInput.trim() ? 0.5 : 1 }}>Conectar</button>
+                      </div>
+                      <div style={{ padding: 10, background: t.accentBg, borderRadius: 8, fontSize: 11, color: t.accentL, lineHeight: 1.5 }}>
+                        💡 Para sandbox de prueba usá: <span style={{ fontFamily: "monospace", fontWeight: 700 }}>14155238886</span>
+                        <br />Para producción, usá el número que te asignó Twilio.
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontSize: 12, color: t.muted, textAlign: "center" }}>
-                      Pedile al administrador de la empresa que configure el número de WhatsApp
+                    <div style={{ textAlign: "center", padding: 24 }}>
+                      <MessageSquare size={32} color={t.dim} style={{ marginBottom: 10 }} />
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 6 }}>WhatsApp no configurado</div>
+                      <div style={{ fontSize: 12, color: t.muted }}>
+                        Pedile al administrador que configure el número de WhatsApp desde su cuenta
+                      </div>
                     </div>
                   )}
                 </>
@@ -526,7 +552,8 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
   // Notifications
   const overdueTx = TXS.filter(tx => tx.status === "overdue");
   const pendingTx = TXS.filter(tx => tx.status === "pending");
-  const urgentTasks = tasks.filter(tk => tk.pri === "high" && tk.st !== "done");
+  const todayStr2 = new Date().toISOString().split("T")[0];
+  const overdueTasks2 = tasks.filter(tk => tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr2));
   const dueSoonTasks = tasks.filter(tk => {
     if (!tk.due || tk.st === "done") return false;
     const d = new Date(tk.due); const now = new Date(); const diff = (d - now) / (1000*60*60*24);
@@ -534,11 +561,11 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
   });
   const notifs = [
     ...overdueTx.map(tx => ({ icon: AlertCircle, color: t.red, text: "Pago vencido: " + tx.desc, sub: fmt(tx.amount), nav: "transactions" })),
-    ...urgentTasks.map(tk => ({ icon: Target, color: t.red, text: "Tarea urgente: " + tk.title, sub: tk.project, nav: "tasks" })),
+    ...overdueTasks2.map(tk => ({ icon: Target, color: t.red, text: "Tarea vencida: " + tk.title, sub: tk.project, nav: "tasks" })),
     ...dueSoonTasks.map(tk => ({ icon: Clock, color: t.orange, text: "Vence pronto: " + tk.title, sub: tk.due, nav: "tasks" })),
     ...pendingTx.slice(0, 3).map(tx => ({ icon: Clock, color: t.orange, text: "Pendiente: " + tx.desc, sub: fmt(tx.amount), nav: "transactions" })),
   ];
-  const notiCount = overdueTx.length + urgentTasks.length + dueSoonTasks.length;
+  const notiCount = overdueTx.length + overdueTasks2.length + dueSoonTasks.length;
 
   const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario";
   const userCompany = profile?.company?.name || user?.user_metadata?.company || "";
@@ -647,18 +674,32 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
 
 function Dashboard({ t, onNav }) {
   const { transactions: TXS, tasks, clients, projects, documents } = useData();
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+
+  // Tasks categorized by actual dates
+  const overdueTasks = tasks.filter(tk => {
+    if (!tk.due || tk.st === "done") return false;
+    return new Date(tk.due) < new Date(todayStr);
+  });
+  const todayTasks = tasks.filter(tk => {
+    if (!tk.due || tk.st === "done") return false;
+    return tk.due.startsWith(todayStr);
+  });
   const pendingTasks = tasks.filter(tk => tk.st === "todo" || tk.st === "in_progress");
-  const urgentTasks = pendingTasks.filter(tk => tk.pri === "high");
+  const tasksForToday = [...overdueTasks, ...todayTasks]; // overdue + due today
+  const urgentTasks = overdueTasks; // truly urgent = overdue
+
   const pendingTx = TXS.filter(tx => tx.status === "pending" || tx.status === "overdue");
   const overdueTx = TXS.filter(tx => tx.status === "overdue");
   const recentDocs = documents.slice(0, 5);
-  const today = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  const today = now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 
-  // Tasks due soon (next 7 days)
+  // Tasks due soon (next 7 days, NOT including overdue)
   const dueSoon = tasks.filter(tk => {
     if (!tk.due || tk.st === "done") return false;
-    const d = new Date(tk.due); const now = new Date(); const diff = (d - now) / (1000*60*60*24);
-    return diff >= -1 && diff <= 7;
+    const d = new Date(tk.due); const diff = (d - now) / (1000*60*60*24);
+    return diff >= 0 && diff <= 7;
   }).sort((a, b) => new Date(a.due) - new Date(b.due));
 
   return (
@@ -672,7 +713,7 @@ function Dashboard({ t, onNav }) {
       {/* Quick stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
         {[
-          { icon: Target, label: "Tareas pendientes", val: pendingTasks.length, sub: urgentTasks.length + " urgentes", color: t.accent, bg: t.accentBg, nav: "tasks" },
+          { icon: Target, label: "Tareas pendientes", val: pendingTasks.length, sub: overdueTasks.length > 0 ? overdueTasks.length + " vencidas" : "Todo al día", color: t.accent, bg: t.accentBg, nav: "tasks" },
           { icon: AlertCircle, label: "Pagos vencidos", val: overdueTx.length, sub: overdueTx.length ? fmt(overdueTx.reduce((s, tx) => s + Math.abs(tx.amount), 0)) : "Ninguno", color: t.red, bg: t.redBg, nav: "transactions" },
           { icon: Clock, label: "Cobros pendientes", val: pendingTx.filter(tx => tx.amount > 0).length, sub: fmt(pendingTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0)), color: t.green, bg: t.greenBg, nav: "transactions" },
           { icon: FolderKanban, label: "Obras activas", val: projects.filter(p => p.status === "active" || p.status === "in_progress").length || projects.length, sub: clients.length + " clientes", color: t.blue, bg: "rgba(96,165,250,0.08)", nav: "projects" },
@@ -693,28 +734,34 @@ function Dashboard({ t, onNav }) {
         {/* Tasks panel */}
         <Crd t={t} style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Tareas para hoy</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>
+              {tasksForToday.length > 0 ? "Tareas para hoy" : "Próximas tareas"}
+              {overdueTasks.length > 0 && <span style={{ fontSize: 11, color: t.red, fontWeight: 600, marginLeft: 8 }}>({overdueTasks.length} vencidas)</span>}
+            </div>
             <span onClick={() => onNav && onNav("tasks")} style={{ fontSize: 11, color: t.accentL, cursor: "pointer", fontWeight: 500 }}>Ver todas →</span>
           </div>
-          {pendingTasks.length === 0 ? (
+          {(tasksForToday.length > 0 ? tasksForToday : dueSoon).length === 0 ? (
             <div style={{ padding: 30, textAlign: "center" }}>
               <CheckCircle2 size={28} color={t.green} style={{ marginBottom: 8 }} />
               <div style={{ fontSize: 13, color: t.green, fontWeight: 600 }}>Todo al día</div>
               <div style={{ fontSize: 11, color: t.dim }}>No hay tareas pendientes</div>
             </div>
-          ) : pendingTasks.slice(0, 8).map(tk => (
-            <div key={tk.id} onClick={() => onNav && onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: t.hover, marginBottom: 5, borderLeft: "3px solid " + (tk.pri === "high" ? t.red : tk.pri === "medium" ? t.orange : t.blue), cursor: "pointer" }}>
+          ) : (tasksForToday.length > 0 ? tasksForToday : dueSoon).slice(0, 8).map(tk => {
+            const isOverdue = tk.due && new Date(tk.due) < new Date(todayStr);
+            return (
+            <div key={tk.id} onClick={() => onNav && onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: isOverdue ? t.redBg : t.hover, marginBottom: 5, borderLeft: "3px solid " + (isOverdue ? t.red : tk.pri === "high" ? t.orange : tk.pri === "medium" ? t.blue : t.green), cursor: "pointer" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
                 <div style={{ fontSize: 10, color: t.dim }}>{tk.project} · {tk.who || "Sin asignar"}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                {tk.due && <div style={{ fontSize: 10, color: new Date(tk.due) < new Date() ? t.red : t.dim }}>{tk.due}</div>}
+                {tk.due && <div style={{ fontSize: 10, fontWeight: 600, color: isOverdue ? t.red : t.dim }}>{isOverdue ? "Vencida" : tk.due}</div>}
                 <Badge s={tk.st} t={t} />
               </div>
             </div>
-          ))}
-          {pendingTasks.length > 8 && <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: t.accentL }}>+{pendingTasks.length - 8} tareas más</div>}
+            );
+          })}
+          {(tasksForToday.length > 0 ? tasksForToday : dueSoon).length > 8 && <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: t.accentL }}>+{(tasksForToday.length > 0 ? tasksForToday : dueSoon).length - 8} tareas más</div>}
         </Crd>
 
         {/* Right column: vencimientos + próximos */}
