@@ -128,44 +128,101 @@ function DataProvider({ children }) {
 // ─── Demo Data Provider (datos ficticios para mostrar la plataforma) ───
 function DemoDataProvider({ children }) {
   const demoClients = [
-    { id: "d1", name: "Inmobiliaria Costa del Sol", type: "client", phone: "11-4532-8877", email: "info@costadelsol.com.ar", city: "CABA", tags: ["VIP"], lastAct: "Ayer", projects: 2, contact: "Martín Costa" },
-    { id: "d2", name: "Desarrollos Urbanos SA", type: "client", phone: "11-5567-3344", email: "contacto@desurbanos.com", city: "Rosario", tags: [], lastAct: "Hace 3 días", projects: 1, contact: "Laura Méndez" },
-    { id: "d3", name: "Corralón El Constructor", type: "provider", phone: "11-4421-5500", email: "ventas@elconstructor.com", city: "Pilar", tags: ["Materiales"], lastAct: "Hoy", projects: 0, contact: "Roberto Sánchez" },
-    { id: "d4", name: "Estudio Arq. Vega & Asoc.", type: "provider", phone: "11-6698-2211", email: "estudio@vegaarq.com", city: "CABA", tags: ["Profesional"], lastAct: "Hace 1 semana", projects: 3, contact: "Ana Vega" },
-    { id: "d5", name: "Familia Rodríguez", type: "client", phone: "2254-55-1234", email: "jrodriguez@gmail.com", city: "Pinamar", tags: [], lastAct: "Hace 2 días", projects: 1, contact: "Jorge Rodríguez" },
+    { id: "d1", name: "Inmobiliaria Costa del Sol", type: "customer", phone: "11-4532-8877", email: "info@costadelsol.com.ar", city: "CABA", tags: ["VIP"], lastAct: "Ayer", projects: 2, contact: "Martín Costa", balance: 20000000 },
+    { id: "d2", name: "Desarrollos Urbanos SA", type: "customer", phone: "11-5567-3344", email: "contacto@desurbanos.com", city: "Rosario", tags: [], lastAct: "Hace 3 días", projects: 1, contact: "Laura Méndez", balance: 2500000 },
+    { id: "d3", name: "Corralón El Constructor", type: "supplier", phone: "11-4421-5500", email: "ventas@elconstructor.com", city: "Pilar", tags: ["Materiales"], lastAct: "Hoy", projects: 0, contact: "Roberto Sánchez", balance: -6150000 },
+    { id: "d4", name: "Estudio Arq. Vega & Asoc.", type: "supplier", phone: "11-6698-2211", email: "estudio@vegaarq.com", city: "CABA", tags: ["Profesional"], lastAct: "Hace 1 semana", projects: 3, contact: "Ana Vega", balance: -950000 },
+    { id: "d5", name: "Familia Rodríguez", type: "customer", phone: "2254-55-1234", email: "jrodriguez@gmail.com", city: "Pinamar", tags: [], lastAct: "Hace 2 días", projects: 1, contact: "Jorge Rodríguez", balance: 2500000 },
+    { id: "d6", name: "Grupo Inversor del Plata", type: "customer", phone: "11-3345-7890", email: "info@inversordelplata.com.ar", city: "CABA", tags: ["VIP", "Inversor"], lastAct: "Hoy", projects: 1, contact: "Sebastián Morales", balance: 35000000 },
+    { id: "d7", name: "Hormigonera del Litoral", type: "supplier", phone: "341-455-2200", email: "ventas@hormidellitoral.com", city: "Rosario", tags: ["Materiales", "Hormigón"], lastAct: "Hace 5 días", projects: 0, contact: "Pedro Giménez", balance: -2800000 },
+    { id: "d8", name: "Municipalidad de Pinamar", type: "customer", phone: "2254-49-1100", email: "obras@pinamar.gob.ar", city: "Pinamar", tags: ["Gobierno"], lastAct: "Hace 1 semana", projects: 1, contact: "Lic. María Torres", balance: 0 },
   ];
   const demoProjects = [
-    { id: "p1", name: "Torre Norte - CABA", status: "in_progress", budget: 85000000, progress: 65, client: "Inmobiliaria Costa del Sol", tasks: 12, done: 8, docs: 15, deadline: "dic. 2026", description: "Edificio 8 pisos, 24 departamentos" },
-    { id: "p2", name: "Casa Pinamar 2026", status: "planning", budget: 15000000, progress: 10, client: "Familia Rodríguez", tasks: 5, done: 1, docs: 3, deadline: "mar. 2027", description: "Casa familiar en La Frontera" },
-    { id: "p3", name: "Oficinas Rosario Centro", status: "in_progress", budget: 42000000, progress: 40, client: "Desarrollos Urbanos SA", tasks: 8, done: 3, docs: 9, deadline: "ago. 2026", description: "Remodelación planta baja comercial" },
-    { id: "p4", name: "Duplex Belgrano R", status: "completed", budget: 28000000, progress: 100, client: "Inmobiliaria Costa del Sol", tasks: 20, done: 20, docs: 22, deadline: "ene. 2026", description: "2 duplex premium finalizados" },
+    { id: "p1", name: "Torre Norte - CABA", status: "in_progress", budget: 85000000, progress: 65, spent: 38500000, client: "Inmobiliaria Costa del Sol", client_id: "d1", tasks: 12, done: 8, docs: 15, deadline: "dic. 2026", description: "Edificio 8 pisos, 24 departamentos premium en Palermo. Estructura de hormigón armado, acabados de alta gama." },
+    { id: "p2", name: "Casa Pinamar 2026", status: "planning", budget: 15000000, progress: 10, spent: 1200000, client: "Familia Rodríguez", client_id: "d5", tasks: 5, done: 1, docs: 3, deadline: "mar. 2027", description: "Casa familiar en La Frontera, 180m², 3 dormitorios, pileta" },
+    { id: "p3", name: "Oficinas Rosario Centro", status: "in_progress", budget: 42000000, progress: 40, spent: 14000000, client: "Desarrollos Urbanos SA", client_id: "d2", tasks: 8, done: 3, docs: 9, deadline: "ago. 2026", description: "Remodelación planta baja comercial, 400m². Open space + 6 privados" },
+    { id: "p4", name: "Duplex Belgrano R", status: "completed", budget: 28000000, progress: 100, spent: 27200000, client: "Inmobiliaria Costa del Sol", client_id: "d1", tasks: 20, done: 20, docs: 22, deadline: "ene. 2026", description: "2 duplex premium finalizados y entregados" },
+    { id: "p5", name: "Complejo Costero Pinamar", status: "planning", budget: 120000000, progress: 5, spent: 3500000, client: "Grupo Inversor del Plata", client_id: "d6", tasks: 4, done: 0, docs: 6, deadline: "dic. 2027", description: "Complejo de 12 departamentos frente al mar. Etapa de anteproyecto y permisos." },
+    { id: "p6", name: "Paseo Costero Municipal", status: "in_progress", budget: 18000000, progress: 25, spent: 4200000, client: "Municipalidad de Pinamar", client_id: "d8", tasks: 6, done: 1, docs: 5, deadline: "oct. 2026", description: "Refacción paseo peatonal costero, 600 metros lineales" },
   ];
   const demoTransactions = [
     { id: "t1", desc: "Anticipo Torre Norte", description: "Anticipo Torre Norte", amount: 12000000, status: "paid", date: "20/02", contact: "Inmobiliaria Costa del Sol", project: "Torre Norte - CABA", pid: "p1" },
     { id: "t2", desc: "Cemento x 200 bolsas", description: "Cemento x 200 bolsas", amount: -1850000, status: "paid", date: "18/02", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1" },
     { id: "t3", desc: "Honorarios arquitectura feb", description: "Honorarios arquitectura feb", amount: -950000, status: "pending", date: "15/02", contact: "Estudio Arq. Vega & Asoc.", project: "Oficinas Rosario Centro", pid: "p3" },
     { id: "t4", desc: "Cuota 2/6 Casa Pinamar", description: "Cuota 2/6 Casa Pinamar", amount: 2500000, status: "pending", date: "10/02", contact: "Familia Rodríguez", project: "Casa Pinamar 2026", pid: "p2" },
-    { id: "t5", desc: "Hierro estructural", description: "Hierro estructural", amount: -3200000, status: "overdue", date: "05/02", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1" },
+    { id: "t5", desc: "Hierro estructural 12mm", description: "Hierro estructural 12mm", amount: -3200000, status: "overdue", date: "05/02", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1" },
     { id: "t6", desc: "Cuota final Duplex Belgrano", description: "Cuota final Duplex Belgrano", amount: 8000000, status: "paid", date: "28/01", contact: "Inmobiliaria Costa del Sol", project: "Duplex Belgrano R", pid: "p4" },
     { id: "t7", desc: "Electricidad y cableado", description: "Electricidad y cableado", amount: -1100000, status: "paid", date: "25/01", contact: "Corralón El Constructor", project: "Oficinas Rosario Centro", pid: "p3" },
+    { id: "t8", desc: "Anticipo Complejo Costero", description: "Anticipo Complejo Costero - 1ra cuota", amount: 35000000, status: "paid", date: "22/02", contact: "Grupo Inversor del Plata", project: "Complejo Costero Pinamar", pid: "p5" },
+    { id: "t9", desc: "Hormigón elaborado x 40m³", description: "Hormigón elaborado x 40m³ H21", amount: -2800000, status: "paid", date: "19/02", contact: "Hormigonera del Litoral", project: "Torre Norte - CABA", pid: "p1" },
+    { id: "t10", desc: "Certificado obra #1 Paseo", description: "Certificado obra #1 Paseo Costero", amount: 4500000, status: "pending", date: "24/02", contact: "Municipalidad de Pinamar", project: "Paseo Costero Municipal", pid: "p6" },
+    { id: "t11", desc: "Sueldos Febrero 2026", description: "Liquidación sueldos equipo - Febrero", amount: -4850000, status: "paid", date: "01/02", contact: null, project: null, pid: null },
+    { id: "t12", desc: "Alquiler obrador Torre Norte", description: "Alquiler mensual obrador + depósito", amount: -380000, status: "paid", date: "05/02", contact: null, project: "Torre Norte - CABA", pid: "p1" },
   ];
   const demoTasks = [
-    { id: "k1", title: "Inspección estructura piso 6", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-26", st: "todo", tag: "obra" },
-    { id: "k2", title: "Pedir presupuesto sanitarios", project: "Casa Pinamar 2026", pid: "p2", who: "Ana", pri: "medium", due: "2026-02-28", st: "todo", tag: "compras" },
-    { id: "k3", title: "Enviar certificado avance a Costa", project: "Torre Norte - CABA", pid: "p1", who: "Lucas", pri: "high", due: "2026-02-25", st: "in_progress", tag: "admin" },
-    { id: "k4", title: "Revisar planos eléctricos oficina", project: "Oficinas Rosario Centro", pid: "p3", who: "Martín", pri: "medium", due: "2026-03-01", st: "todo", tag: "diseño" },
-    { id: "k5", title: "Contratar pintor para duplex", project: "Duplex Belgrano R", pid: "p4", who: "Lucas", pri: "low", due: "2026-03-05", st: "done", tag: "contratos" },
-    { id: "k6", title: "Buscar terreno La Frontera", project: "Casa Pinamar 2026", pid: "p2", who: "Lucas", pri: "high", due: "2026-03-10", st: "todo", tag: "gestión" },
+    { id: "k1", title: "Inspección estructura piso 6", project: "Torre Norte - CABA", pid: "p1", who: "Lucas García", pri: "high", due: "2026-02-26", st: "todo", tag: "obra" },
+    { id: "k2", title: "Pedir presupuesto sanitarios", project: "Casa Pinamar 2026", pid: "p2", who: "Ana Vega", pri: "medium", due: "2026-02-28", st: "todo", tag: "compras" },
+    { id: "k3", title: "Enviar certificado avance a Costa", project: "Torre Norte - CABA", pid: "p1", who: "Carolina López", pri: "high", due: "2026-02-25", st: "in_progress", tag: "admin" },
+    { id: "k4", title: "Revisar planos eléctricos oficina", project: "Oficinas Rosario Centro", pid: "p3", who: "Martín Ruiz", pri: "medium", due: "2026-03-01", st: "todo", tag: "diseño" },
+    { id: "k5", title: "Contratar pintor para duplex", project: "Duplex Belgrano R", pid: "p4", who: "Lucas García", pri: "low", due: "2026-01-15", st: "done", tag: "contratos" },
+    { id: "k6", title: "Buscar terreno La Frontera", project: "Casa Pinamar 2026", pid: "p2", who: "Lucas García", pri: "high", due: "2026-03-10", st: "todo", tag: "gestión" },
+    { id: "k7", title: "Presentar anteproyecto al inversor", project: "Complejo Costero Pinamar", pid: "p5", who: "Martín Ruiz", pri: "high", due: "2026-03-05", st: "todo", tag: "diseño" },
+    { id: "k8", title: "Gestionar permiso municipal", project: "Paseo Costero Municipal", pid: "p6", who: "Carolina López", pri: "medium", due: "2026-03-15", st: "in_progress", tag: "gestión" },
+    { id: "k9", title: "Solicitar estudio de suelo", project: "Complejo Costero Pinamar", pid: "p5", who: "Lucas García", pri: "medium", due: "2026-03-20", st: "todo", tag: "obra" },
+    { id: "k10", title: "Auditoría de seguridad obra", project: "Torre Norte - CABA", pid: "p1", who: "Diego Fernández", pri: "high", due: "2026-02-27", st: "todo", tag: "obra" },
   ];
   const demoDocuments = [
     { id: "dc1", name: "Factura Corralón #4521", type: "invoice", status: "approved", contact: "Corralón El Constructor", project: "Torre Norte - CABA", pid: "p1", date: "20/02", size: "245 KB" },
     { id: "dc2", name: "Plano estructura P6.dwg", type: "blueprint", status: "active", contact: null, project: "Torre Norte - CABA", pid: "p1", date: "18/02", size: "1.2 MB" },
     { id: "dc3", name: "Contrato Rodríguez", type: "contract", status: "approved", contact: "Familia Rodríguez", project: "Casa Pinamar 2026", pid: "p2", date: "15/02", size: "380 KB" },
     { id: "dc4", name: "Presupuesto sanitarios", type: "budget", status: "pending", contact: "Estudio Arq. Vega & Asoc.", project: "Oficinas Rosario Centro", pid: "p3", date: "12/02", size: "156 KB" },
+    { id: "dc5", name: "Convenio Municipal Pinamar", type: "contract", status: "approved", contact: "Municipalidad de Pinamar", project: "Paseo Costero Municipal", pid: "p6", date: "10/02", size: "520 KB" },
+    { id: "dc6", name: "Render Complejo Costero.pdf", type: "blueprint", status: "active", contact: "Grupo Inversor del Plata", project: "Complejo Costero Pinamar", pid: "p5", date: "22/02", size: "4.8 MB" },
+    { id: "dc7", name: "Factura hormigón H21 #890", type: "invoice", status: "pending", contact: "Hormigonera del Litoral", project: "Torre Norte - CABA", pid: "p1", date: "19/02", size: "198 KB" },
+    { id: "dc8", name: "Recibo sueldos Feb 2026", type: "receipt", status: "approved", contact: null, project: null, pid: null, date: "01/02", size: "340 KB" },
   ];
+
+  // Demo team members
+  const demoTeam = [
+    { id: "tm1", full_name: "Lucas García", role: "owner", email: "lucas@constructorademo.com", created_at: "2025-06-15T00:00:00Z", user: { email: "lucas@constructorademo.com" } },
+    { id: "tm2", full_name: "Carolina López", role: "admin", email: "carolina@constructorademo.com", created_at: "2025-07-01T00:00:00Z", user: { email: "carolina@constructorademo.com" } },
+    { id: "tm3", full_name: "Martín Ruiz", role: "pm", email: "martin@constructorademo.com", created_at: "2025-08-10T00:00:00Z", user: { email: "martin@constructorademo.com" } },
+    { id: "tm4", full_name: "Sofía Pereyra", role: "accountant", email: "sofia@constructorademo.com", created_at: "2025-09-20T00:00:00Z", user: { email: "sofia@constructorademo.com" } },
+    { id: "tm5", full_name: "Diego Fernández", role: "employee", email: "diego@constructorademo.com", created_at: "2025-10-05T00:00:00Z", user: { email: "diego@constructorademo.com" } },
+    { id: "tm6", full_name: "Valentina Sosa", role: "employee", email: "vale@constructorademo.com", created_at: "2025-11-12T00:00:00Z", user: { email: "vale@constructorademo.com" } },
+  ];
+
+  // Demo payroll
+  const demoPayroll = [
+    // Febrero 2026
+    { id: "pr1", employee_name: "Lucas García", role: "Socio Gerente", period: "2026-02", base_salary: 1800000, overtime: 0, bonus: 200000, deductions: 380000, total: 1620000, status: "paid", payment_date: "2026-02-05", notes: null },
+    { id: "pr2", employee_name: "Carolina López", role: "Administrativa", period: "2026-02", base_salary: 950000, overtime: 85000, bonus: 0, deductions: 196000, total: 839000, status: "paid", payment_date: "2026-02-05", notes: null },
+    { id: "pr3", employee_name: "Martín Ruiz", role: "Director de Obra", period: "2026-02", base_salary: 1200000, overtime: 150000, bonus: 100000, deductions: 275000, total: 1175000, status: "paid", payment_date: "2026-02-05", notes: "Bono por entrega anticipada Duplex" },
+    { id: "pr4", employee_name: "Sofía Pereyra", role: "Contadora", period: "2026-02", base_salary: 850000, overtime: 0, bonus: 0, deductions: 161000, total: 689000, status: "paid", payment_date: "2026-02-05", notes: null },
+    { id: "pr5", employee_name: "Diego Fernández", role: "Capataz de Obra", period: "2026-02", base_salary: 780000, overtime: 220000, bonus: 0, deductions: 190000, total: 810000, status: "paid", payment_date: "2026-02-05", notes: "Horas extra Torre Norte piso 6" },
+    { id: "pr6", employee_name: "Valentina Sosa", role: "Asistente Administrativa", period: "2026-02", base_salary: 620000, overtime: 0, bonus: 0, deductions: 117000, total: 503000, status: "paid", payment_date: "2026-02-05", notes: null },
+    // Enero 2026
+    { id: "pr7", employee_name: "Lucas García", role: "Socio Gerente", period: "2026-01", base_salary: 1800000, overtime: 0, bonus: 0, deductions: 342000, total: 1458000, status: "paid", payment_date: "2026-01-05", notes: null },
+    { id: "pr8", employee_name: "Carolina López", role: "Administrativa", period: "2026-01", base_salary: 950000, overtime: 40000, bonus: 0, deductions: 188000, total: 802000, status: "paid", payment_date: "2026-01-05", notes: null },
+    { id: "pr9", employee_name: "Martín Ruiz", role: "Director de Obra", period: "2026-01", base_salary: 1200000, overtime: 100000, bonus: 0, deductions: 247000, total: 1053000, status: "paid", payment_date: "2026-01-05", notes: null },
+    { id: "pr10", employee_name: "Sofía Pereyra", role: "Contadora", period: "2026-01", base_salary: 850000, overtime: 0, bonus: 0, deductions: 161000, total: 689000, status: "paid", payment_date: "2026-01-05", notes: null },
+    { id: "pr11", employee_name: "Diego Fernández", role: "Capataz de Obra", period: "2026-01", base_salary: 780000, overtime: 180000, bonus: 0, deductions: 182000, total: 778000, status: "paid", payment_date: "2026-01-05", notes: null },
+    { id: "pr12", employee_name: "Valentina Sosa", role: "Asistente Administrativa", period: "2026-01", base_salary: 620000, overtime: 0, bonus: 0, deductions: 117000, total: 503000, status: "paid", payment_date: "2026-01-05", notes: null },
+    // Marzo 2026 (draft)
+    { id: "pr13", employee_name: "Lucas García", role: "Socio Gerente", period: "2026-03", base_salary: 1800000, overtime: 0, bonus: 0, deductions: 342000, total: 1458000, status: "draft", payment_date: null, notes: null },
+    { id: "pr14", employee_name: "Carolina López", role: "Administrativa", period: "2026-03", base_salary: 950000, overtime: 0, bonus: 0, deductions: 180000, total: 770000, status: "draft", payment_date: null, notes: null },
+    { id: "pr15", employee_name: "Martín Ruiz", role: "Director de Obra", period: "2026-03", base_salary: 1200000, overtime: 0, bonus: 0, deductions: 228000, total: 972000, status: "draft", payment_date: null, notes: null },
+  ];
+
   const noop = () => {};
   return (
-    <DataContext.Provider value={{ clients: demoClients, projects: demoProjects, transactions: demoTransactions, tasks: demoTasks, documents: demoDocuments, loading: false, reload: noop, companyId: "demo", setClients: noop, setProjects: noop, setTransactions: noop, setTasks: noop, setDocuments: noop }}>
+    <DataContext.Provider value={{
+      clients: demoClients, projects: demoProjects, transactions: demoTransactions,
+      tasks: demoTasks, documents: demoDocuments,
+      demoTeam, demoPayroll,
+      loading: false, reload: noop, companyId: "demo",
+      setClients: noop, setProjects: noop, setTransactions: noop, setTasks: noop, setDocuments: noop
+    }}>
       {children}
     </DataContext.Provider>
   );
@@ -197,10 +254,11 @@ const themes = {
 };
 
 const fmt = (n) => {
+  if (n === undefined || n === null || isNaN(n)) return "$0";
   const a = Math.abs(n);
   if (a >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
   if (a >= 1e3) return "$" + (n / 1e3).toFixed(0) + "K";
-  return "$" + n;
+  return "$" + Number(n).toLocaleString("es-AR");
 };
 
 const pill = (bg, color) => ({
@@ -253,6 +311,7 @@ function Badge({ s, t }) {
     completed:[t.greenBg,t.green,"Completado"],
     high:[t.redBg,t.red,"Alta"], medium:[t.orangeBg,t.orange,"Media"], low:[t.blueBg,t.blue,"Baja"],
     customer:[t.greenBg,t.green,"Cliente"], supplier:[t.blueBg,t.blue,"Proveedor"],
+    client:[t.greenBg,t.green,"Cliente"], provider:[t.blueBg,t.blue,"Proveedor"],
     todo:[t.hover,t.muted,"Por hacer"],
     processed:[t.greenBg,t.green,"Procesado"], filed:[t.blueBg,t.blue,"Archivado"],
     invoice:[t.accentBg,t.accentL,"Factura"], receipt:[t.orangeBg,t.orange,"Remito"],
@@ -2728,7 +2787,7 @@ function Reports({ t }) {
               { l: "Proyectos activos", v: PROJECTS.length, c: t.accent, sub: "Total registrados" },
               { l: "Tareas completadas", v: doneTasks + "/" + totalTasks, c: t.green, sub: totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + "% completado" : "Sin tareas" },
               { l: "Tareas urgentes", v: tasks.filter(tk => tk.pri === "high" && tk.st !== "done").length, c: t.red, sub: "Prioridad alta pendientes" },
-              { l: "Clientes activos", v: clients.length, c: t.blue, sub: clients.filter(c => c.type === "client").length + " clientes, " + clients.filter(c => c.type === "provider").length + " proveedores" },
+              { l: "Clientes activos", v: clients.length, c: t.blue, sub: clients.filter(c => c.type === "customer" || c.type === "client").length + " clientes, " + clients.filter(c => c.type === "supplier" || c.type === "provider").length + " proveedores" },
               { l: "Documentos", v: totalDocs, c: t.orange, sub: documents.filter(d => d.status === "pending").length + " pendientes de procesar" },
               { l: "Productividad", v: totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) + "%" : "—", c: t.green, sub: "Tasa de completitud" },
             ].map((k, i) => (
@@ -3111,7 +3170,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
 
 // ─── PAYROLL PAGE ───
 function PayrollPage({ t }) {
-  const { companyId } = useData();
+  const { companyId, demoPayroll } = useData();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -3123,12 +3182,17 @@ function PayrollPage({ t }) {
 
   const loadPayroll = async () => {
     setLoading(true);
+    if (companyId === "demo") {
+      setRecords(demoPayroll || []);
+      setLoading(false);
+      return;
+    }
     const { data } = await supabase.from("payroll").select("*").eq("company_id", companyId).order("period", { ascending: false });
     setRecords(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { if (companyId && companyId !== "demo") loadPayroll(); else setLoading(false); }, [companyId]);
+  useEffect(() => { if (companyId) loadPayroll(); else setLoading(false); }, [companyId]);
 
   const handleSave = async () => {
     const payload = {
@@ -3820,7 +3884,7 @@ function SuperAdminPage({ t }) {
 }
 
 function TeamPage({ t, user, profile }) {
-  const { companyId } = useData();
+  const { companyId, demoTeam } = useData();
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [showInvite, setShowInvite] = useState(false);
@@ -3833,7 +3897,10 @@ function TeamPage({ t, user, profile }) {
   const roleColors = { owner: t.accent, admin: "#A78BFA", accountant: t.blue, pm: t.orange, employee: t.green };
 
   const loadTeam = async () => {
-    if (!companyId) return;
+    if (!companyId || companyId === "demo") {
+      if (demoTeam) setMembers(demoTeam);
+      return;
+    }
     const { data: m } = await supabase.from("user_profiles").select("*, user:id(email)").eq("company_id", companyId);
     if (m) setMembers(m);
     const { data: inv } = await supabase.from("invitations").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
