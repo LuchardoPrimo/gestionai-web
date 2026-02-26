@@ -387,16 +387,25 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
   const waPhone = isDemo ? "14155238886" : (localWaPhone || profile?.company?.wa_phone || "");
   const companyName = profile?.company?.name || "Mi Empresa";
 
+  // Load wa_phone directly from companies (fallback if profile select missed it)
+  useEffect(() => {
+    if (isDemo || localWaPhone || !profile?.company_id) return;
+    if (profile?.company?.wa_phone) { setLocalWaPhone(profile.company.wa_phone); return; }
+    supabase.from("companies").select("wa_phone").eq("id", profile.company_id).single()
+      .then(({ data }) => { if (data?.wa_phone) setLocalWaPhone(data.wa_phone); });
+  }, [profile?.company_id]);
+
   const saveWaPhone = async () => {
     if (!waPhoneInput.trim() || !profile?.company_id) return;
     setSavingPhone(true);
     const cleanNum = waPhoneInput.replace(/[^0-9]/g, "");
     const { error } = await supabase.from("companies").update({ wa_phone: cleanNum }).eq("id", profile.company_id);
     if (error) {
-      window.alert("Error al guardar: " + error.message);
+      window.alert("Error al guardar: " + error.message + "\n\nAsegurate de haber corrido el SQL:\nALTER TABLE companies ADD COLUMN IF NOT EXISTS wa_phone TEXT;");
     } else {
       setLocalWaPhone(cleanNum);
       setWaPhoneInput("");
+      window.alert("✅ Número guardado. El QR ya está listo para compartir.");
     }
     setSavingPhone(false);
   };
@@ -1894,6 +1903,9 @@ function Treasury({ t }) {
 
   const pendingIncome = TXS.filter(tx => tx.amount > 0 && (tx.status === "pending" || tx.status === "overdue"));
   const pendingExpense = TXS.filter(tx => tx.amount < 0 && (tx.status === "pending" || tx.status === "overdue"));
+  const paidTx = TXS.filter(tx => tx.status === "paid");
+  const paidBalance = paidTx.reduce((s, tx) => s + tx.amount, 0); // net cash from paid transactions
+
   const cxc = companyId === "demo" ? [
     { contact: "Constructora Vial SA", amt: 7500000, days: 0, status: "vigente" },
     { contact: "Inmobiliaria Costa", amt: 2100000, days: 15, status: "1-30" },
@@ -1902,9 +1914,13 @@ function Treasury({ t }) {
     { contact: "Hierros del Sur SRL", amt: 1850000, days: 5, status: "vigente" },
     { contact: "Ferretería López", amt: 920000, days: 20, status: "1-30" },
   ] : pendingExpense.map(tx => ({ contact: tx.contact || "—", amt: Math.abs(tx.amount), days: 0, status: tx.status === "overdue" ? "+60" : "vigente" }));
-  const totalBal = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+  
+  const bankBal = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+  // Disponible = bank accounts + paid transactions (if no bank accounts, use paid tx as cash)
+  const totalBal = bankBal > 0 ? bankBal : paidBalance;
+  const totalCxC = cxc.reduce((s, c) => s + c.amt, 0);
   const totalCxP = cxp.reduce((s, c) => s + c.amt, 0);
-  const ratioLiq = totalCxP > 0 ? (totalBal / totalCxP) : accounts.length > 0 ? 99.9 : 0;
+  const ratioLiq = totalCxP > 0 ? (totalBal / totalCxP) : accounts.length > 0 || paidTx.length > 0 ? 99.9 : 0;
 
   const addAccount = async () => {
     if (!newAcc.name.trim()) return;
@@ -2003,9 +2019,9 @@ function Treasury({ t }) {
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
         {[
-          { label: "Disponible total", val: fmt(totalBal), color: t.accent, icon: CircleDollarSign, sub: accounts.length + " cuentas" },
-          { label: "CxC total", val: fmt(cxc.reduce((s, c) => s + c.amt, 0)), color: t.green, icon: ArrowUpRight, sub: cxc.length + " clientes" },
-          { label: "CxP total", val: fmt(totalCxP), color: t.red, icon: ArrowDownRight, sub: cxp.length + " proveedores" },
+          { label: "Disponible total", val: fmt(totalBal), color: t.accent, icon: CircleDollarSign, sub: bankBal > 0 ? accounts.length + " cuentas" : paidTx.length > 0 ? "Calculado de movimientos" : "Sin movimientos" },
+          { label: "CxC total", val: fmt(totalCxC), color: t.green, icon: ArrowUpRight, sub: cxc.length + " cobros pendientes" },
+          { label: "CxP total", val: fmt(totalCxP), color: t.red, icon: ArrowDownRight, sub: cxp.length + " pagos pendientes" },
           { label: "Ratio liquidez", val: ratioLiq > 99 ? "∞" : ratioLiq.toFixed(1) + "x", color: t.blue, icon: TrendingUp, sub: ratioLiq > 2 ? "Saludable" : ratioLiq > 0 ? "Ajustado" : "—" },
         ].map((k, i) => (
           <Crd key={i} t={t} style={{ padding: 14 }}>
@@ -2020,7 +2036,7 @@ function Treasury({ t }) {
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Cuentas bancarias</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Cuentas y efectivo</div>
         <Btn primary t={t} onClick={() => setShowNewAcc(!showNewAcc)}><Plus size={12} />Nueva cuenta</Btn>
       </div>
       {showNewAcc && (
@@ -2048,6 +2064,17 @@ function Treasury({ t }) {
       )}
       {loadingAccs ? <div style={{ textAlign: "center", padding: 30, color: t.dim }}>Cargando cuentas...</div> : (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
+        {/* Efectivo - always shown, calculated from paid transactions */}
+        {companyId !== "demo" && (
+          <Crd t={t} style={{ padding: 14, borderTop: "3px solid #FBBF24", cursor: "default" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>Efectivo / Sin asignar</div>
+              <Wallet size={15} color="#FBBF24" />
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: paidBalance >= 0 ? t.green : t.red, marginBottom: 4 }}>{fmt(paidBalance)}</div>
+            <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>Calculado de {paidTx.length} movimientos pagados</div>
+          </Crd>
+        )}
         {accounts.map((acc, idx) => (
           <Crd key={acc.id} t={t} style={{ padding: 14, borderTop: "3px solid " + colors[idx % colors.length], cursor: "pointer" }}>
             <div onClick={() => setSelAcc(acc.id)}>
@@ -2060,7 +2087,7 @@ function Treasury({ t }) {
             </div>
           </Crd>
         ))}
-        {accounts.length === 0 && <div style={{ gridColumn: "1/-1", padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay cuentas bancarias. Usá "Nueva cuenta" para agregar.</div>}
+        {accounts.length === 0 && companyId === "demo" && <div style={{ gridColumn: "1/-1", padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay cuentas bancarias. Usá "Nueva cuenta" para agregar.</div>}
       </div>
       )}
 
@@ -2097,12 +2124,38 @@ function Treasury({ t }) {
           <span style={{ fontSize: 15, fontWeight: 700, color: t.accent }}>{fmt(totalBal + (8200000-2455000) + (3500000-4200000) + (6800000-3100000) + (2200000-5400000))}</span>
         </div>
         </>) : (
+          TXS.length > 0 ? (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 12 }}>
+                <div style={{ padding: 14, background: t.hover, borderRadius: 9, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: t.green, marginBottom: 4 }}>Cobros pendientes</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: t.green }}>{fmt(totalCxC)}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{pendingIncome.length} movimientos</div>
+                </div>
+                <div style={{ padding: 14, background: t.hover, borderRadius: 9, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: t.red, marginBottom: 4 }}>Pagos pendientes</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: t.red }}>{fmt(totalCxP)}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{pendingExpense.length} movimientos</div>
+                </div>
+                <div style={{ padding: 14, background: t.hover, borderRadius: 9, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: t.accent, marginBottom: 4 }}>Saldo proyectado</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: (totalBal + totalCxC - totalCxP) >= 0 ? t.green : t.red }}>{fmt(totalBal + totalCxC - totalCxP)}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>Disponible + CxC - CxP</div>
+                </div>
+              </div>
+              {/* Visual bar */}
+              <div style={{ display: "flex", gap: 0, height: 20, borderRadius: 6, overflow: "hidden" }}>
+                {totalBal > 0 && <div style={{ flex: totalBal, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>Disponible</span></div>}
+                {totalCxC > 0 && <div style={{ flex: totalCxC, background: t.green, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>CxC</span></div>}
+                {totalCxP > 0 && <div style={{ flex: totalCxP, background: t.red, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>CxP</span></div>}
+              </div>
+            </div>
+          ) : (
           <div style={{ padding: 30, textAlign: "center" }}>
             <TrendingUp size={28} color={t.dim} style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 12, color: t.muted }}>Registrá más transacciones para generar proyecciones automáticas</div>
-            <div style={{ fontSize: 11, color: t.dim, marginTop: 4 }}>Cobros pendientes: {fmt(pendingIncome.reduce((s, tx) => s + tx.amount, 0))}</div>
-            <div style={{ fontSize: 11, color: t.dim }}>Pagos pendientes: {fmt(pendingExpense.reduce((s, tx) => s + Math.abs(tx.amount), 0))}</div>
+            <div style={{ fontSize: 12, color: t.muted }}>Registrá transacciones para generar proyecciones automáticas</div>
           </div>
+          )
         )}
       </Crd>
 
@@ -2477,15 +2530,39 @@ function Reports({ t }) {
           <div style={{ marginTop: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 8 }}>Comparación mensual (últimos 6 meses)</div>
             <div style={{ display: "flex", gap: 10, height: 120, alignItems: "flex-end" }}>
-              {[["Sep",4.2,3.1],["Oct",3.8,2.9],["Nov",2.1,2.8],["Dic",5.2,3.5],["Ene",4.8,3.2],["Feb",4.8,3.9]].map(([m,inc,cost], i) => (
-                <div key={m} style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ display: "flex", gap: 2, justifyContent: "center", alignItems: "flex-end", height: 95 }}>
-                    <div style={{ width: 14, height: (inc/6*100) + "%", background: t.green, borderRadius: "3px 3px 0 0" }} />
-                    <div style={{ width: 14, height: (cost/6*100) + "%", background: t.red + "60", borderRadius: "3px 3px 0 0" }} />
+              {(() => {
+                // Build real monthly data from transactions
+                const now = new Date();
+                const months = [];
+                for (let i = 5; i >= 0; i--) {
+                  const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                  const key = d.toISOString().substring(0, 7);
+                  const label = d.toLocaleDateString("es-AR", { month: "short" });
+                  months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), inc: 0, cost: 0 });
+                }
+                TXS.forEach(tx => {
+                  let txDate = tx.date;
+                  if (txDate && txDate.includes("/") && txDate.length <= 5) {
+                    txDate = "2026-" + txDate.split("/").reverse().join("-");
+                  }
+                  const txMonth = txDate ? txDate.substring(0, 7) : null;
+                  const m = months.find(mo => mo.key === txMonth);
+                  if (m) {
+                    if (tx.amount > 0) m.inc += tx.amount;
+                    else m.cost += Math.abs(tx.amount);
+                  }
+                });
+                const maxVal = Math.max(...months.map(m => Math.max(m.inc, m.cost)), 1);
+                return months.map(m => (
+                  <div key={m.key} style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ display: "flex", gap: 2, justifyContent: "center", alignItems: "flex-end", height: 95 }}>
+                      <div style={{ width: 14, height: Math.max(2, m.inc / maxVal * 95) + "px", background: t.green, borderRadius: "3px 3px 0 0" }} title={"Ingresos: " + fmt(m.inc)} />
+                      <div style={{ width: 14, height: Math.max(2, m.cost / maxVal * 95) + "px", background: t.red + "60", borderRadius: "3px 3px 0 0" }} title={"Costos: " + fmt(m.cost)} />
+                    </div>
+                    <div style={{ fontSize: 10, color: t.dim, marginTop: 4 }}>{m.label}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: t.dim, marginTop: 4 }}>{m}</div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
             <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: t.green }} /><span style={{ fontSize: 10, color: t.dim }}>Ingresos (M)</span></div>
