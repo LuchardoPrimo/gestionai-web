@@ -320,7 +320,30 @@ function Crd({ children, t, style: s }) {
   );
 }
 
-function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) {
+function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, profile, isDemo }) {
+  const [showWaModal, setShowWaModal] = useState(false);
+  const [waPhoneInput, setWaPhoneInput] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [localWaPhone, setLocalWaPhone] = useState(null);
+  const waPhone = isDemo ? "14155238886" : (localWaPhone || profile?.company?.wa_phone || "");
+  const companyName = profile?.company?.name || "Mi Empresa";
+
+  const saveWaPhone = async () => {
+    if (!waPhoneInput.trim() || !profile?.company_id) return;
+    setSavingPhone(true);
+    const cleanNum = waPhoneInput.replace(/[^0-9]/g, "");
+    const { error } = await supabase.from("companies").update({ wa_phone: cleanNum }).eq("id", profile.company_id);
+    if (error) {
+      window.alert("Error al guardar: " + error.message);
+    } else {
+      setLocalWaPhone(cleanNum);
+      setWaPhoneInput("");
+    }
+    setSavingPhone(false);
+  };
+
+  const waLink = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent("Hola " + companyName + " 👋")}` : "";
+  const qrUrl = waPhone ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(waLink)}&format=png` : "";
   const isSuperAdmin = user?.email === "lucastomas13@gmail.com";
   const allNav = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ["owner","admin","accountant","pm","employee"] },
@@ -380,10 +403,92 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role }) 
         )}
       </div>
       <div style={{ padding: collapsed ? 10 : 14, borderTop: "1px solid " + t.border }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)", marginBottom: 8 }}>
+        <div onClick={() => setShowWaModal(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)", marginBottom: 8, cursor: "pointer", transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(37,211,102,0.12)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(37,211,102,0.06)"}>
           <MessageSquare size={16} color="#25D366" />
-          {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>Conectado</div></div>}
+          {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>{waPhone ? "Conectado" : "Configurar"}</div></div>}
         </div>
+
+        {/* WhatsApp QR Modal */}
+        {showWaModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowWaModal(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 20, border: "1px solid " + t.border, padding: 32, width: 380, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(37,211,102,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <MessageSquare size={20} color="#25D366" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>WhatsApp Bot</div>
+                    <div style={{ fontSize: 11, color: t.muted }}>{companyName}</div>
+                  </div>
+                </div>
+                <div onClick={() => setShowWaModal(false)} style={{ cursor: "pointer", width: 28, height: 28, borderRadius: 7, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <X size={14} color={t.muted} />
+                </div>
+              </div>
+
+              {waPhone ? (
+                <>
+                  <div style={{ background: "#ffffff", borderRadius: 16, padding: 20, textAlign: "center", marginBottom: 16, border: "1px solid " + t.border }}>
+                    <img src={qrUrl} alt="QR WhatsApp" style={{ width: 220, height: 220, borderRadius: 8 }} />
+                  </div>
+                  <div style={{ textAlign: "center", marginBottom: 16 }}>
+                    <div style={{ fontSize: 13, color: t.text, fontWeight: 600, marginBottom: 4 }}>Escaneá el código QR</div>
+                    <div style={{ fontSize: 11, color: t.muted }}>O hacé click en el botón para abrir WhatsApp directamente</div>
+                  </div>
+                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 0", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", cursor: "pointer", border: "none", marginBottom: 12 }}>
+                    <MessageSquare size={16} /> Abrir WhatsApp
+                  </a>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: t.hover, borderRadius: 9, marginBottom: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: t.dim }}>Número vinculado</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text, fontFamily: "monospace" }}>+{waPhone}</div>
+                    </div>
+                    <div onClick={() => { navigator.clipboard.writeText(waLink); }} style={{ cursor: "pointer", padding: "5px 10px", borderRadius: 6, background: t.accentBg, fontSize: 10, color: t.accentL, fontWeight: 600 }}>Copiar link</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: t.dim, textAlign: "center" }}>
+                    Compartí este QR con tu equipo para que hablen con el asistente IA por WhatsApp
+                  </div>
+                  {(role === "owner" || role === "admin") && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + t.border }}>
+                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 6 }}>Cambiar número</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 5491155001234" style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, outline: "none" }} />
+                        <button onClick={saveWaPhone} disabled={savingPhone} style={{ padding: "7px 14px", borderRadius: 7, background: t.accent, color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: savingPhone ? 0.5 : 1 }}>Guardar</button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ textAlign: "center", padding: 20, background: t.hover, borderRadius: 14, marginBottom: 16 }}>
+                    <MessageSquare size={36} color={t.dim} style={{ marginBottom: 10 }} />
+                    <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>Configurá WhatsApp</div>
+                    <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
+                      Ingresá el número de WhatsApp de Twilio para que tu equipo pueda chatear con el asistente IA
+                    </div>
+                  </div>
+                  {(role === "owner" || role === "admin") ? (
+                    <>
+                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 6 }}>Número de WhatsApp (con código de país, sin +)</div>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                        <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 5491155001234" style={{ flex: 1, padding: "9px 12px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" }} />
+                        <button onClick={saveWaPhone} disabled={savingPhone || !waPhoneInput.trim()} style={{ padding: "9px 18px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: savingPhone || !waPhoneInput.trim() ? 0.5 : 1 }}>Conectar</button>
+                      </div>
+                      <div style={{ fontSize: 10, color: t.dim, lineHeight: 1.6 }}>
+                        Este es el número de Twilio que recibe los mensajes. Generalmente empieza con el código de país (ej: 1 para USA, 54 para Argentina).
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12, color: t.muted, textAlign: "center" }}>
+                      Pedile al administrador de la empresa que configure el número de WhatsApp
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "8px 10px" }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: t.accent + "25", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -2946,7 +3051,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
           </div>
         )}
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} role={role} />
+        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} role={role} profile={profile} isDemo={isDemo} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} profile={profile} onLogout={onLogout} onNav={setPage} />
           <Page t={t} onNav={setPage} user={user} profile={profile} />
@@ -4032,7 +4137,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
 
   const loadProfile = async (userId) => {
-    const { data } = await supabase.from("user_profiles").select("*, company:companies(name)").eq("id", userId).single();
+    const { data } = await supabase.from("user_profiles").select("*, company:companies(name, wa_phone)").eq("id", userId).single();
     if (data) setProfile(data);
   };
 
