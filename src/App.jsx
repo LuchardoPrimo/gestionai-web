@@ -6,7 +6,17 @@ const uploadFile = async (file) => {
   const ext = file.name.split(".").pop();
   const path = Date.now() + "_" + Math.random().toString(36).slice(2) + "." + ext;
   const { error } = await supabase.storage.from("documents").upload(path, file);
-  if (error) { console.error("Upload error:", error); return null; }
+  if (error) {
+    console.error("Upload error:", error);
+    if (error.message?.includes("not found") || error.message?.includes("Bucket")) {
+      window.alert("Error: El bucket 'documents' no existe en Supabase Storage.\n\nCorré el SQL 'supabase_bank_accounts_v2.sql' o crealo manualmente:\nSupabase → Storage → New Bucket → Name: documents → ✅ Public → Create");
+    } else if (error.message?.includes("security") || error.message?.includes("policy") || error.message?.includes("RLS")) {
+      window.alert("Error de permisos en Storage. Corré el SQL 'supabase_bank_accounts_v2.sql' para crear las políticas de Storage.");
+    } else {
+      window.alert("Error al subir archivo: " + error.message);
+    }
+    return null;
+  }
   const { data } = supabase.storage.from("documents").getPublicUrl(path);
   return data?.publicUrl || null;
 };
@@ -49,10 +59,22 @@ function DataProvider({ children }) {
         supabase.from("documents").select("*, contact:clients(name), project:projects(name)").order("created_at", { ascending: false }),
       ]);
 
-      if (cRes.data) setClients(cRes.data.map(c => ({
-        ...c, tags: c.tags || [], lastAct: "Reciente",
-        projects: 0, contact: c.contact || "",
-      })));
+      if (cRes.data) {
+        // Build a map of contact_id → sum of transaction amounts for balance
+        const txByContact = {};
+        const projByClient = {};
+        if (tRes.data) tRes.data.forEach(tx => {
+          if (tx.contact_id) txByContact[tx.contact_id] = (txByContact[tx.contact_id] || 0) + Number(tx.amount || 0);
+        });
+        if (pRes.data) pRes.data.forEach(p => {
+          if (p.client_id) projByClient[p.client_id] = (projByClient[p.client_id] || 0) + 1;
+        });
+        setClients(cRes.data.map(c => ({
+          ...c, tags: c.tags || [], lastAct: "Reciente",
+          projects: projByClient[c.id] || 0, contact: c.contact || "",
+          balance: txByContact[c.id] || 0,
+        })));
+      }
 
       if (pRes.data) setProjects(pRes.data.map(p => ({
         ...p, client: p.client?.name || "—",
@@ -753,6 +775,7 @@ function Clients({ t }) {
                 <input ref={clientFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
                   const f = e.target.files[0]; if (!f) return;
                   const fileUrl = await uploadFile(f);
+                  if (!fileUrl) return;
                   await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
                   const curSel = sel; await reload(); setSel(curSel);
                 }} />
@@ -959,6 +982,7 @@ function ProjectsPage({ t }) {
             <input ref={projFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
               const f = e.target.files[0]; if (!f) return;
               const fileUrl = await uploadFile(f);
+              if (!fileUrl) return;
               await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
               const curSel = sel; await reload(); setSel(curSel);
             }} />
@@ -1264,6 +1288,7 @@ function Transactions({ t }) {
     const attachDoc = async (e) => {
       const f = e.target.files[0]; if (!f) return;
       const fileUrl = await uploadFile(f);
+      if (!fileUrl) return;
       await supabase.from("documents").insert([{ name: f.name, type: "invoice", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: tx.contact_id, project_id: tx.project_id, transaction_id: tx.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
       const curSel = sel;
       await reload();
@@ -1677,7 +1702,11 @@ function Treasury({ t }) {
       company_id: companyId, name: newAcc.name, currency: newAcc.type,
       balance: Number(newAcc.bal) || 0, cbu: newAcc.cbu || null, alias: newAcc.alias || null,
     }).select().single();
-    if (error) { console.error("Add account error:", error.message); return; }
+    if (error) {
+      console.error("Add account error:", error.message);
+      window.alert("Error al guardar la cuenta: " + error.message + "\n\nAsegurate de haber corrido el SQL 'supabase_bank_accounts_v2.sql' en Supabase.");
+      return;
+    }
     setAccounts([...accounts, data]);
     setNewAcc({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
     setShowNewAcc(false);
@@ -1950,7 +1979,8 @@ function DocumentsPage({ t }) {
   const saveDoc = async () => {
     if (!upFile) { window.alert("Seleccioná un archivo primero"); return; }
     const fileUrl = await uploadFile(upFile);
-    await supabase.from("documents").insert([{
+    if (!fileUrl) return; // uploadFile ya mostró el error
+    const { error } = await supabase.from("documents").insert([{
       name: upFile.name,
       type: upForm.type,
       size: upFile.size > 1048576 ? (upFile.size / 1048576).toFixed(1) + " MB" : Math.round(upFile.size / 1024) + " KB",
@@ -1961,6 +1991,7 @@ function DocumentsPage({ t }) {
       file_url: fileUrl,
       company_id: companyId,
     }]);
+    if (error) { window.alert("Error al guardar documento: " + error.message); return; }
     await reload();
     setUpFile(null);
     setUpForm({ type: "invoice", contact_id: "", project_id: "", transaction_id: "" });
