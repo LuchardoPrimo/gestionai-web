@@ -3347,19 +3347,31 @@ function SuperAdminPage({ t }) {
   const [editingCompany, setEditingCompany] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [noteText, setNoteText] = useState("");
+  const [loadError, setLoadError] = useState(null);
 
-  const Crd = ({ children, style }) => <div style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, padding: 20, ...style }}>{children}</div>;
+  const Crd2 = ({ children, style }) => <div style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, padding: 20, ...style }}>{children}</div>;
 
   const loadCompanies = async () => {
     setLoading(true);
-    const { data } = await supabase.rpc("admin_get_companies");
+    const { data, error } = await supabase.rpc("admin_get_companies");
+    if (error) {
+      console.error("admin_get_companies error:", error);
+      setLoadError("Error al cargar empresas: " + error.message + "\n\nAsegurate de haber corrido 'supabase_admin_fix.sql'");
+    }
     setCompanies(data || []);
     setLoading(false);
   };
 
   const loadCompanyDetail = async (companyId) => {
     setRefreshing(true);
-    const { data } = await supabase.rpc("admin_get_company_detail", { p_company_id: companyId });
+    setLoadError(null);
+    const { data, error } = await supabase.rpc("admin_get_company_detail", { p_company_id: companyId });
+    if (error) {
+      console.error("admin_get_company_detail error:", error);
+      setLoadError("Error al cargar detalle: " + error.message + "\n\nCorré 'supabase_admin_fix.sql' para actualizar las funciones.");
+      setRefreshing(false);
+      return;
+    }
     if (data) {
       setCompanyData({
         users: data.users || [],
@@ -3368,9 +3380,13 @@ function SuperAdminPage({ t }) {
         transactions: data.transactions || [],
         tasks: data.tasks || [],
         documents: data.documents || [],
+        payroll: data.payroll || [],
+        bankAccounts: data.bank_accounts || [],
         waUsers: data.wa_users || [],
         waMessages: data.wa_messages || [],
       });
+    } else {
+      setCompanyData({ users: [], clients: [], projects: [], transactions: [], tasks: [], documents: [], payroll: [], bankAccounts: [], waUsers: [], waMessages: [] });
     }
     setRefreshing(false);
   };
@@ -3379,6 +3395,7 @@ function SuperAdminPage({ t }) {
     setSelected(comp);
     setTab("overview");
     setNoteText(comp.admin_notes || "");
+    setLoadError(null);
     loadCompanyDetail(comp.id);
   };
 
@@ -3420,6 +3437,15 @@ function SuperAdminPage({ t }) {
   // ─── Company List ───
   if (!selected) {
     if (loading) return <div style={{ padding: 30, color: t.muted }}>Cargando empresas...</div>;
+    if (loadError) return (
+      <div style={{ padding: 30 }}>
+        <div style={{ padding: 20, background: t.redBg, borderRadius: 10, border: "1px solid " + t.red + "30", marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.red, marginBottom: 6 }}>Error</div>
+          <div style={{ fontSize: 12, color: t.text, whiteSpace: "pre-wrap" }}>{loadError}</div>
+        </div>
+        <Btn primary t={t} onClick={loadCompanies}><RefreshCw size={12} />Reintentar</Btn>
+      </div>
+    );
 
     const totalUsers = companies.reduce((s, c) => s + (c.user_count || 0), 0);
     const totalMessages = companies.reduce((s, c) => s + (c.wa_message_count || 0), 0);
@@ -3433,7 +3459,7 @@ function SuperAdminPage({ t }) {
             { label: "Mensajes WA", value: totalMessages, icon: <MessageSquare size={18} color="#25D366" />, bg: "rgba(37,211,102,0.1)" },
             { label: "Con actividad WA", value: companies.filter(c => (c.wa_message_count || 0) > 0).length, icon: <Activity size={18} color={t.orange} />, bg: t.orangeBg },
           ].map((s, i) => (
-            <Crd key={i}>
+            <Crd2 key={i}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
                 <div>
@@ -3441,13 +3467,13 @@ function SuperAdminPage({ t }) {
                   <div style={{ fontSize: 11, color: t.dim }}>{s.label}</div>
                 </div>
               </div>
-            </Crd>
+            </Crd2>
           ))}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 14 }}>
           {companies.map(comp => (
-            <Crd key={comp.id} style={{ cursor: "pointer" }}>
+            <Crd2 key={comp.id} style={{ cursor: "pointer" }}>
               <div onClick={() => selectCompany(comp)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -3466,6 +3492,7 @@ function SuperAdminPage({ t }) {
                   {statBadge(comp.project_count || 0, "obras", t.blue)}
                   {statBadge(comp.transaction_count || 0, "movs", t.orange)}
                   {statBadge(comp.task_count || 0, "tareas", t.accentL)}
+                  {statBadge(comp.document_count || 0, "docs", t.dim)}
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 10, borderTop: "1px solid " + t.border }}>
@@ -3474,7 +3501,7 @@ function SuperAdminPage({ t }) {
                 </div>
                 <div style={{ fontSize: 10, color: t.dim, marginTop: 6 }}>Creada: {comp.created_at ? new Date(comp.created_at).toLocaleDateString("es-AR") : "—"}</div>
               </div>
-            </Crd>
+            </Crd2>
           ))}
         </div>
       </div>
@@ -3489,6 +3516,8 @@ function SuperAdminPage({ t }) {
     { id: "projects", label: "Proyectos", icon: FolderKanban },
     { id: "transactions", label: "Finanzas", icon: Receipt },
     { id: "tasks", label: "Tareas", icon: Target },
+    { id: "documents", label: "Documentos", icon: FileText },
+    { id: "payroll", label: "Sueldos", icon: Receipt },
     { id: "whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
 
@@ -3496,9 +3525,9 @@ function SuperAdminPage({ t }) {
   const totalExpense = (companyData?.transactions || []).filter(tx => Number(tx.amount) < 0).reduce((s, tx) => s + Math.abs(Number(tx.amount)), 0);
 
   const statusPill = (status) => {
-    const colors = { active: t.green, in_progress: t.blue, pending: t.orange, completed: t.accent, overdue: t.red, paid: t.green, done: t.green };
+    const colors = { active: t.green, in_progress: t.blue, pending: t.orange, completed: t.accent, overdue: t.red, paid: t.green, done: t.green, planning: t.blue, draft: t.dim, approved: t.accent };
     const col = colors[status] || t.dim;
-    return <span style={{ ...pill(col + "18", col) }}>{status}</span>;
+    return <span style={{ ...pill(col + "18", col) }}>{status || "—"}</span>;
   };
 
   const Table = ({ headers, rows }) => (
@@ -3521,20 +3550,20 @@ function SuperAdminPage({ t }) {
     <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <div onClick={() => { setSelected(null); setCompanyData(null); }} style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 6 }}>
+        <div onClick={() => { setSelected(null); setCompanyData(null); setLoadError(null); }} style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 6 }}>
           <ChevronLeft size={14} color={t.muted} /><span style={{ fontSize: 12, color: t.muted }}>Volver</span>
         </div>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}><Building2 size={20} color="#fff" /></div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{selected.name}</div>
-          <div style={{ fontSize: 12, color: t.dim }}>{selected.cuit || "—"} · {selected.phone || "—"}</div>
+          <div style={{ fontSize: 12, color: t.dim }}>{selected.cuit || "—"} · {selected.phone || "—"}{selected.wa_phone ? " · WA: +" + selected.wa_phone : ""}</div>
         </div>
         <div onClick={() => { setEditingCompany(selected); setEditForm({ name: selected.name, cuit: selected.cuit || "", phone: selected.phone || "" }); }} style={{ cursor: "pointer", padding: "8px 16px", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", fontSize: 12, fontWeight: 600, color: t.accentL }}>Editar</div>
         <div onClick={() => loadCompanyDetail(selected.id)} style={{ cursor: "pointer", padding: 8, borderRadius: 8, background: t.hover }}><RefreshCw size={14} color={refreshing ? t.accent : t.dim} /></div>
       </div>
 
       {editingCompany && (
-        <Crd style={{ marginBottom: 16, border: "1px solid " + t.accent + "40" }}>
+        <Crd2 style={{ marginBottom: 16, border: "1px solid " + t.accent + "40" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             {[{ label: "Nombre", key: "name" }, { label: "CUIT", key: "cuit" }, { label: "Teléfono", key: "phone" }].map(f => (
               <div key={f.key}>
@@ -3547,7 +3576,15 @@ function SuperAdminPage({ t }) {
             <button onClick={saveCompanyEdit} style={{ padding: "8px 20px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Guardar</button>
             <button onClick={() => setEditingCompany(null)} style={{ padding: "8px 20px", borderRadius: 8, background: t.hover, color: t.muted, border: "1px solid " + t.border, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
           </div>
-        </Crd>
+        </Crd2>
+      )}
+
+      {/* Error banner */}
+      {loadError && (
+        <div style={{ padding: 14, background: t.redBg, borderRadius: 10, border: "1px solid " + t.red + "30", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: t.red, fontWeight: 600 }}>Error al cargar datos</div>
+          <div style={{ fontSize: 11, color: t.text, whiteSpace: "pre-wrap", marginTop: 4 }}>{loadError}</div>
+        </div>
       )}
 
       {/* Tabs */}
@@ -3555,6 +3592,11 @@ function SuperAdminPage({ t }) {
         {tabs.map(tb => (
           <div key={tb.id} onClick={() => setTab(tb.id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", cursor: "pointer", borderBottom: tab === tb.id ? "2px solid " + t.accent : "2px solid transparent", color: tab === tb.id ? t.accentL : t.dim, fontSize: 12, fontWeight: tab === tb.id ? 600 : 400, whiteSpace: "nowrap" }}>
             <tb.icon size={13} />{tb.label}
+            {companyData && (
+              <span style={{ fontSize: 9, background: tab === tb.id ? t.accentBg : t.hover, padding: "1px 5px", borderRadius: 8, color: tab === tb.id ? t.accentL : t.dim }}>
+                {tb.id === "overview" ? "" : (companyData[tb.id === "whatsapp" ? "waMessages" : tb.id === "payroll" ? "payroll" : tb.id === "documents" ? "documents" : tb.id] || []).length}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -3563,9 +3605,9 @@ function SuperAdminPage({ t }) {
 
       {tab === "overview" && companyData && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Crd>
+          <Crd2>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>📊 Estadísticas</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               {[
                 { label: "Usuarios", value: companyData.users.length, color: t.accent },
                 { label: "Clientes", value: companyData.clients.length, color: t.green },
@@ -3573,15 +3615,18 @@ function SuperAdminPage({ t }) {
                 { label: "Transacciones", value: companyData.transactions.length, color: t.orange },
                 { label: "Tareas", value: companyData.tasks.length, color: t.accentL },
                 { label: "Documentos", value: companyData.documents.length, color: t.dim },
+                { label: "Liquidaciones", value: companyData.payroll.length, color: "#EC4899" },
+                { label: "Ctas bancarias", value: companyData.bankAccounts.length, color: t.blue },
+                { label: "Usuarios WA", value: companyData.waUsers.length, color: "#25D366" },
               ].map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, background: s.color + "10" }}>
                   <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: t.muted }}>{s.label}</div>
+                  <div style={{ fontSize: 10, color: t.muted }}>{s.label}</div>
                 </div>
               ))}
             </div>
-          </Crd>
-          <Crd>
+          </Crd2>
+          <Crd2>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>💰 Finanzas</div>
             {[
               { label: "Ingresos", value: fmt(totalIncome), color: t.green, bg: t.greenBg },
@@ -3593,28 +3638,111 @@ function SuperAdminPage({ t }) {
                 <span style={{ fontSize: 14, fontWeight: 700, color: r.color }}>{r.value}</span>
               </div>
             ))}
-          </Crd>
-          <Crd style={{ gridColumn: "1 / -1" }}>
+            {companyData.bankAccounts.length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + t.border }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.text, marginBottom: 6 }}>Cuentas bancarias</div>
+                {companyData.bankAccounts.map((ba, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, color: t.muted }}>{ba.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{fmt(Number(ba.balance || 0))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Crd2>
+          <Crd2 style={{ gridColumn: "1 / -1" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>📝 Notas internas</div>
             <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Notas sobre este cliente..." style={{ width: "100%", minHeight: 80, padding: 12, borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }} />
             <button onClick={saveNote} style={{ marginTop: 8, padding: "8px 20px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Guardar nota</button>
-          </Crd>
+          </Crd2>
         </div>
       )}
 
-      {tab === "users" && companyData && <Crd><Table headers={["Nombre", "Rol", "Creado"]} rows={companyData.users.map(u => [u.full_name || "—", <span key="r" style={pill(t.accentBg, t.accentL)}>{u.role}</span>, u.created_at ? new Date(u.created_at).toLocaleDateString("es-AR") : "—"])} /></Crd>}
+      {tab === "users" && companyData && (
+        <Crd2><Table headers={["Nombre", "Email", "Rol", "Creado"]} rows={companyData.users.map(u => [
+          u.full_name || "—",
+          u.email || (u.id ? u.id.substring(0, 8) + "..." : "—"),
+          <span key="r" style={pill(t.accentBg, t.accentL)}>{u.role || "—"}</span>,
+          u.created_at ? new Date(u.created_at).toLocaleDateString("es-AR") : "—"
+        ])} /></Crd2>
+      )}
 
-      {tab === "clients" && companyData && <Crd><Table headers={["Nombre", "Tipo", "Teléfono", "Email", "Ciudad"]} rows={companyData.clients.map(c => [c.name, <span key="t" style={pill(c.type === "client" ? t.greenBg : t.blueBg, c.type === "client" ? t.green : t.blue)}>{c.type === "client" ? "Cliente" : "Proveedor"}</span>, c.phone || "—", c.email || "—", c.city || "—"])} /></Crd>}
+      {tab === "clients" && companyData && (
+        <Crd2><Table headers={["Nombre", "Tipo", "Teléfono", "Email", "Ciudad"]} rows={companyData.clients.map(c => [
+          c.name,
+          <span key="t" style={pill(c.type === "customer" || c.type === "client" ? t.greenBg : t.blueBg, c.type === "customer" || c.type === "client" ? t.green : t.blue)}>{c.type === "customer" || c.type === "client" ? "Cliente" : "Proveedor"}</span>,
+          c.phone || "—", c.email || "—", c.city || "—"
+        ])} /></Crd2>
+      )}
 
-      {tab === "projects" && companyData && <Crd><Table headers={["Nombre", "Estado", "Presupuesto", "Avance", "Deadline"]} rows={companyData.projects.map(p => [p.name, statusPill(p.status), p.budget ? fmt(Number(p.budget)) : "—", <div key="prog" style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 60, height: 6, borderRadius: 3, background: t.hover }}><div style={{ width: (p.progress || 0) + "%", height: "100%", borderRadius: 3, background: (p.progress || 0) > 75 ? t.green : (p.progress || 0) > 40 ? t.orange : t.red }} /></div><span style={{ fontSize: 11, color: t.muted }}>{p.progress || 0}%</span></div>, p.deadline || "—"])} /></Crd>}
+      {tab === "projects" && companyData && (
+        <Crd2><Table headers={["Nombre", "Cliente", "Estado", "Presupuesto", "Avance", "Deadline"]} rows={companyData.projects.map(p => [
+          p.name,
+          p.client_name || "—",
+          statusPill(p.status),
+          p.budget ? fmt(Number(p.budget)) : "—",
+          <div key="prog" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 60, height: 6, borderRadius: 3, background: t.hover }}>
+              <div style={{ width: (p.progress || 0) + "%", height: "100%", borderRadius: 3, background: (p.progress || 0) > 75 ? t.green : (p.progress || 0) > 40 ? t.orange : t.red }} />
+            </div>
+            <span style={{ fontSize: 11, color: t.muted }}>{p.progress || 0}%</span>
+          </div>,
+          p.deadline || "—"
+        ])} /></Crd2>
+      )}
 
-      {tab === "transactions" && companyData && <Crd><Table headers={["Fecha", "Descripción", "Monto", "Contacto", "Proyecto", "Estado"]} rows={companyData.transactions.map(tx => [tx.date ? new Date(tx.date).toLocaleDateString("es-AR") : "—", tx.description || "—", <span key="a" style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? t.green : t.red }}>{fmt(Number(tx.amount))}</span>, tx.client_name || "—", tx.project_name || "—", statusPill(tx.status)])} /></Crd>}
+      {tab === "transactions" && companyData && (
+        <Crd2><Table headers={["Fecha", "Descripción", "Monto", "Contacto", "Proyecto", "Estado"]} rows={companyData.transactions.map(tx => [
+          tx.date ? new Date(tx.date).toLocaleDateString("es-AR") : "—",
+          tx.description || "—",
+          <span key="a" style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? t.green : t.red }}>{fmt(Number(tx.amount))}</span>,
+          tx.client_name || "—",
+          tx.project_name || "—",
+          statusPill(tx.status)
+        ])} /></Crd2>
+      )}
 
-      {tab === "tasks" && companyData && <Crd><Table headers={["Tarea", "Proyecto", "Prioridad", "Asignado", "Vence", "Estado"]} rows={companyData.tasks.map(tk => [tk.title, tk.project_name || "—", <span key="p" style={pill(tk.priority === "high" ? t.redBg : tk.priority === "medium" ? t.orangeBg : t.greenBg, tk.priority === "high" ? t.red : tk.priority === "medium" ? t.orange : t.green)}>{tk.priority}</span>, tk.assignee || "—", tk.due_date || "—", statusPill(tk.status)])} /></Crd>}
+      {tab === "tasks" && companyData && (
+        <Crd2><Table headers={["Tarea", "Proyecto", "Prioridad", "Asignado", "Vence", "Estado"]} rows={companyData.tasks.map(tk => [
+          tk.title,
+          tk.project_name || "—",
+          <span key="p" style={pill(tk.priority === "high" ? t.redBg : tk.priority === "medium" ? t.orangeBg : t.greenBg, tk.priority === "high" ? t.red : tk.priority === "medium" ? t.orange : t.green)}>{tk.priority || "—"}</span>,
+          tk.assignee || "—",
+          tk.due_date || "—",
+          statusPill(tk.status)
+        ])} /></Crd2>
+      )}
+
+      {tab === "documents" && companyData && (
+        <Crd2><Table headers={["Nombre", "Tipo", "Contacto", "Proyecto", "Estado", "Fuente", "Fecha", "Archivo"]} rows={companyData.documents.map(d => [
+          d.name || "—",
+          <span key="tp" style={pill(d.type === "invoice" ? t.orangeBg : t.blueBg, d.type === "invoice" ? t.orange : t.blue)}>{d.type || "otro"}</span>,
+          d.client_name || "—",
+          d.project_name || "—",
+          statusPill(d.status),
+          <span key="src" style={{ fontSize: 10, color: d.source === "whatsapp" ? "#25D366" : t.dim }}>{d.source || "web"}</span>,
+          d.created_at ? new Date(d.created_at).toLocaleDateString("es-AR") : "—",
+          d.file_url ? <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "2px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a> : <span style={{ fontSize: 10, color: t.dim }}>—</span>
+        ])} /></Crd2>
+      )}
+
+      {tab === "payroll" && companyData && (
+        <Crd2><Table headers={["Empleado", "Rol", "Período", "Básico", "Extras", "Bonif.", "Deduc.", "Total", "Estado"]} rows={companyData.payroll.map(p => [
+          p.employee_name || "—",
+          p.role || "—",
+          p.period || "—",
+          fmt(Number(p.base_salary || 0)),
+          fmt(Number(p.overtime || 0)),
+          fmt(Number(p.bonus || 0)),
+          <span key="d" style={{ color: t.red }}>{fmt(Number(p.deductions || 0))}</span>,
+          <span key="t" style={{ fontWeight: 700, color: t.text }}>{fmt(Number(p.total || 0))}</span>,
+          statusPill(p.status)
+        ])} /></Crd2>
+      )}
 
       {tab === "whatsapp" && companyData && (
         <div style={{ display: "grid", gridTemplateColumns: "250px 1fr", gap: 14 }}>
-          <Crd>
+          <Crd2>
             <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>Usuarios WA</div>
             {companyData.waUsers.map(wu => (
               <div key={wu.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "40" }}>
@@ -3624,9 +3752,9 @@ function SuperAdminPage({ t }) {
               </div>
             ))}
             {companyData.waUsers.length === 0 && <div style={{ fontSize: 11, color: t.dim }}>Sin usuarios vinculados</div>}
-          </Crd>
-          <Crd style={{ maxHeight: 500, overflowY: "auto" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>Mensajes recientes</div>
+          </Crd2>
+          <Crd2 style={{ maxHeight: 500, overflowY: "auto" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 10 }}>Mensajes recientes ({companyData.waMessages.length})</div>
             {companyData.waMessages.map(msg => (
               <div key={msg.id} style={{ marginBottom: 8, padding: 10, borderRadius: 8, background: msg.direction === "inbound" ? t.hover : t.accentBg, borderLeft: "3px solid " + (msg.direction === "inbound" ? t.blue : t.accent) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -3637,7 +3765,7 @@ function SuperAdminPage({ t }) {
               </div>
             ))}
             {companyData.waMessages.length === 0 && <div style={{ fontSize: 11, color: t.dim }}>Sin mensajes</div>}
-          </Crd>
+          </Crd2>
         </div>
       )}
     </div>
