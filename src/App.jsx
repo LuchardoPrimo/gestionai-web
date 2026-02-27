@@ -230,26 +230,28 @@ function DemoDataProvider({ children }) {
 
 const themes = {
   dark: {
-    bg:"#0D0F15", card:"#151822", hover:"#1C1F2E", sidebar:"#0D0F15", topbar:"#0D0F15",
-    border:"#262940", text:"#ECF0F6", muted:"#8890A8", dim:"#555B75",
-    accent:"#7C6DF0", accentL:"#9F92FF", accentBg:"rgba(124,109,240,0.10)",
-    green:"#34D399", greenBg:"rgba(52,211,153,0.10)",
-    red:"#F87171", redBg:"rgba(248,113,113,0.10)",
-    orange:"#FBBF24", orangeBg:"rgba(251,191,36,0.10)",
-    blue:"#60A5FA", blueBg:"rgba(96,165,250,0.10)",
-    yellow:"#FACC15", yellowBg:"rgba(250,204,21,0.10)",
-    shadow:"0 1px 3px rgba(0,0,0,0.4)",
+    // Bg hierarchy: bg (deepest) → sidebar/topbar → card → hover (lightest surface)
+    bg:"#0B0E14", card:"#161B26", hover:"#1E2433", sidebar:"#101520", topbar:"#101520",
+    border:"#2A3142", text:"#E8ECF4", muted:"#94A0B8", dim:"#5E6B82",
+    accent:"#7C6DF0", accentL:"#A899FF", accentBg:"rgba(124,109,240,0.12)",
+    green:"#34D399", greenBg:"rgba(52,211,153,0.12)",
+    red:"#F87171", redBg:"rgba(248,113,113,0.12)",
+    orange:"#FBBF24", orangeBg:"rgba(251,191,36,0.12)",
+    blue:"#60A5FA", blueBg:"rgba(96,165,250,0.12)",
+    yellow:"#FACC15", yellowBg:"rgba(250,204,21,0.12)",
+    shadow:"0 2px 8px rgba(0,0,0,0.35)",
   },
   light: {
-    bg:"#F3F4F8", card:"#FFFFFF", hover:"#EDEEF3", sidebar:"#FFFFFF", topbar:"#FFFFFF",
-    border:"#DFE1E8", text:"#1B1E2C", muted:"#6A7088", dim:"#9EA3B8",
-    accent:"#6C5CE7", accentL:"#6C5CE7", accentBg:"rgba(108,92,231,0.07)",
-    green:"#10B981", greenBg:"rgba(16,185,129,0.07)",
-    red:"#EF4444", redBg:"rgba(239,68,68,0.07)",
-    orange:"#F59E0B", orangeBg:"rgba(245,158,11,0.07)",
-    blue:"#3B82F6", blueBg:"rgba(59,130,246,0.07)",
-    yellow:"#EAB308", yellowBg:"rgba(234,179,8,0.07)",
-    shadow:"0 1px 3px rgba(0,0,0,0.05)",
+    // Bg hierarchy: bg (lightest) → sidebar/topbar → card → hover (subtle tint)
+    bg:"#EFF1F5", card:"#FFFFFF", hover:"#F5F6FA", sidebar:"#FFFFFF", topbar:"#FFFFFF",
+    border:"#D0D5DD", text:"#1A1D2A", muted:"#4B5167", dim:"#868EA5",
+    accent:"#6C5CE7", accentL:"#5A4BD6", accentBg:"rgba(108,92,231,0.08)",
+    green:"#059669", greenBg:"rgba(5,150,105,0.08)",
+    red:"#DC2626", redBg:"rgba(220,38,38,0.08)",
+    orange:"#D97706", orangeBg:"rgba(217,119,6,0.08)",
+    blue:"#2563EB", blueBg:"rgba(37,99,235,0.08)",
+    yellow:"#CA8A04", yellowBg:"rgba(202,138,4,0.08)",
+    shadow:"0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)",
   },
 };
 
@@ -373,7 +375,7 @@ function Tabs({ items, active, onChange, t }) {
 
 function Crd({ children, t, style: s, onClick, onMouseEnter, onMouseLeave }) {
   return (
-    <div style={{ background: t.card, borderRadius: 13, border: "1px solid " + t.border, boxShadow: t.shadow, ...s }} onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div style={{ background: t.card, borderRadius: 13, border: "1px solid " + t.border, boxShadow: t.shadow, transition: "box-shadow 0.15s ease", ...s }} onClick={onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {children}
     </div>
   );
