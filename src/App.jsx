@@ -383,67 +383,12 @@ function Crd({ children, t, style: s, onClick, onMouseEnter, onMouseLeave }) {
 
 function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, profile, isDemo }) {
   const [showWaModal, setShowWaModal] = useState(false);
-  const [waPhoneInput, setWaPhoneInput] = useState("");
-  const [savingPhone, setSavingPhone] = useState(false);
-  const [localWaPhone, setLocalWaPhone] = useState(null);
-  const [waLoading, setWaLoading] = useState(false);
-  const [waError, setWaError] = useState("");
-  const waPhone = isDemo ? "14155238886" : (localWaPhone || profile?.company?.wa_phone || "");
+  
+  // Platform-wide Twilio number — shared by all companies
+  const PLATFORM_WA = "14155238886";
   const companyName = profile?.company?.name || "Mi Empresa";
-
-  // Load wa_phone directly from companies table
-  const loadWaPhone = async () => {
-    if (isDemo || !profile?.company_id) return;
-    setWaLoading(true);
-    setWaError("");
-    try {
-      const { data, error } = await supabase.from("companies").select("wa_phone").eq("id", profile.company_id).single();
-      if (error) {
-        console.error("WA load error:", error.message);
-        if (error.message.includes("wa_phone")) setWaError("Columna wa_phone no existe. Corré el SQL en Supabase.");
-      } else if (data?.wa_phone) {
-        setLocalWaPhone(data.wa_phone);
-      }
-    } catch (e) { console.error("WA load exception:", e); }
-    setWaLoading(false);
-  };
-
-  // Load on mount
-  useEffect(() => {
-    if (isDemo || localWaPhone) return;
-    if (profile?.company?.wa_phone) { setLocalWaPhone(profile.company.wa_phone); return; }
-    if (profile?.company_id) loadWaPhone();
-  }, [profile?.company_id]);
-
-  // Also reload when modal opens (in case it was saved in another session)
-  useEffect(() => { if (showWaModal && !waPhone && !isDemo) loadWaPhone(); }, [showWaModal]);
-
-  const saveWaPhone = async () => {
-    if (!waPhoneInput.trim() || !profile?.company_id) return;
-    setSavingPhone(true);
-    setWaError("");
-    const cleanNum = waPhoneInput.replace(/[^0-9]/g, "");
-    const { error } = await supabase.from("companies").update({ wa_phone: cleanNum }).eq("id", profile.company_id);
-    if (error) {
-      console.error("WA save error:", error);
-      setWaError("Error: " + error.message);
-      window.alert("Error al guardar: " + error.message + "\n\nSi el error menciona 'wa_phone', corré este SQL en Supabase:\n\nALTER TABLE companies ADD COLUMN IF NOT EXISTS wa_phone TEXT;\n\nY esta policy:\nCREATE POLICY \"Users can update own company\" ON companies FOR UPDATE USING (id IN (SELECT company_id FROM user_profiles WHERE id = auth.uid()));");
-    } else {
-      setLocalWaPhone(cleanNum);
-      setWaPhoneInput("");
-      // Verify it saved correctly
-      const { data: check } = await supabase.from("companies").select("wa_phone").eq("id", profile.company_id).single();
-      if (check?.wa_phone === cleanNum) {
-        window.alert("✅ Número guardado correctamente. El QR ya está listo.");
-      } else {
-        window.alert("⚠️ Se guardó pero no se pudo verificar. Si no ves el QR, recargá la página.");
-      }
-    }
-    setSavingPhone(false);
-  };
-
-  const waLink = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent("Hola " + companyName + " 👋")}` : "";
-  const qrUrl = waPhone ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(waLink)}&format=png` : "";
+  const waLink = `https://wa.me/${PLATFORM_WA}?text=${encodeURIComponent("Hola " + companyName + " 👋")}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(waLink)}&format=png`;
   const isSuperAdmin = user?.email === "lucastomas13@gmail.com";
   const allNav = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ["owner","admin","accountant","pm","employee"] },
@@ -505,7 +450,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
       <div style={{ padding: collapsed ? 10 : 14, borderTop: "1px solid " + t.border }}>
         <div onClick={() => setShowWaModal(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: collapsed ? "8px 6px" : "10px 12px", background: "rgba(37,211,102,0.06)", borderRadius: 9, border: "1px solid rgba(37,211,102,0.12)", marginBottom: 8, cursor: "pointer", transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(37,211,102,0.12)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(37,211,102,0.06)"}>
           <MessageSquare size={16} color="#25D366" />
-          {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>{waPhone ? "Conectado ✓" : "Configurar"}</div></div>}
+          {!collapsed && <div><div style={{ fontSize: 11, fontWeight: 600, color: "#25D366" }}>WhatsApp</div><div style={{ fontSize: 10, color: t.dim }}>Conectado ✓</div></div>}
         </div>
 
         {/* WhatsApp QR Modal */}
@@ -528,92 +473,54 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
                 </div>
               </div>
 
-              {waPhone ? (
-                <>
-                  {/* QR Code - ready to share */}
-                  <div style={{ background: "#ffffff", borderRadius: 16, padding: 20, textAlign: "center", marginBottom: 16, border: "1px solid " + t.border }}>
-                    <img src={qrUrl} alt="QR WhatsApp" style={{ width: 220, height: 220, borderRadius: 8 }} />
-                  </div>
+              {/* QR Code - always visible */}
+              <div style={{ background: "#ffffff", borderRadius: 16, padding: 20, textAlign: "center", marginBottom: 16, border: "1px solid " + t.border }}>
+                <img src={qrUrl} alt="QR WhatsApp" style={{ width: 220, height: 220, borderRadius: 8 }} />
+              </div>
 
-                  <div style={{ textAlign: "center", marginBottom: 14 }}>
-                    <div style={{ fontSize: 14, color: t.text, fontWeight: 700, marginBottom: 4 }}>Compartí este QR con tus clientes</div>
-                    <div style={{ fontSize: 11, color: t.muted }}>Al escanearlo, abren WhatsApp y hablan directo con la IA de tu empresa</div>
-                  </div>
+              <div style={{ textAlign: "center", marginBottom: 14 }}>
+                <div style={{ fontSize: 14, color: t.text, fontWeight: 700, marginBottom: 4 }}>Compartí este QR con tus clientes</div>
+                <div style={{ fontSize: 11, color: t.muted }}>Al escanearlo, abren WhatsApp y hablan directo con la IA de {companyName}</div>
+              </div>
 
-                  {/* Main CTA */}
-                  <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 0", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", cursor: "pointer", border: "none", marginBottom: 10 }}>
-                    <MessageSquare size={16} /> Abrir WhatsApp
-                  </a>
+              {/* Main CTA */}
+              <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 0", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", cursor: "pointer", border: "none", marginBottom: 10 }}>
+                <MessageSquare size={16} /> Abrir WhatsApp
+              </a>
 
-                  {/* Share buttons row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                    <div onClick={() => { navigator.clipboard.writeText(waLink); window.alert("Link copiado ✓"); }} style={{ cursor: "pointer", padding: "9px 0", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, textAlign: "center", fontSize: 12, fontWeight: 600, color: t.text }}>
-                      📋 Copiar link
-                    </div>
-                    <div onClick={() => { 
-                      const shareText = `Hola! Hablá con el asistente de ${companyName} por WhatsApp: ${waLink}`;
-                      if (navigator.share) { navigator.share({ title: companyName + " - WhatsApp", text: shareText, url: waLink }); }
-                      else { navigator.clipboard.writeText(shareText); window.alert("Texto copiado para compartir ✓"); }
-                    }} style={{ cursor: "pointer", padding: "9px 0", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", textAlign: "center", fontSize: 12, fontWeight: 600, color: t.accentL }}>
-                      📤 Compartir
-                    </div>
-                  </div>
+              {/* Share buttons row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                <div onClick={() => { navigator.clipboard.writeText(waLink); window.alert("Link copiado ✓"); }} style={{ cursor: "pointer", padding: "9px 0", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, textAlign: "center", fontSize: 12, fontWeight: 600, color: t.text }}>
+                  📋 Copiar link
+                </div>
+                <div onClick={() => { 
+                  const shareText = `Hola! Hablá con el asistente de ${companyName} por WhatsApp: ${waLink}`;
+                  if (navigator.share) { navigator.share({ title: companyName + " - WhatsApp", text: shareText, url: waLink }); }
+                  else { navigator.clipboard.writeText(shareText); window.alert("Texto copiado para compartir ✓"); }
+                }} style={{ cursor: "pointer", padding: "9px 0", borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "30", textAlign: "center", fontSize: 12, fontWeight: 600, color: t.accentL }}>
+                  📤 Compartir
+                </div>
+              </div>
 
-                  {/* Phone info */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: t.hover, borderRadius: 8, marginBottom: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 10, color: t.dim }}>Número vinculado</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, fontFamily: "monospace" }}>+{waPhone}</div>
+              {/* How it works */}
+              <div style={{ padding: 12, background: t.hover, borderRadius: 10, marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.text, marginBottom: 8 }}>¿Cómo funciona?</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {[
+                    ["1.", "El cliente escanea el QR o hace click en el link"],
+                    ["2.", "Se abre WhatsApp con un mensaje pre-armado"],
+                    ["3.", "La IA identifica al cliente por su número de teléfono"],
+                    ["4.", "Responde como asistente de " + companyName],
+                  ].map(([n, txt], i) => (
+                    <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: t.accent, minWidth: 14 }}>{n}</span>
+                      <span style={{ fontSize: 11, color: t.muted, lineHeight: 1.4 }}>{txt}</span>
                     </div>
-                    <div style={{ fontSize: 9, color: "#25D366", fontWeight: 600, padding: "3px 8px", background: "rgba(37,211,102,0.1)", borderRadius: 5 }}>Activo</div>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  {/* Admin: change number */}
-                  {(role === "owner" || role === "admin") && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + t.border }}>
-                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 5 }}>Cambiar número (solo admin)</div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 5491155001234" style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, outline: "none" }} />
-                        <button onClick={saveWaPhone} disabled={savingPhone} style={{ padding: "7px 14px", borderRadius: 7, background: t.accent, color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: savingPhone ? 0.5 : 1 }}>Guardar</button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {/* No number configured yet */}
-                  {(role === "owner" || role === "admin") ? (
-                    <>
-                      <div style={{ textAlign: "center", padding: 16, background: t.hover, borderRadius: 14, marginBottom: 16 }}>
-                        <MessageSquare size={32} color={t.dim} style={{ marginBottom: 8 }} />
-                        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 6 }}>Configuración única</div>
-                        <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.5 }}>
-                          Ingresá tu número de Twilio WhatsApp una sola vez. Después, compartís el QR con tus clientes y ellos hablan directo con la IA.
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 10, color: t.dim, marginBottom: 6, fontWeight: 600 }}>Número de WhatsApp (con código de país, sin +)</div>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                        <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 14155238886" style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 14, outline: "none", fontFamily: "monospace" }} />
-                        <button onClick={saveWaPhone} disabled={savingPhone || !waPhoneInput.trim()} style={{ padding: "10px 20px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: savingPhone || !waPhoneInput.trim() ? 0.5 : 1 }}>{savingPhone ? "Guardando..." : "Conectar"}</button>
-                      </div>
-                      {waError && <div style={{ padding: 8, background: t.redBg, borderRadius: 7, fontSize: 11, color: t.red, marginBottom: 8 }}>⚠️ {waError}</div>}
-                      {waLoading && <div style={{ padding: 8, textAlign: "center", fontSize: 11, color: t.muted, marginBottom: 8 }}>Cargando configuración...</div>}
-                      <div style={{ padding: 10, background: t.accentBg, borderRadius: 8, fontSize: 11, color: t.accentL, lineHeight: 1.5 }}>
-                        💡 Para sandbox de prueba usá: <span style={{ fontFamily: "monospace", fontWeight: 700 }}>14155238886</span>
-                        <br />Para producción, usá el número que te asignó Twilio.
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ textAlign: "center", padding: 24 }}>
-                      <MessageSquare size={32} color={t.dim} style={{ marginBottom: 10 }} />
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 6 }}>WhatsApp no configurado</div>
-                      <div style={{ fontSize: 12, color: t.muted }}>
-                        Pedile al administrador que configure el número de WhatsApp desde su cuenta
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+              <div style={{ fontSize: 10, color: t.dim, textAlign: "center" }}>Para que la IA identifique al cliente, asegurate de que su teléfono esté cargado en Clientes/Proveedores</div>
             </div>
           </div>
         )}
