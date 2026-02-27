@@ -282,7 +282,7 @@ const handlePrint = (title, rows) => {
   if (!printWin) return;
   const tableRows = rows ? rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") : "";
   printWin.document.write("<html><head><title>" + title + "</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%;margin-top:16px}td,th{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px}th{background:#f5f5f5;font-weight:600}h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:16px;font-weight:400}</style></head><body>");
-  printWin.document.write("<h1>GestiónAI — " + title + "</h1><h2>Febrero 2026</h2>");
+  printWin.document.write("<h1>GestiónAI — " + title + "</h1><h2>" + mesLabel + "</h2>");
   if (tableRows) printWin.document.write("<table>" + tableRows + "</table>");
   printWin.document.write("</body></html>");
   printWin.document.close();
@@ -384,28 +384,58 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
   const [waPhoneInput, setWaPhoneInput] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
   const [localWaPhone, setLocalWaPhone] = useState(null);
+  const [waLoading, setWaLoading] = useState(false);
+  const [waError, setWaError] = useState("");
   const waPhone = isDemo ? "14155238886" : (localWaPhone || profile?.company?.wa_phone || "");
   const companyName = profile?.company?.name || "Mi Empresa";
 
-  // Load wa_phone directly from companies (fallback if profile select missed it)
+  // Load wa_phone directly from companies table
+  const loadWaPhone = async () => {
+    if (isDemo || !profile?.company_id) return;
+    setWaLoading(true);
+    setWaError("");
+    try {
+      const { data, error } = await supabase.from("companies").select("wa_phone").eq("id", profile.company_id).single();
+      if (error) {
+        console.error("WA load error:", error.message);
+        if (error.message.includes("wa_phone")) setWaError("Columna wa_phone no existe. Corré el SQL en Supabase.");
+      } else if (data?.wa_phone) {
+        setLocalWaPhone(data.wa_phone);
+      }
+    } catch (e) { console.error("WA load exception:", e); }
+    setWaLoading(false);
+  };
+
+  // Load on mount
   useEffect(() => {
-    if (isDemo || localWaPhone || !profile?.company_id) return;
+    if (isDemo || localWaPhone) return;
     if (profile?.company?.wa_phone) { setLocalWaPhone(profile.company.wa_phone); return; }
-    supabase.from("companies").select("wa_phone").eq("id", profile.company_id).single()
-      .then(({ data }) => { if (data?.wa_phone) setLocalWaPhone(data.wa_phone); });
+    if (profile?.company_id) loadWaPhone();
   }, [profile?.company_id]);
+
+  // Also reload when modal opens (in case it was saved in another session)
+  useEffect(() => { if (showWaModal && !waPhone && !isDemo) loadWaPhone(); }, [showWaModal]);
 
   const saveWaPhone = async () => {
     if (!waPhoneInput.trim() || !profile?.company_id) return;
     setSavingPhone(true);
+    setWaError("");
     const cleanNum = waPhoneInput.replace(/[^0-9]/g, "");
     const { error } = await supabase.from("companies").update({ wa_phone: cleanNum }).eq("id", profile.company_id);
     if (error) {
-      window.alert("Error al guardar: " + error.message + "\n\nAsegurate de haber corrido el SQL:\nALTER TABLE companies ADD COLUMN IF NOT EXISTS wa_phone TEXT;");
+      console.error("WA save error:", error);
+      setWaError("Error: " + error.message);
+      window.alert("Error al guardar: " + error.message + "\n\nSi el error menciona 'wa_phone', corré este SQL en Supabase:\n\nALTER TABLE companies ADD COLUMN IF NOT EXISTS wa_phone TEXT;\n\nY esta policy:\nCREATE POLICY \"Users can update own company\" ON companies FOR UPDATE USING (id IN (SELECT company_id FROM user_profiles WHERE id = auth.uid()));");
     } else {
       setLocalWaPhone(cleanNum);
       setWaPhoneInput("");
-      window.alert("✅ Número guardado. El QR ya está listo para compartir.");
+      // Verify it saved correctly
+      const { data: check } = await supabase.from("companies").select("wa_phone").eq("id", profile.company_id).single();
+      if (check?.wa_phone === cleanNum) {
+        window.alert("✅ Número guardado correctamente. El QR ya está listo.");
+      } else {
+        window.alert("⚠️ Se guardó pero no se pudo verificar. Si no ves el QR, recargá la página.");
+      }
     }
     setSavingPhone(false);
   };
@@ -562,8 +592,10 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
                       <div style={{ fontSize: 10, color: t.dim, marginBottom: 6, fontWeight: 600 }}>Número de WhatsApp (con código de país, sin +)</div>
                       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                         <input value={waPhoneInput} onChange={e => setWaPhoneInput(e.target.value)} placeholder="Ej: 14155238886" style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 14, outline: "none", fontFamily: "monospace" }} />
-                        <button onClick={saveWaPhone} disabled={savingPhone || !waPhoneInput.trim()} style={{ padding: "10px 20px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: savingPhone || !waPhoneInput.trim() ? 0.5 : 1 }}>Conectar</button>
+                        <button onClick={saveWaPhone} disabled={savingPhone || !waPhoneInput.trim()} style={{ padding: "10px 20px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: savingPhone || !waPhoneInput.trim() ? 0.5 : 1 }}>{savingPhone ? "Guardando..." : "Conectar"}</button>
                       </div>
+                      {waError && <div style={{ padding: 8, background: t.redBg, borderRadius: 7, fontSize: 11, color: t.red, marginBottom: 8 }}>⚠️ {waError}</div>}
+                      {waLoading && <div style={{ padding: 8, textAlign: "center", fontSize: 11, color: t.muted, marginBottom: 8 }}>Cargando configuración...</div>}
                       <div style={{ padding: 10, background: t.accentBg, borderRadius: 8, fontSize: 11, color: t.accentL, lineHeight: 1.5 }}>
                         💡 Para sandbox de prueba usá: <span style={{ fontFamily: "monospace", fontWeight: 700 }}>14155238886</span>
                         <br />Para producción, usá el número que te asignó Twilio.
@@ -1797,11 +1829,14 @@ function Accounting({ t }) {
   );
 
   const renderLedger = () => {
-    const accounts = ["CxC", "Materiales", "Banco Galicia", "Ingresos", "CxP", "Anticipos", "Banco"];
+    // Dynamic: extract all unique account names from entries
+    const allAccounts = [...new Set(entries.flatMap(e => [e.dr, e.cr]))].filter(Boolean);
     const getMovs = (acc) => entries.filter(e => e.st === "posted" && (e.dr === acc || e.cr === acc));
+    const accountsWithMovs = allAccounts.filter(a => getMovs(a).length > 0);
     return (
       <div>
-        {accounts.filter(a => getMovs(a).length > 0).map(acc => (
+        {accountsWithMovs.length === 0 && <div style={{ padding: 30, textAlign: "center", color: t.dim, fontSize: 12 }}>No hay asientos contabilizados. Aprobá asientos en el Libro Diario para ver el Mayor.</div>}
+        {accountsWithMovs.map(acc => (
           <Crd key={acc} t={t} style={{ marginBottom: 10, overflow: "hidden" }}>
             <div style={{ padding: "10px 14px", background: t.hover, fontWeight: 600, fontSize: 12, color: t.text, borderBottom: "1px solid " + t.border }}>{acc}</div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1823,22 +1858,21 @@ function Accounting({ t }) {
   };
 
   const renderTrial = () => {
-    const accounts = [
-      { name: "Caja y Bancos", debe: 18400000, haber: 0 },
-      { name: "Cuentas por Cobrar", debe: 13700000, haber: 0 },
-      { name: "Materiales en Obra", debe: 4200000, haber: 0 },
-      { name: "Cuentas por Pagar", debe: 0, haber: 8760000 },
-      { name: "Ingresos por Servicios", debe: 0, haber: 16800000 },
-      { name: "Costos de Obra", debe: 11400000, haber: 0 },
-      { name: "Gastos Operativos", debe: 1660000, haber: 0 },
-      { name: "Anticipos de Clientes", debe: 0, haber: 5000000 },
-      { name: "Capital Social", debe: 0, haber: 20000000 },
-    ];
+    // Build trial balance from entries dynamically
+    const postedEntries = entries.filter(e => e.st === "posted");
+    const accMap = {};
+    postedEntries.forEach(e => {
+      if (e.dr) { if (!accMap[e.dr]) accMap[e.dr] = { debe: 0, haber: 0 }; accMap[e.dr].debe += e.amt; }
+      if (e.cr) { if (!accMap[e.cr]) accMap[e.cr] = { debe: 0, haber: 0 }; accMap[e.cr].haber += e.amt; }
+    });
+    const accounts = Object.entries(accMap).map(([name, v]) => ({ name, debe: v.debe, haber: v.haber }));
+    const now2 = new Date();
+    const trialLabel = now2.toLocaleDateString("es-AR", { month: "short", year: "numeric" });
     const totalD = accounts.reduce((s, a) => s + a.debe, 0);
     const totalH = accounts.reduce((s, a) => s + a.haber, 0);
     return (
       <Crd t={t} style={{ overflow: "hidden" }}>
-        <div style={{ padding: "10px 14px", borderBottom: "1px solid " + t.border }}><div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Balance de Comprobación — Feb 2026</div></div>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid " + t.border }}><div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Balance de Comprobación — {trialLabel.charAt(0).toUpperCase() + trialLabel.slice(1)}</div></div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr style={{ background: t.hover }}>{["Cuenta","Debe","Haber"].map(h => <th key={h} style={{ padding: "8px 14px", fontSize: 10, fontWeight: 600, color: t.dim, textAlign: "left", textTransform: "uppercase", borderBottom: "1px solid " + t.border }}>{h}</th>)}</tr></thead>
           <tbody>
@@ -2440,6 +2474,38 @@ function DocumentsPage({ t }) {
 function Reports({ t }) {
   const { projects: PROJECTS, transactions: TXS, tasks, clients, documents, companyId } = useData();
   const [active, setActive] = useState("pnl");
+
+  // Dynamic date labels
+  const now = new Date();
+  const mesActual = now.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  const mesLabel = mesActual.charAt(0).toUpperCase() + mesActual.slice(1);
+  const fechaHoy = now.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const mesKey = now.toISOString().substring(0, 7); // "2026-02"
+
+  // Monthly grouping helper (used by charts)
+  const getMonthlyData = () => {
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toISOString().substring(0, 7);
+      const label = d.toLocaleDateString("es-AR", { month: "short" });
+      months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), inc: 0, eg: 0 });
+    }
+    TXS.forEach(tx => {
+      let txDate = tx.date;
+      if (txDate && txDate.includes("/") && txDate.length <= 5) {
+        txDate = now.getFullYear() + "-" + txDate.split("/").reverse().join("-");
+      }
+      const txMonth = txDate ? txDate.substring(0, 7) : null;
+      const m = months.find(mo => mo.key === txMonth);
+      if (m) {
+        if (tx.amount > 0) m.inc += tx.amount;
+        else m.eg += Math.abs(tx.amount);
+      }
+    });
+    return months;
+  };
+
   const reps = [
     { id: "pnl", label: "Estado de Resultados", icon: BarChart3 },
     { id: "balance", label: "Balance General", icon: Layers },
@@ -2484,7 +2550,7 @@ function Reports({ t }) {
     return (
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
-          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Estado de Resultados</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
+          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Estado de Resultados</div><div style={{ fontSize: 11, color: t.muted }}>{mesLabel}</div></div>
           <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Estado de Resultados", [["<th>Categoría</th>","<th>Concepto</th>","<th>Monto</th>"],...pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, fmt(a)])),["<b>RESULTADO</b>","<b>NETO</b>","<b>" + fmt(finalNet) + "</b>"]])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("estado_resultados", ["Categoría","Concepto","Monto"], pnl.flatMap(c => c.items.map(([n, a]) => [c.cat, n, a])))}><Download size={12} />Excel</Btn></div>
         </div>
         {/* KPI Summary */}
@@ -2596,7 +2662,7 @@ function Reports({ t }) {
     return (
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
-          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Balance General</div><div style={{ fontSize: 11, color: t.muted }}>Al 24/02/2026</div></div>
+          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Balance General</div><div style={{ fontSize: 11, color: t.muted }}>Al {fechaHoy}</div></div>
           <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Balance General", [["<th>Categoría</th>","<th>Cuenta</th>","<th>Monto</th>"],...activos.map(([n,a]) => ["Activo", n, fmt(a)]),...pasivos.map(([n,a]) => ["Pasivo", n, fmt(a)]),...patrimonio.map(([n,a]) => ["Patrimonio", n, fmt(a)])])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("balance_general", ["Categoría","Cuenta","Monto"], [...activos.map(([n,a]) => ["Activo",n,a]),...pasivos.map(([n,a]) => ["Pasivo",n,a]),...patrimonio.map(([n,a]) => ["Patrimonio",n,a])])}><Download size={12} />Excel</Btn></div>
         </div>
         {/* Visual summary */}
@@ -2642,35 +2708,51 @@ function Reports({ t }) {
   };
 
   const renderCashflow = () => {
-    const paidInc = TXS.filter(tx => tx.amount > 0 && tx.status === "paid").reduce((s, tx) => s + tx.amount, 0);
-    const paidEg = TXS.filter(tx => tx.amount < 0 && tx.status === "paid").reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const paidTxs = TXS.filter(tx => tx.status === "paid");
+    const paidInc = paidTxs.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
+    const paidEg = paidTxs.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const pendInc = TXS.filter(tx => tx.amount > 0 && tx.status !== "paid").reduce((s, tx) => s + tx.amount, 0);
+    const pendEg = TXS.filter(tx => tx.amount < 0 && tx.status !== "paid").reduce((s, tx) => s + Math.abs(tx.amount), 0);
+
+    // Group paid transactions by contact for richer breakdown
+    const incByContact = {};
+    const egByContact = {};
+    paidTxs.forEach(tx => {
+      const key = tx.contact || (tx.project && tx.project !== "—" ? tx.project : "Otros");
+      if (tx.amount > 0) incByContact[key] = (incByContact[key] || 0) + tx.amount;
+      else egByContact[key] = (egByContact[key] || 0) + Math.abs(tx.amount);
+    });
 
     const secciones = companyId === "demo" ? [
       { cat: "Actividades Operativas", items: [["Cobros de clientes", 16480000], ["Pagos a proveedores", -8955000], ["Sueldos y cargas sociales", -3400000], ["Impuestos pagados", -673000], ["Gastos operativos", -2210000]], total: 1242000 },
       { cat: "Actividades de Inversión", items: [["Compra de equipos", -1200000], ["Mejoras en obras", -800000], ["Venta de activos", 350000]], total: -1650000 },
       { cat: "Actividades de Financiamiento", items: [["Cuota préstamo bancario", -500000], ["Intereses pagados", -180000], ["Aportes de socios", 0]], total: -680000 },
     ] : [
-      { cat: "Actividades Operativas", items: [["Cobros recibidos", paidInc], ["Pagos realizados", -paidEg]], total: paidInc - paidEg },
+      { cat: "Cobros realizados", items: Object.keys(incByContact).length > 0 ? Object.entries(incByContact).map(([k, v]) => [k, v]) : [["Sin cobros en el período", 0]], total: paidInc },
+      { cat: "Pagos realizados", items: Object.keys(egByContact).length > 0 ? Object.entries(egByContact).map(([k, v]) => [k, -v]) : [["Sin pagos en el período", 0]], total: -paidEg },
+      ...(pendInc > 0 || pendEg > 0 ? [{ cat: "Pendientes (no ejecutados)", items: [...(pendInc > 0 ? [["Cobros pendientes", pendInc]] : []), ...(pendEg > 0 ? [["Pagos pendientes", -pendEg]] : [])], total: pendInc - pendEg }] : []),
     ];
-    const variacion = secciones.reduce((s, sec) => s + sec.total, 0);
-    const saldoInicial = companyId === "demo" ? 18400000 : 0;
+    const variacion = companyId === "demo" ? secciones.reduce((s, sec) => s + sec.total, 0) : paidInc - paidEg;
+    const saldoInicial = companyId === "demo" ? 18400000 : 0; // Real: would need bank balance from previous period
+    const monthlyData = getMonthlyData();
+    const maxChart = Math.max(...monthlyData.map(m => Math.max(m.inc, m.eg)), 1);
     return (
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
-          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Flujo de Efectivo</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
+          <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Flujo de Efectivo</div><div style={{ fontSize: 11, color: t.muted }}>{mesLabel}</div></div>
           <div style={{ display: "flex", gap: 5 }}><Btn t={t} onClick={() => handlePrint("Flujo de Efectivo", [["<th>Actividad</th>","<th>Concepto</th>","<th>Monto</th>"],...secciones.flatMap(s => s.items.map(([n,a]) => [s.cat, n, fmt(a)]))])}><Printer size={12} />Imprimir</Btn><Btn t={t} onClick={() => exportCSV("flujo_efectivo", ["Actividad","Concepto","Monto"], secciones.flatMap(s => s.items.map(([n,a]) => [s.cat,n,a])))}><Download size={12} />Excel</Btn></div>
         </div>
-        {/* Cash Flow chart */}
+        {/* Cash Flow chart - real monthly data */}
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border + "30" }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: t.text, marginBottom: 8 }}>Flujo mensual (6 meses)</div>
           <div style={{ display: "flex", gap: 12, height: 100, alignItems: "flex-end" }}>
-            {[["Sep",65,50],["Oct",70,45],["Nov",55,60],["Dic",80,55],["Ene",75,48],["Feb",85,52]].map(([m,inc,out], i) => (
-              <div key={m} style={{ flex: 1, textAlign: "center" }}>
+            {monthlyData.map(m => (
+              <div key={m.key} style={{ flex: 1, textAlign: "center" }}>
                 <div style={{ display: "flex", gap: 2, justifyContent: "center", alignItems: "flex-end", height: 80 }}>
-                  <div style={{ width: 12, height: inc + "%", background: "linear-gradient(180deg, " + t.accent + ", " + t.accent + "60)", borderRadius: "3px 3px 0 0" }} />
-                  <div style={{ width: 12, height: out + "%", background: "linear-gradient(180deg, " + t.red + "80, " + t.red + "30)", borderRadius: "3px 3px 0 0" }} />
+                  <div style={{ width: 12, height: Math.max(2, m.inc / maxChart * 80) + "px", background: "linear-gradient(180deg, " + t.accent + ", " + t.accent + "60)", borderRadius: "3px 3px 0 0" }} title={"Cobros: " + fmt(m.inc)} />
+                  <div style={{ width: 12, height: Math.max(2, m.eg / maxChart * 80) + "px", background: "linear-gradient(180deg, " + t.red + "80, " + t.red + "30)", borderRadius: "3px 3px 0 0" }} title={"Pagos: " + fmt(m.eg)} />
                 </div>
-                <div style={{ fontSize: 10, color: t.dim, marginTop: 3 }}>{m}</div>
+                <div style={{ fontSize: 10, color: t.dim, marginTop: 3 }}>{m.label}</div>
               </div>
             ))}
           </div>
@@ -2712,7 +2794,7 @@ function Reports({ t }) {
   const renderProject = () => (
     <div>
       <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
-        <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Rentabilidad por Proyecto</div><div style={{ fontSize: 11, color: t.muted }}>Febrero 2026</div></div>
+        <div><div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Rentabilidad por Proyecto</div><div style={{ fontSize: 11, color: t.muted }}>{mesLabel}</div></div>
         <Btn t={t} onClick={() => exportCSV("rentabilidad_proyectos", ["Proyecto","Cliente","Presupuesto","Ingresos","Egresos","Resultado","Margen"], PROJECTS.map(p => { const ing=TXS.filter(tx=>tx.pid===p.id&&tx.amount>0).reduce((s,tx)=>s+tx.amount,0); const eg=TXS.filter(tx=>tx.pid===p.id&&tx.amount<0).reduce((s,tx)=>s+Math.abs(tx.amount),0); return [p.name,p.client,p.budget,ing,eg,ing-eg,ing>0?Math.round((ing-eg)/ing*100)+"%":"0%"]; }))}><Download size={12} />Excel</Btn>
       </div>
       {/* Summary KPIs */}
@@ -2836,7 +2918,7 @@ function Reports({ t }) {
       <div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid " + t.border }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>KPIs y Métricas del Negocio</div>
-          <div style={{ fontSize: 11, color: t.muted }}>Resumen ejecutivo — Febrero 2026</div>
+          <div style={{ fontSize: 11, color: t.muted }}>Resumen ejecutivo — {mesLabel}</div>
         </div>
         <div style={{ padding: 16 }}>
           {/* Financieros */}
