@@ -4320,7 +4320,7 @@ function TeamPage({ t, user, profile }) {
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [showInvite, setShowInvite] = useState(false);
-  const [invForm, setInvForm] = useState({ email: "", role: "employee", name: "" });
+  const [invForm, setInvForm] = useState({ email: "", role: "employee", name: "", phone: "" });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -4344,21 +4344,57 @@ function TeamPage({ t, user, profile }) {
   const sendInvite = async () => {
     setError(""); setSuccess("");
     if (!invForm.email.trim() || !invForm.email.includes("@")) { setError("Ingresá un email válido"); return; }
+    if (!invForm.phone.trim() || invForm.phone.replace(/[^0-9+]/g, "").length < 8) { setError("Ingresá un teléfono válido con código de país (+54...)"); return; }
     if (members.some(m => m.user?.email === invForm.email)) { setError("Este email ya es miembro del equipo"); return; }
     if (invitations.some(i => i.email === invForm.email && i.status === "pending")) { setError("Ya hay una invitación pendiente para este email"); return; }
     setSending(true);
-    const { error: err } = await supabase.from("invitations").insert([{
-      company_id: companyId,
-      email: invForm.email.trim().toLowerCase(),
-      role: invForm.role,
-      invited_by: user?.id,
-    }]);
-    if (err) { setError(err.message); }
-    else {
-      setSuccess("Invitación enviada a " + invForm.email);
-      setInvForm({ email: "", role: "employee", name: "" });
+    try {
+      // Generate unique token
+      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+      const cleanPhone = invForm.phone.replace(/[^0-9+]/g, "");
+
+      // Get company name
+      const { data: comp } = await supabase.from("companies").select("name").eq("id", companyId).single();
+      const companyName = comp?.name || "Tu empresa";
+
+      // Save invitation with token + phone
+      const { error: dbErr } = await supabase.from("invitations").insert([{
+        company_id: companyId,
+        email: invForm.email.trim().toLowerCase(),
+        role: invForm.role,
+        invited_by: user?.id,
+        phone: cleanPhone,
+        name: invForm.name || null,
+        invite_token: token,
+      }]);
+      if (dbErr) { setError(dbErr.message); setSending(false); return; }
+
+      // Send WhatsApp via Edge Function
+      const appUrl = window.location.origin;
+      const { data: waResult, error: waErr } = await supabase.functions.invoke("send-invite", {
+        body: {
+          phone: cleanPhone,
+          email: invForm.email.trim().toLowerCase(),
+          name: invForm.name || "",
+          role: invForm.role,
+          company_name: companyName,
+          invite_token: token,
+          app_url: appUrl,
+        },
+      });
+
+      if (waErr) {
+        setSuccess("⚠️ Invitación guardada pero el WhatsApp no se pudo enviar. Podés copiar el link manualmente desde la lista de abajo.");
+      } else if (waResult?.ok) {
+        setSuccess("✅ Invitación enviada por WhatsApp a " + cleanPhone);
+      } else {
+        setSuccess("⚠️ Invitación guardada. WA: " + (waResult?.error || "no enviado") + ". Usá 'Copiar link' de la lista para mandar manualmente.");
+      }
+      setInvForm({ email: "", role: "employee", name: "", phone: "" });
       setShowInvite(false);
       await loadTeam();
+    } catch (e) {
+      setError("Error: " + e.message);
     }
     setSending(false);
   };
@@ -4406,7 +4442,23 @@ function TeamPage({ t, user, profile }) {
             <span onClick={() => { setShowInvite(false); setError(""); }} style={{ cursor: "pointer", color: t.dim }}>✕</span>
           </div>
           <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, padding: "8px 10px", background: t.hover, borderRadius: 6 }}>
-            La persona recibirá acceso al registrarse en GestiónAI con el email que indiques. Automáticamente se unirá a tu empresa con el rol asignado.
+            La persona recibirá un mensaje por WhatsApp con un link de registro. Al registrarse con el email indicado, se unirá automáticamente a tu empresa.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Nombre del invitado</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 10px" }}>
+                <Users size={13} color={t.dim} />
+                <input value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} placeholder="Juan Pérez" style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 12, outline: "none" }} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>WhatsApp del invitado *</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 10px" }}>
+                <MessageSquare size={13} color="#25D366" />
+                <input value={invForm.phone} onChange={e => setInvForm({ ...invForm, phone: e.target.value })} placeholder="+54 9 11 5555 1234" style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 12, outline: "none", fontFamily: "monospace" }} />
+              </div>
+            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div>
@@ -4439,8 +4491,8 @@ function TeamPage({ t, user, profile }) {
           {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 12, fontSize: 12, color: t.red }}>{error}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button onClick={() => { setShowInvite(false); setError(""); }} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
-            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1 }}>
-              {sending ? "Enviando..." : "Enviar invitación"}
+            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #25D366, #128C7E)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
+              <MessageSquare size={12} />{sending ? "Enviando por WhatsApp..." : "Enviar invitación por WhatsApp"}
             </button>
           </div>
         </Crd>
@@ -4515,16 +4567,19 @@ function TeamPage({ t, user, profile }) {
           <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin invitaciones pendientes</div>
         ) : invitations.filter(i => i.status === "pending").map(inv => (
           <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid " + t.border + "20" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: t.hover, border: "1px dashed " + t.border, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Mail size={14} color={t.dim} />
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: "#25D36612", border: "1px dashed #25D36640", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <MessageSquare size={14} color="#25D366" />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{inv.email}</div>
-              <div style={{ fontSize: 10, color: t.dim }}>Invitado {new Date(inv.created_at).toLocaleDateString("es-AR")} · Pendiente de registro</div>
+              <div style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{inv.name || inv.email}</div>
+              <div style={{ fontSize: 10, color: t.dim }}>{inv.email}{inv.phone ? " · " + inv.phone : ""} · Enviado {new Date(inv.created_at).toLocaleDateString("es-AR")}</div>
             </div>
             <span style={{ fontSize: 11, fontWeight: 600, color: roleColors[inv.role] || t.muted, padding: "4px 8px", background: (roleColors[inv.role] || t.muted) + "12", borderRadius: 5 }}>
               {roleLabels[inv.role] || inv.role}
             </span>
+            {inv.invite_token && (
+              <button onClick={() => { navigator.clipboard.writeText(window.location.origin + "/?invite=" + inv.invite_token); window.alert("Link copiado: " + window.location.origin + "/?invite=" + inv.invite_token); }} style={{ padding: "4px 8px", background: t.hover, border: "1px solid " + t.border, borderRadius: 5, color: t.accentL, fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><Link2 size={10} />Copiar link</button>
+            )}
             <button onClick={() => cancelInvite(inv.id)} style={{ padding: "4px 8px", background: t.hover, border: "1px solid " + t.border, borderRadius: 5, color: t.red, fontSize: 10, cursor: "pointer" }}>Cancelar</button>
           </div>
         ))}
@@ -4546,10 +4601,10 @@ function TeamPage({ t, user, profile }) {
       <div style={{ marginTop: 20, padding: 16, background: t.hover, borderRadius: 10, border: "1px solid " + t.border }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 6 }}>¿Cómo funciona?</div>
         <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.6 }}>
-          1. Invitás a alguien ingresando su email y asignándole un rol.<br />
-          2. Esa persona se registra en GestiónAI con el mismo email.<br />
-          3. Al registrarse, automáticamente se une a tu empresa con los permisos del rol asignado.<br />
-          4. Podés cambiar roles o quitar miembros en cualquier momento.
+          1. Invitás a alguien con su WhatsApp, email y rol asignado.<br />
+          2. Le llega un mensaje por WhatsApp con un link de registro único.<br />
+          3. La persona hace click, se registra y automáticamente se une a tu empresa.<br />
+          4. Si no recibió el WA, podés copiar el link y mandárselo manualmente.
         </div>
       </div>
     </div>
@@ -4571,7 +4626,33 @@ function LoginPage({ onLogin }) {
   const [step, setStep] = useState(1); // register: step 1 = company, step 2 = user
   const [invitation, setInvitation] = useState(null); // {found, company_name, role}
   const [checkingInv, setCheckingInv] = useState(false);
+  const [inviteToken, setInviteToken] = useState(null);
   const t = themes.dark;
+
+  // Check for invite token in URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("invite");
+    if (token) {
+      setInviteToken(token);
+      setIsLogin(false);
+      // Resolve token to get invitation details
+      (async () => {
+        setCheckingInv(true);
+        const { data } = await supabase.rpc("resolve_invite_token", { p_token: token });
+        if (data?.found) {
+          setInvitation(data);
+          setEmail(data.email || "");
+          setFullName(data.name || "");
+        } else {
+          setError("Este link de invitación no es válido o ya fue utilizado.");
+        }
+        setCheckingInv(false);
+      })();
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const inputStyle = { display: "flex", alignItems: "center", gap: 8, background: t.hover, border: "1px solid " + t.border, borderRadius: 8, padding: "10px 12px" };
   const fieldStyle = { flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 13, outline: "none", width: "100%" };
