@@ -39,6 +39,7 @@ function DataProvider({ children }) {
   const [transactions, setTransactions] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState(null);
 
@@ -51,12 +52,13 @@ function DataProvider({ children }) {
         if (prof?.company_id) setCompanyId(prof.company_id);
       }
 
-      const [cRes, pRes, tRes, tkRes, dRes] = await Promise.all([
+      const [cRes, pRes, tRes, tkRes, dRes, baRes] = await Promise.all([
         supabase.from("clients").select("*").order("name"),
         supabase.from("projects").select("*, client:clients(name)").order("name"),
         supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").order("date", { ascending: false }),
         supabase.from("tasks").select("*, project:projects(name)").order("due_date"),
         supabase.from("documents").select("*, contact:clients(name), project:projects(name)").order("created_at", { ascending: false }),
+        supabase.from("bank_accounts").select("*").order("created_at"),
       ]);
 
       if (cRes.data) {
@@ -89,7 +91,10 @@ function DataProvider({ children }) {
         desc: tx.description,
         amount: Number(tx.amount),
         pid: tx.project_id,
+        account_id: tx.account_id || null,
       })));
+
+      if (baRes.data) setBankAccounts(baRes.data);
 
       if (tkRes.data) setTasks(tkRes.data.map(tk => ({
         ...tk, project: tk.project?.name || "Admin",
@@ -119,7 +124,7 @@ function DataProvider({ children }) {
   useEffect(() => { load(); }, []);
 
   return (
-    <DataContext.Provider value={{ clients, projects, transactions, tasks, documents, loading, reload: load, companyId, setClients, setProjects, setTransactions, setTasks, setDocuments }}>
+    <DataContext.Provider value={{ clients, projects, transactions, tasks, documents, bankAccounts, loading, reload: load, companyId, setClients, setProjects, setTransactions, setTasks, setDocuments }}>
       {children}
     </DataContext.Provider>
   );
@@ -218,7 +223,7 @@ function DemoDataProvider({ children }) {
   return (
     <DataContext.Provider value={{
       clients: demoClients, projects: demoProjects, transactions: demoTransactions,
-      tasks: demoTasks, documents: demoDocuments,
+      tasks: demoTasks, documents: demoDocuments, bankAccounts: [],
       demoTeam, demoPayroll,
       loading: false, reload: noop, companyId: "demo",
       setClients: noop, setProjects: noop, setTransactions: noop, setTasks: noop, setDocuments: noop
@@ -1438,25 +1443,32 @@ function TasksPage({ t }) {
 }
 
 function Transactions({ t }) {
-  const { transactions: TXS, documents: DOCS, clients, projects, reload, companyId } = useData();
+  const { transactions: TXS, documents: DOCS, clients, projects, bankAccounts, reload, companyId } = useData();
   const [tab, setTab] = useState("all");
   const [sel, setSel] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [filterProject, setFilterProject] = useState("");
-  const [nf, setNf] = useState({ description: "", contact_id: "", project_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
+  const [nf, setNf] = useState({ description: "", contact_id: "", project_id: "", account_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
 
   const saveTx = async () => {
     if (!nf.description.trim() || !nf.amount) return;
-    await supabase.from("transactions").insert([{ description: nf.description, contact_id: nf.contact_id || null, project_id: nf.project_id || null, amount: Number(nf.amount), status: nf.status, date: nf.date, company_id: companyId }]);
+    await supabase.from("transactions").insert([{ description: nf.description, contact_id: nf.contact_id || null, project_id: nf.project_id || null, account_id: nf.account_id || null, amount: Number(nf.amount), status: nf.status, date: nf.date, company_id: companyId }]);
     await reload();
-    setNf({ description: "", contact_id: "", project_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
+    setNf({ description: "", contact_id: "", project_id: "", account_id: "", amount: "", status: "pending", date: new Date().toISOString().slice(0, 10) });
     setShowNew(false);
   };
 
-  const markPaid = async (id) => {
-    await supabase.from("transactions").update({ status: "paid" }).eq("id", id);
+  const markPaid = async (id, accountId) => {
+    const update = { status: "paid" };
+    if (accountId) update.account_id = accountId;
+    await supabase.from("transactions").update(update).eq("id", id);
     await reload();
     setSel(null);
+  };
+
+  const assignAccount = async (txId, accountId) => {
+    await supabase.from("transactions").update({ account_id: accountId || null }).eq("id", txId);
+    await reload();
   };
 
   const deleteTx = async (id) => {
@@ -1513,14 +1525,31 @@ function Transactions({ t }) {
               )}
             </Crd>
             {tx.status !== "paid" && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                <Btn primary t={t} onClick={() => markPaid(tx.id)}><Check size={12} />Marcar como pagado</Btn>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                {bankAccounts.length > 0 ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <select id={"pay-acc-" + tx.id} defaultValue={tx.account_id || ""} style={{ background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 11 }}>
+                      <option value="">Efectivo (sin cuenta)</option>
+                      {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                    <Btn primary t={t} onClick={() => { const accEl = document.getElementById("pay-acc-" + tx.id); markPaid(tx.id, accEl?.value || null); }}><Check size={12} />Marcar pagado</Btn>
+                  </div>
+                ) : (
+                  <Btn primary t={t} onClick={() => markPaid(tx.id, null)}><Check size={12} />Marcar como pagado</Btn>
+                )}
                 <Btn t={t} onClick={() => window.alert("📱 Recordatorio para " + tx.contact + ":\n\nHola, le recordamos que tiene un pago/cobro pendiente:\n• " + tx.desc + "\n• Monto: " + fmt(tx.amount) + "\n\n(Próximamente se enviará por WhatsApp automáticamente)")}><Mail size={12} />Enviar recordatorio</Btn>
                 <Btn t={t} onClick={() => deleteTx(tx.id)} style={{ color: t.red }}><Trash2 size={12} />Eliminar</Btn>
               </div>
             )}
             {tx.status === "paid" && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: t.muted }}>Cuenta:</span>
+                  <select value={tx.account_id || ""} onChange={e => assignAccount(tx.id, e.target.value)} style={{ background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "7px 9px", color: t.text, fontSize: 11 }}>
+                    <option value="">Efectivo (sin asignar)</option>
+                    {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
                 <Btn t={t} onClick={() => deleteTx(tx.id)} style={{ color: t.red }}><Trash2 size={12} />Eliminar</Btn>
               </div>
             )}
@@ -1573,11 +1602,12 @@ function Transactions({ t }) {
             <Inp label="Descripción" val={nf.description} onChange={v => setNf({ ...nf, description: v })} t={t} placeholder="Ej: Certificado Obra #48" />
             <Inp label="Monto (positivo=ingreso, negativo=egreso)" val={nf.amount} onChange={v => setNf({ ...nf, amount: v })} t={t} placeholder="3200000 ó -1850000" />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
             <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Contacto</div><select value={nf.contact_id} onChange={e => setNf({ ...nf, contact_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">— Seleccionar —</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
             <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Proyecto</div><select value={nf.project_id} onChange={e => setNf({ ...nf, project_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">— Seleccionar —</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
             <Inp label="Fecha" val={nf.date} onChange={v => setNf({ ...nf, date: v })} t={t} type="date" />
             <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Estado</div><select value={nf.status} onChange={e => setNf({ ...nf, status: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="paid">Pagado</option><option value="pending">Pendiente</option></select></div>
+            <div style={{ marginBottom: 10 }}><div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Cuenta</div><select value={nf.account_id} onChange={e => setNf({ ...nf, account_id: e.target.value })} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}><option value="">Efectivo (sin cuenta)</option>{bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
             <Btn t={t} onClick={() => setShowNew(false)}>Cancelar</Btn>
@@ -1850,7 +1880,7 @@ function Accounting({ t }) {
 }
 
 function Treasury({ t }) {
-  const { transactions: TXS, companyId, reload } = useData();
+  const { transactions: TXS, bankAccounts, companyId, reload } = useData();
   const [selAcc, setSelAcc] = useState(null);
   const [showNewAcc, setShowNewAcc] = useState(false);
   const [newAcc, setNewAcc] = useState({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
@@ -1858,27 +1888,35 @@ function Treasury({ t }) {
   const [loadingAccs, setLoadingAccs] = useState(true);
   const colors = [t.accent, t.blue, t.green, t.orange, t.red, "#EC4899"];
 
-  const loadAccounts = async () => {
+  // Sync accounts from context
+  useEffect(() => {
     if (companyId === "demo") {
       setAccounts([
         { id: "d1", name: "Banco Galicia — Cta Cte", currency: "ARS", balance: 12400000, cbu: "0070999030004123456789", alias: "GESTION.AI.GALICIA" },
         { id: "d2", name: "Banco Macro — Cta Cte", currency: "ARS", balance: 4800000, cbu: "2850999030004987654321", alias: "GESTION.AI.MACRO" },
         { id: "d3", name: "Mercado Pago", currency: "ARS", balance: 1200000, cbu: "—", alias: "GESTION.AI.MP" },
       ]);
-      setLoadingAccs(false);
-      return;
+    } else {
+      // Enrich bank accounts with calculated balance from assigned transactions
+      const paidByAccount = {};
+      TXS.filter(tx => tx.status === "paid" && tx.account_id).forEach(tx => {
+        paidByAccount[tx.account_id] = (paidByAccount[tx.account_id] || 0) + tx.amount;
+      });
+      setAccounts((bankAccounts || []).map(acc => ({
+        ...acc,
+        balance: Number(acc.balance || 0) + (paidByAccount[acc.id] || 0),
+        txBalance: paidByAccount[acc.id] || 0,
+        txCount: TXS.filter(tx => tx.status === "paid" && tx.account_id === acc.id).length,
+      })));
     }
-    const { data, error } = await supabase.from("bank_accounts").select("*").eq("company_id", companyId).order("created_at");
-    if (error) console.error("Load accounts error:", error.message);
-    setAccounts(data || []);
     setLoadingAccs(false);
-  };
-  useEffect(() => { if (companyId) loadAccounts(); }, [companyId]);
+  }, [companyId, bankAccounts, TXS]);
 
   const pendingIncome = TXS.filter(tx => tx.amount > 0 && (tx.status === "pending" || tx.status === "overdue"));
   const pendingExpense = TXS.filter(tx => tx.amount < 0 && (tx.status === "pending" || tx.status === "overdue"));
-  const paidTx = TXS.filter(tx => tx.status === "paid");
-  const paidBalance = paidTx.reduce((s, tx) => s + tx.amount, 0); // net cash from paid transactions
+  // "Sin asignar" = paid transactions WITHOUT account_id
+  const unassignedTx = TXS.filter(tx => tx.status === "paid" && !tx.account_id);
+  const unassignedBalance = unassignedTx.reduce((s, tx) => s + tx.amount, 0);
 
   const cxc = companyId === "demo" ? [
     { contact: "Constructora Vial SA", amt: 7500000, days: 0, status: "vigente" },
@@ -1890,11 +1928,10 @@ function Treasury({ t }) {
   ] : pendingExpense.map(tx => ({ contact: tx.contact || "—", amt: Math.abs(tx.amount), days: 0, status: tx.status === "overdue" ? "+60" : "vigente" }));
   
   const bankBal = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
-  // Disponible = bank accounts + paid transactions (if no bank accounts, use paid tx as cash)
-  const totalBal = bankBal > 0 ? bankBal : paidBalance;
+  const totalBal = bankBal + unassignedBalance;
   const totalCxC = cxc.reduce((s, c) => s + c.amt, 0);
   const totalCxP = cxp.reduce((s, c) => s + c.amt, 0);
-  const ratioLiq = totalCxP > 0 ? (totalBal / totalCxP) : accounts.length > 0 || paidTx.length > 0 ? 99.9 : 0;
+  const ratioLiq = totalCxP > 0 ? (totalBal / totalCxP) : accounts.length > 0 || unassignedTx.length > 0 ? 99.9 : 0;
 
   const addAccount = async () => {
     if (!newAcc.name.trim()) return;
@@ -1908,15 +1945,19 @@ function Treasury({ t }) {
       window.alert("Error al guardar la cuenta: " + error.message + "\n\nAsegurate de haber corrido el SQL 'supabase_bank_accounts_v2.sql' en Supabase.");
       return;
     }
-    setAccounts([...accounts, data]);
+    await reload();
     setNewAcc({ name: "", type: "ARS", bal: "", cbu: "", alias: "" });
     setShowNewAcc(false);
   };
 
   const removeAccount = async (id) => {
-    if (!window.confirm("¿Eliminar esta cuenta?")) return;
-    if (companyId !== "demo") await supabase.from("bank_accounts").delete().eq("id", id);
-    setAccounts(accounts.filter(a => a.id !== id));
+    if (!window.confirm("¿Eliminar esta cuenta? Los movimientos asignados quedarán sin cuenta.")) return;
+    if (companyId !== "demo") {
+      // Unassign transactions from this account
+      await supabase.from("transactions").update({ account_id: null }).eq("account_id", id);
+      await supabase.from("bank_accounts").delete().eq("id", id);
+    }
+    await reload();
     setSelAcc(null);
   };
 
@@ -1926,8 +1967,9 @@ function Treasury({ t }) {
       if (acc.id === "d2") return [{ date: "12/02", desc: "Cobro factura #887", amt: 1500000 },{ date: "10/02", desc: "Transferencia a Galicia", amt: -2000000 }];
       return [{ date: "13/02", desc: "Cobro QR", amt: 85000 }];
     }
-    return TXS.filter(tx => tx.status === "paid").slice(0, 10).map(tx => ({
-      date: tx.date ? new Date(tx.date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : "—",
+    // Show transactions assigned to THIS account
+    return TXS.filter(tx => tx.status === "paid" && tx.account_id === acc.id).slice(0, 15).map(tx => ({
+      date: tx.date || "—",
       desc: tx.desc || tx.description || "—", amt: tx.amount,
     }));
   };
@@ -1993,7 +2035,7 @@ function Treasury({ t }) {
     <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
         {[
-          { label: "Disponible total", val: fmt(totalBal), color: t.accent, icon: CircleDollarSign, sub: bankBal > 0 ? accounts.length + " cuentas" : paidTx.length > 0 ? "Calculado de movimientos" : "Sin movimientos" },
+          { label: "Disponible total", val: fmt(totalBal), color: t.accent, icon: CircleDollarSign, sub: accounts.length > 0 ? accounts.length + " cuentas" + (unassignedTx.length > 0 ? " + efectivo" : "") : unassignedTx.length > 0 ? "Calculado de movimientos" : "Sin movimientos" },
           { label: "CxC total", val: fmt(totalCxC), color: t.green, icon: ArrowUpRight, sub: cxc.length + " cobros pendientes" },
           { label: "CxP total", val: fmt(totalCxP), color: t.red, icon: ArrowDownRight, sub: cxp.length + " pagos pendientes" },
           { label: "Ratio liquidez", val: ratioLiq > 99 ? "∞" : ratioLiq.toFixed(1) + "x", color: t.blue, icon: TrendingUp, sub: ratioLiq > 2 ? "Saludable" : ratioLiq > 0 ? "Ajustado" : "—" },
@@ -2038,15 +2080,16 @@ function Treasury({ t }) {
       )}
       {loadingAccs ? <div style={{ textAlign: "center", padding: 30, color: t.dim }}>Cargando cuentas...</div> : (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
-        {/* Efectivo - always shown, calculated from paid transactions */}
-        {companyId !== "demo" && (
+        {/* Efectivo - only shows UNASSIGNED paid transactions */}
+        {companyId !== "demo" && unassignedTx.length > 0 && (
           <Crd t={t} style={{ padding: 14, borderTop: "3px solid #FBBF24", cursor: "default" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>Efectivo / Sin asignar</div>
               <Wallet size={15} color="#FBBF24" />
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: paidBalance >= 0 ? t.green : t.red, marginBottom: 4 }}>{fmt(paidBalance)}</div>
-            <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>Calculado de {paidTx.length} movimientos pagados</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: unassignedBalance >= 0 ? t.green : t.red, marginBottom: 4 }}>{fmt(unassignedBalance)}</div>
+            <div style={{ marginTop: 4, fontSize: 10, color: t.orange }}>{unassignedTx.length} movimiento{unassignedTx.length !== 1 ? "s" : ""} sin cuenta asignada</div>
+            <div style={{ marginTop: 6, fontSize: 10, color: t.dim }}>Asignalos desde Finanzas → click en el movimiento → seleccioná la cuenta</div>
           </Crd>
         )}
         {accounts.map((acc, idx) => (
@@ -2057,7 +2100,7 @@ function Treasury({ t }) {
                 <CreditCard size={15} color={colors[idx % colors.length]} />
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: t.text, marginBottom: 4 }}>{fmt(Number(acc.balance || 0))}</div>
-              <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>{acc.currency || "ARS"} · Click para ver detalle</div>
+              <div style={{ marginTop: 8, fontSize: 10, color: t.dim }}>{acc.currency || "ARS"}{acc.txCount > 0 ? " · " + acc.txCount + " movimientos" : ""} · Click para ver detalle</div>
             </div>
           </Crd>
         ))}
