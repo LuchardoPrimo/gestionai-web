@@ -578,7 +578,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
 
   const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario";
   const userCompany = profile?.company?.name || user?.user_metadata?.company || "";
-  const userPhone = user?.user_metadata?.phone || "";
+  const userPhone = profile?.phone_number || user?.user_metadata?.phone || "";
   const userRole = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", employee: "Empleado", other: "Otro" }[profile?.role || user?.user_metadata?.role] || "";
 
   return (
@@ -669,6 +669,24 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
                   {userRole && <div style={{ padding: "6px 8px", background: t.hover, borderRadius: 6 }}><div style={{ fontSize: 9, color: t.dim }}>Rol</div><div style={{ fontSize: 11, color: t.text }}>{userRole}</div></div>}
                   {userPhone && <div style={{ padding: "6px 8px", background: t.hover, borderRadius: 6 }}><div style={{ fontSize: 9, color: t.dim }}>Teléfono</div><div style={{ fontSize: 11, color: t.text }}>{userPhone}</div></div>}
                 </div>
+                {/* Phone number for WA notifications */}
+                {!userPhone && (
+                  <div style={{ marginTop: 8, padding: "8px 10px", background: t.accentBg, borderRadius: 7, border: "1px solid " + t.accent + "20" }}>
+                    <div style={{ fontSize: 10, color: t.accentL, fontWeight: 600, marginBottom: 6 }}>📱 Agregá tu teléfono para recibir recordatorios por WhatsApp</div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <input id="profile-phone-input" placeholder="+54 9 11 5555 1234" style={{ flex: 1, padding: "5px 8px", borderRadius: 5, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 11, outline: "none", fontFamily: "monospace" }} />
+                      <button onClick={async () => {
+                        const inp = document.getElementById("profile-phone-input");
+                        const val = inp?.value?.replace(/[^0-9+]/g, "");
+                        if (!val || val.length < 8) { window.alert("Ingresá un teléfono válido con código de país"); return; }
+                        const { error } = await supabase.from("user_profiles").update({ phone_number: val }).eq("id", user.id);
+                        if (error) { window.alert("Error: " + error.message); return; }
+                        window.alert("✅ Teléfono guardado. Vas a recibir recordatorios por WhatsApp.");
+                        window.location.reload();
+                      }} style={{ padding: "5px 10px", borderRadius: 5, background: t.accent, color: "#fff", border: "none", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>Guardar</button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div onMouseDown={onLogout} style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: t.red, fontSize: 12, fontWeight: 600 }} onMouseEnter={e => e.currentTarget.style.background = t.hover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <LogOut size={14} /> Cerrar sesión
@@ -4126,6 +4144,27 @@ function TeamPage({ t, user, profile }) {
                   {isMe && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: t.accentBg, color: t.accentL }}>Vos</span>}
                 </div>
                 <div style={{ fontSize: 11, color: t.dim }}>{email}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                  {m.phone_number ? (
+                    <span style={{ fontSize: 10, color: t.muted, fontFamily: "monospace" }}>📱 {m.phone_number}</span>
+                  ) : (
+                    <span style={{ fontSize: 10, color: t.orange }}>⚠️ Sin teléfono (no recibirá recordatorios WA)</span>
+                  )}
+                  {isOwner && (
+                    <span onClick={() => {
+                      const phone = window.prompt("Teléfono de " + name + " (con código de país, ej: +5491155551234):", m.phone_number || "");
+                      if (phone === null) return;
+                      const clean = phone.replace(/[^0-9+]/g, "");
+                      if (clean.length < 8 && clean.length > 0) { window.alert("Teléfono inválido"); return; }
+                      supabase.from("user_profiles").update({ phone_number: clean || null }).eq("id", m.id).then(({ error }) => {
+                        if (error) window.alert("Error: " + error.message);
+                        else loadTeam();
+                      });
+                    }} style={{ fontSize: 9, color: t.accentL, cursor: "pointer", textDecoration: "underline" }}>
+                      {m.phone_number ? "editar" : "agregar"}
+                    </span>
+                  )}
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {isOwner && !isMe ? (
