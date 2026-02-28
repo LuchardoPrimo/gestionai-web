@@ -26,7 +26,7 @@ import {
   CheckCircle2, AlertCircle, Phone, Mail, MapPin, Tag, MessageSquare, BarChart3,
   CreditCard, FileUp, Download, Zap, ChevronLeft, X, Check, Bot, CircleDollarSign,
   Layers, Target, Activity, Archive, Sun, Moon, Upload, Link2, List, Grid3X3,
-  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus, Shield, Building2, ExternalLink, ChevronRight, RefreshCw, Trash2
+  FileSpreadsheet, Printer, Share2, DollarSign, TrendingUp, Briefcase, LogOut, Lock, UserPlus, Shield, Building2, ExternalLink, ChevronRight, RefreshCw, Trash2, HelpCircle, Sparkles, BookOpen, Play, Info, ChevronDown
 } from "lucide-react";
 
 // Data context for Supabase
@@ -401,6 +401,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
     { id: "documents", icon: FileText, label: "Documentos", roles: ["owner","admin","accountant","pm"] },
     { id: "reports", icon: BarChart3, label: "Reportes", roles: ["owner","admin","accountant"] },
     { id: "team", icon: UserPlus, label: "Equipo", roles: ["owner","admin"] },
+    { id: "help", icon: HelpCircle, label: "Ayuda", roles: ["owner","admin","accountant","pm","employee"] },
   ];
   const nav = allNav.filter(n => n.roles.includes(role || "owner"));
   const w = collapsed ? 64 : 230;
@@ -624,6 +625,8 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
             {notiCount > 0 && <div style={{ position: "absolute", top: 3, right: 3, minWidth: 14, height: 14, background: t.red, borderRadius: 7, border: "2px solid " + t.topbar, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>{notiCount}</span></div>}
           </div>
           {notiOpen && (
+            <>
+            <div onClick={() => setNotiOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 99 }} />
             <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, width: 340, background: t.card, border: "1px solid " + t.border, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", zIndex: 100, maxHeight: 380, overflowY: "auto" }}>
               <div style={{ padding: "12px 14px", borderBottom: "1px solid " + t.border, display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Notificaciones</span>
@@ -641,6 +644,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
                 </div>
               ))}
             </div>
+            </>
           )}
         </div>
 
@@ -650,6 +654,8 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
             <Av name={userName} size={30} />
           </div>
           {profileOpen && (
+            <>
+            <div onClick={() => setProfileOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 99 }} />
             <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, width: 280, background: t.card, border: "1px solid " + t.border, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", zIndex: 100 }}>
               <div style={{ padding: 16, borderBottom: "1px solid " + t.border }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -692,6 +698,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, user, profile, onLogout, on
                 <LogOut size={14} /> Cerrar sesión
               </div>
             </div>
+            </>
           )}
         </div>
       </div>
@@ -1268,33 +1275,39 @@ function TasksPage({ t }) {
   };
 
   const editPanel = editForm && (
-    <div style={{ position: "fixed", top: 0, right: 0, width: 340, height: "100vh", background: t.card, borderLeft: "1px solid " + t.border, padding: 20, zIndex: 100, boxShadow: "-4px 0 20px rgba(0,0,0,0.2)", overflowY: "auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Editar tarea</span>
-        <div onClick={() => { setEditing(null); setEditForm(null); }} style={{ cursor: "pointer" }}><X size={16} color={t.muted} /></div>
-      </div>
-      <Inp label="Título" val={editForm.title} onChange={v => setEditForm({...editForm, title: v})} t={t} />
-      <Inp label="Proyecto" val={editForm.project} onChange={v => setEditForm({...editForm, project: v})} t={t} />
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Estado</div>
-        <select value={editForm.st} onChange={e => setEditForm({...editForm, st: e.target.value})} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
-          <option value="todo">Por hacer</option><option value="in_progress">En progreso</option><option value="review">Revisión</option><option value="done">Completado</option>
-        </select>
-      </div>
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Prioridad</div>
-        <select value={editForm.pri} onChange={e => setEditForm({...editForm, pri: e.target.value})} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
-          <option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option>
-        </select>
-      </div>
-      <Inp label="Asignado" val={editForm.who} onChange={v => setEditForm({...editForm, who: v})} t={t} />
-      <Inp label="Fecha de vencimiento" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} type="date" />
-      <Inp label="Etiqueta" val={editForm.tag} onChange={v => setEditForm({...editForm, tag: v})} t={t} />
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-        <Btn t={t} onClick={() => deleteTask(editForm.id)} style={{ color: t.red }}><X size={12} />Eliminar</Btn>
-        <div style={{ display: "flex", gap: 6 }}>
-          <Btn t={t} onClick={() => { setEditing(null); setEditForm(null); }}>Cancelar</Btn>
-          <Btn primary t={t} onClick={saveEdit}><Check size={12} />Guardar</Btn>
+    <div onClick={() => { setEditing(null); setEditForm(null); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "90vw", maxHeight: "85vh", background: t.card, borderRadius: 16, border: "1px solid " + t.border, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Editar tarea</span>
+          <div onClick={() => { setEditing(null); setEditForm(null); }} style={{ cursor: "pointer", width: 28, height: 28, borderRadius: 7, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={14} color={t.muted} /></div>
+        </div>
+        <Inp label="Título" val={editForm.title} onChange={v => setEditForm({...editForm, title: v})} t={t} />
+        <Inp label="Proyecto" val={editForm.project} onChange={v => setEditForm({...editForm, project: v})} t={t} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Estado</div>
+            <select value={editForm.st} onChange={e => setEditForm({...editForm, st: e.target.value})} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
+              <option value="todo">Por hacer</option><option value="in_progress">En progreso</option><option value="review">Revisión</option><option value="done">Completado</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, color: t.muted, marginBottom: 3 }}>Prioridad</div>
+            <select value={editForm.pri} onChange={e => setEditForm({...editForm, pri: e.target.value})} style={{ width: "100%", background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 9px", color: t.text, fontSize: 12 }}>
+              <option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <Inp label="Asignado" val={editForm.who} onChange={v => setEditForm({...editForm, who: v})} t={t} />
+          <Inp label="Fecha de vencimiento" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} type="date" />
+        </div>
+        <Inp label="Etiqueta" val={editForm.tag} onChange={v => setEditForm({...editForm, tag: v})} t={t} />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, paddingTop: 14, borderTop: "1px solid " + t.border }}>
+          <Btn t={t} onClick={() => deleteTask(editForm.id)} style={{ color: t.red }}><X size={12} />Eliminar</Btn>
+          <div style={{ display: "flex", gap: 6 }}>
+            <Btn t={t} onClick={() => { setEditing(null); setEditForm(null); }}>Cancelar</Btn>
+            <Btn primary t={t} onClick={saveEdit}><Check size={12} />Guardar</Btn>
+          </div>
         </div>
       </div>
     </div>
@@ -3228,6 +3241,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
+  const [showWelcome, setShowWelcome] = useState(isDemo);
   const { loading } = useData();
   const t = themes[theme];
   const role = isDemo ? "owner" : (profile?.role || user?.user_metadata?.role || "owner");
@@ -3242,9 +3256,10 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
     treasury: ["Tesorería", "Cuentas y cash flow"], documents: ["Documentos", "Facturas y comprobantes"],
     reports: ["Reportes", "Informes financieros"],
     team: ["Equipo", "Gestión de usuarios e invitaciones"],
+    help: ["Ayuda", "Tutoriales y guía de uso"],
     superadmin: ["Panel de Control", "Administración de todas las empresas"],
   };
-  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, payroll: PayrollPage, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, superadmin: SuperAdminPage };
+  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, payroll: PayrollPage, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, help: HelpPage, superadmin: SuperAdminPage };
   const Page = pages[page] || Dashboard;
 
   return (
@@ -3263,18 +3278,41 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
         {isDemo && (
           <div style={{ background: "linear-gradient(90deg, #7C6DF0, #34D399)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🎯 Estás viendo la demo con datos ficticios</span>
-            <button onClick={onRegister || onLogout} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-              Solicitar mi plataforma →
-            </button>
+            <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Vi%20la%20demo%20y%20quiero%20mi%20plataforma%20GestiónAI" target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <MessageSquare size={12} /> Solicitar mi plataforma →
+            </a>
           </div>
         )}
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} user={user} onLogout={onLogout} role={role} profile={profile} isDemo={isDemo} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <TopBar title={meta[page] ? meta[page][0] : ""} sub={meta[page] ? meta[page][1] : ""} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} user={user} profile={profile} onLogout={onLogout} onNav={setPage} />
-          <Page t={t} onNav={setPage} user={user} profile={profile} />
+          <Page t={t} onNav={setPage} user={user} profile={profile} isDemo={isDemo} />
         </div>
         </div>
+        {/* Welcome toast for demo users */}
+        {showWelcome && isDemo && (
+          <div style={{ position: "fixed", bottom: 24, right: 24, width: 340, background: t.card, border: "1px solid " + t.accent + "30", borderRadius: 14, padding: 18, boxShadow: "0 12px 40px rgba(0,0,0,0.3)", zIndex: 150, animation: "fadeUp 0.5s ease-out" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Sparkles size={18} color="#fff" />
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>¡Bienvenido a GestiónAI!</div>
+              </div>
+              <div onClick={() => setShowWelcome(false)} style={{ cursor: "pointer", color: t.dim, fontSize: 16 }}>✕</div>
+            </div>
+            <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6, marginBottom: 14 }}>Estás viendo datos ficticios de ejemplo. ¿Querés un recorrido rápido por la plataforma?</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setShowWelcome(false); setPage("help"); }} style={{ flex: 1, padding: "9px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                Ver tutorial
+              </button>
+              <button onClick={() => setShowWelcome(false)} style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                Explorar solo
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -3560,6 +3598,245 @@ function PayrollPage({ t }) {
 }
 
 // ─── SUPER ADMIN PAGE ───
+// ═══════════════════════════════════════════════════════════
+// HELP PAGE — Interactive tutorial + module guides + FAQ
+// ═══════════════════════════════════════════════════════════
+function HelpPage({ t, onNav, isDemo }) {
+  const [activeGuide, setActiveGuide] = useState(null);
+  const [tutorialStep, setTutorialStep] = useState(-1); // -1 = not running
+  const [expandedFaq, setExpandedFaq] = useState(null);
+
+  const tutorialSteps = [
+    { title: "Dashboard", icon: LayoutDashboard, nav: "dashboard", desc: "Tu centro de control. Acá ves el resumen financiero del día: tareas pendientes, cobros y pagos próximos, documentos por revisar y un vistazo general de todos tus proyectos.", tip: "Los números se actualizan en tiempo real con cada transacción que cargás." },
+    { title: "Clientes / Proveedores", icon: Users, nav: "clients", desc: "Gestioná tu cartera de contactos. Podés cargar clientes, proveedores, subcontratistas — cada uno con teléfono, email, ciudad. Desde la ficha de cada contacto ves sus transacciones y documentos asociados.", tip: "Hacé click en cualquier contacto para ver su detalle completo." },
+    { title: "Proyectos / Obras", icon: FolderKanban, nav: "projects", desc: "Cada obra es un proyecto. Cargá presupuesto, fechas, cliente, y hacé seguimiento del avance. Podés vincular tareas, transacciones y documentos a cada proyecto.", tip: "Usá los filtros 'En curso' y 'Completados' para organizar tu vista." },
+    { title: "Tareas", icon: Target, nav: "tasks", desc: "Tablero Kanban con 4 columnas: Por hacer → En progreso → Revisión → Completado. También tenés vista de lista y calendario mensual. Asigná responsables y fechas de vencimiento.", tip: "Hacé click en una tarea para editarla. Arrastrá entre columnas si cambiás el estado." },
+    { title: "Finanzas", icon: Receipt, nav: "transactions", desc: "Registrá ingresos y egresos vinculados a proyectos y contactos. Filtrá por tipo, estado o período. La pestaña Contabilidad te da los asientos automáticos.", tip: "Los cobros pendientes y pagos vencidos aparecen automáticamente en el Dashboard." },
+    { title: "Sueldos", icon: CreditCard, nav: "payroll", desc: "Liquidación de sueldos para tu equipo. Cargá empleados, categoría, sueldo básico, antigüedad, y el sistema calcula aportes y cargas automáticamente.", tip: "Podés exportar cada recibo individual o el resumen general." },
+    { title: "Tesorería", icon: Wallet, nav: "treasury", desc: "Visualizá tus cuentas bancarias, caja y flujo de efectivo. Los KPIs se calculan de tus transacciones reales: saldo disponible, proyección 30/60/90 días, concentración por cuenta.", tip: "Agregá tus cuentas bancarias y el sistema trackea los movimientos." },
+    { title: "Documentos", icon: FileText, nav: "documents", desc: "Subí facturas, presupuestos, planos, certificados — cualquier archivo. Cada documento se vincula a un proyecto y/o contacto. Controlá estados: pendiente, aprobado, pagado.", tip: "Próximamente: OCR automático para leer facturas con IA." },
+    { title: "Reportes", icon: BarChart3, nav: "reports", desc: "Informes financieros completos: Estado de Resultados, Balance General, Flujo de Efectivo y análisis por Proyecto. Todo generado automáticamente de tus datos.", tip: "Los reportes se actualizan en tiempo real. Exportalos en cualquier momento." },
+    { title: "Equipo", icon: UserPlus, nav: "team", desc: "Invitá miembros a tu empresa con diferentes roles: Dueño, Admin, Contador, Director de Obra, Empleado. Cada rol tiene permisos diferentes.", tip: "Cargá el teléfono de cada miembro para que reciban recordatorios por WhatsApp." },
+  ];
+
+  const guides = [
+    { id: "start", icon: Zap, title: "Primeros pasos", color: t.accent, items: [
+      "Creá tu cuenta y empresa desde el formulario de registro",
+      "Cargá tus primeros clientes/proveedores en la sección Clientes",
+      "Creá tu primer proyecto/obra y vinculalo a un cliente",
+      "Empezá a registrar transacciones (ingresos y egresos)",
+      "Subí tus primeras facturas y documentos",
+    ]},
+    { id: "finance", icon: Receipt, title: "Cómo cargar transacciones", color: t.green, items: [
+      "Ir a Finanzas → botón 'Nueva transacción'",
+      "Elegir tipo: ingreso (positivo) o egreso (negativo)",
+      "Vincular a un proyecto y contacto existente",
+      "Marcar el estado: pagado o pendiente",
+      "Las transacciones pendientes aparecen como alertas en el Dashboard",
+    ]},
+    { id: "tasks", icon: Target, title: "Gestión de tareas", color: t.blue, items: [
+      "Usá la vista Board para Kanban o Lista para tabla",
+      "Click en 'Nueva tarea' → se crea y abre el editor",
+      "Asigná un responsable del equipo y fecha de vencimiento",
+      "Cambiá el estado desde el editor: Por hacer → En progreso → Revisión → Done",
+      "El calendario muestra las tareas organizadas por fecha",
+    ]},
+    { id: "docs", icon: FileText, title: "Documentos y archivos", color: t.orange, items: [
+      "Ir a Documentos → 'Subir documento'",
+      "Aceptamos PDF, imágenes, Excel, Word, etc.",
+      "Vinculá cada documento a un proyecto y/o contacto",
+      "Controlá el estado: pendiente, aprobado, pagado, vencido",
+      "Los documentos se guardan en Supabase Storage de forma segura",
+    ]},
+    { id: "whatsapp", icon: MessageSquare, title: "WhatsApp e IA", color: "#25D366", items: [
+      "GestiónAI integra un asistente de IA por WhatsApp",
+      "Cada empresa usa un número compartido para consultas",
+      "Mandá mensajes de texto, fotos de facturas o audios",
+      "La IA responde con datos de TU empresa (clientes, saldos, obras)",
+      "Los recordatorios diarios llegan automáticos a las 7 AM",
+    ]},
+  ];
+
+  const faqs = [
+    { q: "¿Mis datos están seguros?", a: "Sí. Usamos Supabase con Row Level Security: cada empresa solo ve sus propios datos. La base de datos está encriptada y los accesos controlados por roles." },
+    { q: "¿Cuántos usuarios puede tener mi empresa?", a: "No hay límite de usuarios por empresa. Podés invitar a todo tu equipo y asignarles diferentes roles según lo que necesiten ver." },
+    { q: "¿Puedo usar GestiónAI desde el celular?", a: "Sí, la plataforma es responsive y se adapta a cualquier pantalla. También podés usar el bot de WhatsApp para consultas rápidas desde el celular." },
+    { q: "¿Qué pasa si necesito ayuda técnica?", a: "Contactanos directamente por WhatsApp al +54 292 654-0590. Respondemos en menos de 24 horas." },
+    { q: "¿Se pueden exportar los datos?", a: "Los reportes se pueden exportar. Estamos trabajando en exportación masiva de todos los datos a Excel/CSV." },
+    { q: "¿Cómo funcionan los recordatorios de WhatsApp?", a: "Todos los días a las 7 AM te llega un resumen por WhatsApp con: tareas que vencen hoy, cobros y pagos pendientes, y facturas sin pagar. Necesitás tener tu teléfono cargado en Equipo." },
+  ];
+
+  // Interactive tutorial overlay
+  const tutorialOverlay = tutorialStep >= 0 && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 520, maxWidth: "92vw", background: t.card, borderRadius: 20, border: "1px solid " + t.border, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.4)" }}>
+        {/* Progress bar */}
+        <div style={{ height: 4, background: t.hover }}>
+          <div style={{ height: 4, background: "linear-gradient(90deg, " + t.accent + ", #34D399)", width: ((tutorialStep + 1) / tutorialSteps.length * 100) + "%", transition: "width 0.3s", borderRadius: 4 }} />
+        </div>
+        {/* Header */}
+        <div style={{ padding: "20px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 10, color: t.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px" }}>Tutorial interactivo</span>
+            <span style={{ fontSize: 10, color: t.accent, fontWeight: 700, background: t.accentBg, padding: "2px 8px", borderRadius: 10 }}>{tutorialStep + 1}/{tutorialSteps.length}</span>
+          </div>
+          <div onClick={() => setTutorialStep(-1)} style={{ cursor: "pointer", width: 28, height: 28, borderRadius: 7, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={14} color={t.muted} />
+          </div>
+        </div>
+        {/* Content */}
+        {(() => {
+          const step = tutorialSteps[tutorialStep];
+          const Icon = step.icon;
+          return (
+            <div style={{ padding: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: t.accentBg, border: "1px solid " + t.accent + "30", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon size={22} color={t.accentL} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: t.text }}>{step.title}</div>
+                  <div style={{ fontSize: 11, color: t.muted }}>Sección {tutorialStep + 1} de {tutorialSteps.length}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 14, color: t.text, lineHeight: 1.7, marginBottom: 16 }}>{step.desc}</div>
+              <div style={{ padding: "12px 14px", background: t.accentBg, borderRadius: 10, border: "1px solid " + t.accent + "20", marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: t.accentL, fontWeight: 600 }}>💡 Tip</div>
+                <div style={{ fontSize: 12, color: t.text, marginTop: 4 }}>{step.tip}</div>
+              </div>
+              {/* Navigation */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button onClick={() => setTutorialStep(Math.max(0, tutorialStep - 1))} disabled={tutorialStep === 0} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: tutorialStep === 0 ? t.dim : t.text, fontSize: 12, fontWeight: 600, cursor: tutorialStep === 0 ? "default" : "pointer", opacity: tutorialStep === 0 ? 0.4 : 1 }}>← Anterior</button>
+                <button onClick={() => { if (onNav) onNav(step.nav); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid " + t.accent + "40", background: t.accentBg, color: t.accentL, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Ir a {step.title} →
+                </button>
+                {tutorialStep < tutorialSteps.length - 1 ? (
+                  <button onClick={() => setTutorialStep(tutorialStep + 1)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Siguiente →</button>
+                ) : (
+                  <button onClick={() => setTutorialStep(-1)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #34D399, #059669)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ ¡Listo!</button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      {tutorialOverlay}
+
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Centro de Ayuda</div>
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Aprendé a usar GestiónAI paso a paso</div>
+      </div>
+
+      {/* Start Tutorial CTA */}
+      <Crd t={t} style={{ padding: 0, marginBottom: 20, overflow: "hidden", background: "linear-gradient(135deg, " + t.accent + "15, #A78BFA10)", border: "1px solid " + t.accent + "25" }}>
+        <div style={{ padding: 24, display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 16px " + t.accent + "40" }}>
+            <Play size={24} color="#fff" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Tutorial interactivo</div>
+            <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>Recorré las {tutorialSteps.length} secciones de la plataforma con explicaciones detalladas y tips.</div>
+          </div>
+          <button onClick={() => setTutorialStep(0)} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 2px 10px " + t.accent + "30" }}>
+            Empezar tutorial
+          </button>
+        </div>
+      </Crd>
+
+      {/* Quick Navigation */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Secciones de la plataforma</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 8, marginBottom: 24 }}>
+        {tutorialSteps.map((step, i) => {
+          const Icon = step.icon;
+          return (
+            <div key={step.nav} onClick={() => setTutorialStep(i)} style={{ padding: "14px 12px", background: t.card, border: "1px solid " + t.border, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "border-color 0.2s" }} onMouseEnter={e => e.currentTarget.style.borderColor = t.accent} onMouseLeave={e => e.currentTarget.style.borderColor = t.border}>
+              <Icon size={16} color={t.accentL} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{step.title}</div>
+                <div style={{ fontSize: 9, color: t.dim }}>Click para ver guía</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Detailed Guides */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Guías paso a paso</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12, marginBottom: 24 }}>
+        {guides.map(guide => {
+          const Icon = guide.icon;
+          const open = activeGuide === guide.id;
+          return (
+            <Crd key={guide.id} t={t} style={{ padding: 0, overflow: "hidden" }}>
+              <div onClick={() => setActiveGuide(open ? null : guide.id)} style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: guide.color + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon size={18} color={guide.color} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{guide.title}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{guide.items.length} pasos</div>
+                </div>
+                <ChevronDown size={14} color={t.dim} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+              </div>
+              {open && (
+                <div style={{ padding: "0 18px 16px" }}>
+                  {guide.items.map((item, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderTop: i === 0 ? "1px solid " + t.border : "none" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: 6, background: guide.color + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: guide.color }}>{i + 1}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: t.text, lineHeight: 1.5 }}>{item}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Crd>
+          );
+        })}
+      </div>
+
+      {/* FAQ */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Preguntas frecuentes</div>
+      <Crd t={t} style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
+        {faqs.map((faq, i) => (
+          <div key={i}>
+            <div onClick={() => setExpandedFaq(expandedFaq === i ? null : i)} style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", borderBottom: "1px solid " + t.border + "30" }} onMouseEnter={e => e.currentTarget.style.background = t.hover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <HelpCircle size={14} color={expandedFaq === i ? t.accentL : t.dim} />
+              <div style={{ flex: 1, fontSize: 13, color: t.text, fontWeight: 500 }}>{faq.q}</div>
+              <ChevronDown size={14} color={t.dim} style={{ transform: expandedFaq === i ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+            </div>
+            {expandedFaq === i && (
+              <div style={{ padding: "10px 18px 14px 42px", fontSize: 12, color: t.muted, lineHeight: 1.6, background: t.hover + "50" }}>
+                {faq.a}
+              </div>
+            )}
+          </div>
+        ))}
+      </Crd>
+
+      {/* Contact */}
+      <Crd t={t} style={{ padding: 20, display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ width: 42, height: 42, borderRadius: 12, background: "#25D36615", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <MessageSquare size={20} color="#25D366" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>¿Necesitás ayuda personalizada?</div>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Contactanos directamente por WhatsApp y te respondemos rápido.</div>
+        </div>
+        <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Necesito%20ayuda%20con%20GestiónAI" target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Phone size={14} /> Contactar soporte
+        </a>
+      </Crd>
+    </div>
+  );
+}
+
 function SuperAdminPage({ t }) {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -4232,6 +4509,219 @@ function TeamPage({ t, user, profile }) {
           4. Podés cambiar roles o quitar miembros en cualquier momento.
         </div>
       </div>
+    </div>
+  );
+}
+
+function HelpPage({ t, onNav, isDemo }) {
+  const [activeTutorial, setActiveTutorial] = useState(null);
+
+  const modules = [
+    { id: "dashboard", icon: LayoutDashboard, title: "Dashboard", desc: "Tu panel principal con el resumen diario de la empresa.", tips: [
+      "Visualizá tareas pendientes, cobros y pagos del día",
+      "Las KPIs se calculan en tiempo real desde tus transacciones",
+      "Hacé click en cualquier tarjeta para ir al módulo correspondiente",
+      "El gráfico mensual muestra ingresos vs egresos de los últimos 6 meses",
+    ]},
+    { id: "clients", icon: Users, title: "Clientes / Proveedores", desc: "Gestioná todos tus contactos comerciales en un solo lugar.", tips: [
+      "Cargá clientes y proveedores con tipo, teléfono, email y ciudad",
+      "Cada ficha muestra las transacciones y documentos vinculados",
+      "Usá el buscador del topbar para encontrar contactos rápido",
+      "Los contactos con teléfono se vinculan automáticamente con WhatsApp",
+    ]},
+    { id: "projects", icon: FolderKanban, title: "Proyectos / Obras", desc: "Seguimiento completo de cada obra con presupuesto y avance.", tips: [
+      "Creá proyectos con presupuesto, fechas de inicio/fin y cliente asociado",
+      "El detalle muestra tareas, transacciones y documentos del proyecto",
+      "Filtrá por estado: activos, completados o todos",
+      "El progreso se calcula según las tareas completadas",
+    ]},
+    { id: "tasks", icon: Target, title: "Tareas", desc: "Organizá el trabajo con board Kanban, lista o calendario.", tips: [
+      "Vista Board: arrastrá tareas entre columnas (Por hacer → En progreso → Revisión → Completado)",
+      "Asigná un responsable y fecha de vencimiento a cada tarea",
+      "Las tareas vencidas aparecen resaltadas en rojo",
+      "Con WhatsApp activado, los asignados reciben recordatorios automáticos a las 7 AM",
+    ]},
+    { id: "transactions", icon: Receipt, title: "Finanzas", desc: "Control total de ingresos, egresos y contabilidad.", tips: [
+      "Registrá cobros (positivos) y pagos (negativos) vinculados a proyectos y contactos",
+      "La pestaña Contabilidad genera asientos automáticos por cada transacción",
+      "Filtrá por tipo: ingresos, egresos, pendientes",
+      "Los montos pendientes aparecen en el Dashboard como alertas",
+    ]},
+    { id: "treasury", icon: Wallet, title: "Tesorería", desc: "Cuentas bancarias, cash flow y proyecciones.", tips: [
+      "Creá cuentas (banco, efectivo, virtual) y asigná transacciones",
+      "El cash flow muestra la proyección a 6 meses basada en pagos/cobros pendientes",
+      "Las KPIs se calculan automáticamente: saldo total, cobertura, tasa de cobro",
+      "La cuenta 'Efectivo' se crea automáticamente para la caja",
+    ]},
+    { id: "payroll", icon: CreditCard, title: "Sueldos", desc: "Liquidación de haberes del equipo.", tips: [
+      "Registrá sueldos base, horas extra, bonos y deducciones",
+      "Agrupá por empleado o por período",
+      "Ideal para llevar registro de pagos a obreros y profesionales",
+    ]},
+    { id: "documents", icon: FileText, title: "Documentos", desc: "Facturas, presupuestos, remitos y comprobantes.", tips: [
+      "Subí archivos PDF, imágenes o cualquier documento",
+      "Vinculá documentos a proyectos, contactos y transacciones",
+      "Cambiá el estado: pendiente, aprobado, rechazado, vencido",
+      "Próximamente: OCR con IA para leer facturas automáticamente",
+    ]},
+    { id: "reports", icon: BarChart3, title: "Reportes", desc: "Informes detallados con gráficos y exportación.", tips: [
+      "6 secciones: resumen ejecutivo, obras, finanzas, clientes, documentos, equipo",
+      "Gráficos interactivos calculados desde datos reales",
+      "Exportá a PDF, Excel o imprimí directamente",
+      "Los datos se actualizan en tiempo real",
+    ]},
+    { id: "team", icon: UserPlus, title: "Equipo", desc: "Invitá miembros y gestioná roles y permisos.", tips: [
+      "5 roles con permisos diferenciados: Dueño, Admin, Contador, Dir. Obra, Empleado",
+      "Cada rol solo ve las secciones que le corresponden",
+      "Cargá el teléfono de cada miembro para que reciba recordatorios por WhatsApp",
+      "Invitá por email — el nuevo miembro se registra y ya accede a los datos de la empresa",
+    ]},
+  ];
+
+  const faqs = [
+    { q: "¿Cómo agrego una transacción?", a: "Andá a Finanzas → botón \"+ Nueva transacción\". Completá monto (positivo para cobro, negativo para pago), descripción, contacto y proyecto. Guardá y aparece en el listado." },
+    { q: "¿Cómo funciona WhatsApp?", a: "GestiónAI tiene un asistente de IA que responde por WhatsApp. Tus clientes escanean el QR y la IA los atiende con información de tu empresa. También envía recordatorios automáticos de tareas y pagos a las 7 AM." },
+    { q: "¿Mis datos están seguros?", a: "Sí. Cada empresa tiene datos completamente aislados. Un usuario de una empresa jamás puede ver datos de otra. Usamos Row Level Security en la base de datos y encriptación en tránsito." },
+    { q: "¿Puedo importar datos existentes?", a: "Por ahora la carga es manual. Estamos trabajando en importación desde Excel. Contactanos por WhatsApp si necesitás migrar muchos datos y te ayudamos." },
+    { q: "¿Cómo exporto un reporte?", a: "En Reportes, usá los botones de la barra superior: PDF para descargar, Excel para hoja de cálculo, o el ícono de impresora para imprimir directamente." },
+    { q: "¿Cómo cambio mi contraseña?", a: "Desde el menú de perfil (tu avatar arriba a la derecha) → Cerrar sesión → en la pantalla de login usá 'Olvidé mi contraseña'." },
+  ];
+
+  const tutorialSteps = [
+    { target: "dashboard", title: "Dashboard", desc: "Acá ves el resumen diario: tareas pendientes, cobros, pagos y las obras activas. Todo se calcula en tiempo real.", icon: LayoutDashboard },
+    { target: "clients", title: "Clientes / Proveedores", desc: "Cargá todos tus contactos. Cada ficha muestra transacciones y documentos vinculados.", icon: Users },
+    { target: "projects", title: "Proyectos / Obras", desc: "Cada obra tiene presupuesto, tareas, documentos y transacciones asociadas. El avance se calcula automáticamente.", icon: FolderKanban },
+    { target: "tasks", title: "Tareas", desc: "Organizá el trabajo con tablero Kanban. Asigná responsables y fechas de vencimiento para recibir recordatorios por WhatsApp.", icon: Target },
+    { target: "transactions", title: "Finanzas", desc: "Registrá cobros y pagos. La contabilidad se genera automáticamente con asientos y balance.", icon: Receipt },
+    { target: "treasury", title: "Tesorería", desc: "Controlá tus cuentas bancarias, el cash flow y las proyecciones a futuro.", icon: Wallet },
+    { target: "documents", title: "Documentos", desc: "Subí facturas, presupuestos y comprobantes. Vinculalos a proyectos y contactos.", icon: FileText },
+    { target: "reports", title: "Reportes", desc: "Informes completos con gráficos interactivos. Exportá a PDF o Excel.", icon: BarChart3 },
+  ];
+
+  return (
+    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      {/* Tutorial overlay */}
+      {activeTutorial !== null && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: t.card, borderRadius: 18, border: "1px solid " + t.border, padding: 32, maxWidth: 480, width: "90vw", boxShadow: "0 24px 80px rgba(0,0,0,0.4)" }}>
+            {/* Progress dots */}
+            <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 20 }}>
+              {tutorialSteps.map((_, i) => (
+                <div key={i} style={{ width: i === activeTutorial ? 20 : 8, height: 8, borderRadius: 4, background: i === activeTutorial ? t.accent : i < activeTutorial ? t.green : t.border, transition: "all 0.3s" }} />
+              ))}
+            </div>
+            {/* Step content */}
+            {(() => { const step = tutorialSteps[activeTutorial]; return (
+              <>
+                <div style={{ width: 56, height: 56, borderRadius: 14, background: t.accentBg, border: "1px solid " + t.accent + "30", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <step.icon size={28} color={t.accentL} />
+                </div>
+                <div style={{ textAlign: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, color: t.accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Paso {activeTutorial + 1} de {tutorialSteps.length}</span>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: t.text, textAlign: "center", marginBottom: 8 }}>{step.title}</div>
+                <div style={{ fontSize: 14, color: t.muted, textAlign: "center", lineHeight: 1.6, marginBottom: 24 }}>{step.desc}</div>
+                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                  {activeTutorial > 0 && (
+                    <button onClick={() => setActiveTutorial(activeTutorial - 1)} style={{ padding: "10px 20px", borderRadius: 9, background: t.hover, border: "1px solid " + t.border, color: t.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>← Anterior</button>
+                  )}
+                  {activeTutorial < tutorialSteps.length - 1 ? (
+                    <button onClick={() => setActiveTutorial(activeTutorial + 1)} style={{ padding: "10px 28px", borderRadius: 9, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Siguiente →</button>
+                  ) : (
+                    <button onClick={() => { setActiveTutorial(null); if (onNav) onNav("dashboard"); }} style={{ padding: "10px 28px", borderRadius: 9, background: "linear-gradient(135deg, " + t.green + ", #34D399)", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>✓ Ir al Dashboard</button>
+                  )}
+                </div>
+                <div onClick={() => setActiveTutorial(null)} style={{ textAlign: "center", marginTop: 12, fontSize: 12, color: t.dim, cursor: "pointer" }}>Saltar tutorial</div>
+              </>
+            ); })()}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Centro de Ayuda</div>
+          <div style={{ fontSize: 12, color: t.muted }}>Aprendé a usar GestiónAI paso a paso</div>
+        </div>
+        <button onClick={() => setActiveTutorial(0)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px " + t.accent + "40" }}>
+          <Sparkles size={16} /> Iniciar tutorial interactivo
+        </button>
+      </div>
+
+      {/* Quick start */}
+      <Crd t={t} style={{ padding: 20, marginBottom: 20, background: "linear-gradient(135deg, " + t.accent + "08, " + t.accentBg + ")", border: "1px solid " + t.accent + "25" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <Sparkles size={20} color={t.accentL} />
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Primeros pasos</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+          {[
+            { n: "1", text: "Cargá tus clientes y proveedores", nav: "clients" },
+            { n: "2", text: "Creá tu primer proyecto / obra", nav: "projects" },
+            { n: "3", text: "Agregá tareas con fechas y responsables", nav: "tasks" },
+            { n: "4", text: "Registrá cobros y pagos", nav: "transactions" },
+            { n: "5", text: "Cargá teléfonos del equipo para WhatsApp", nav: "team" },
+          ].map(s => (
+            <div key={s.n} onClick={() => onNav && onNav(s.nav)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, background: t.card, border: "1px solid " + t.border, cursor: "pointer" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = t.accent + "50"} onMouseLeave={e => e.currentTarget.style.borderColor = t.border}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: t.accentBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: t.accentL }}>{s.n}</span>
+              </div>
+              <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{s.text}</span>
+            </div>
+          ))}
+        </div>
+      </Crd>
+
+      {/* Modules guide */}
+      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Guía por módulo</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 24 }}>
+        {modules.map(m => (
+          <Crd key={m.id} t={t} style={{ padding: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: t.accentBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <m.icon size={18} color={t.accentL} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{m.title}</div>
+                <div style={{ fontSize: 11, color: t.muted }}>{m.desc}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {m.tips.map((tip, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span style={{ color: t.green, fontSize: 10, marginTop: 3, flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: 12, color: t.muted, lineHeight: 1.4 }}>{tip}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => onNav && onNav(m.id)} style={{ marginTop: 10, width: "100%", padding: "7px 0", borderRadius: 7, background: t.hover, border: "1px solid " + t.border, color: t.accentL, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              Ir a {m.title} →
+            </button>
+          </Crd>
+        ))}
+      </div>
+
+      {/* FAQ */}
+      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Preguntas frecuentes</div>
+      <Crd t={t} style={{ padding: 20, marginBottom: 24 }}>
+        {faqs.map((f, i) => (
+          <div key={i} style={{ padding: "14px 0", borderBottom: i < faqs.length - 1 ? "1px solid " + t.border + "30" : "none" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 6 }}>{f.q}</div>
+            <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6 }}>{f.a}</div>
+          </div>
+        ))}
+      </Crd>
+
+      {/* Contact */}
+      <Crd t={t} style={{ padding: 20, textAlign: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 6 }}>¿Necesitás ayuda personalizada?</div>
+        <div style={{ fontSize: 12, color: t.muted, marginBottom: 14 }}>Nuestro equipo te asiste por WhatsApp en horario laboral</div>
+        <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Necesito%20ayuda%20con%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 24px", borderRadius: 10, background: "#25D366", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+          <MessageSquare size={16} /> Contactar soporte por WhatsApp
+        </a>
+      </Crd>
     </div>
   );
 }
