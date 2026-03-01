@@ -4399,10 +4399,14 @@ function TeamPage({ t, user, profile }) {
             register_url: registerUrl,
           },
         });
-        if (emailErr || !emailResult?.ok) {
-          setSuccess("⚠️ Invitación guardada pero el email no se pudo enviar. Podés copiar el link desde la lista.");
-        } else {
+        if (emailErr) {
+          console.error("Email invoke error:", emailErr);
+          setSuccess("⚠️ Invitación guardada. Error al enviar email: " + (emailErr.message || "Edge Function no disponible") + ". Usá 'Copiar link' de la lista.");
+        } else if (emailResult?.ok) {
           setSuccess("✅ Email de invitación enviado a " + invForm.email);
+        } else {
+          console.error("Email result error:", emailResult);
+          setSuccess("⚠️ Invitación guardada. " + (emailResult?.error || "Error desconocido") + ". Usá 'Copiar link' de la lista.");
         }
       }
 
@@ -4941,7 +4945,9 @@ function LoginPage({ onLogin }) {
 }
 
 export default function App() {
-  const [view, setView] = useState("landing"); // Always start at landing
+  // Detect invite token in URL before anything else
+  const hasInviteToken = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("invite");
+  const [view, setView] = useState(hasInviteToken ? "login" : "landing");
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [authReady, setAuthReady] = useState(false);
@@ -4960,8 +4966,11 @@ export default function App() {
       if (session?.user) {
         setUser(session.user);
         loadProfile(session.user.id);
-        // After login/register, go to app
-        if (event === "SIGNED_IN") setView("app");
+        // After login/register, go to app (but not if we're showing invite registration)
+        if (event === "SIGNED_IN") {
+          const inviteParam = new URLSearchParams(window.location.search).has("invite");
+          if (!inviteParam) setView("app");
+        }
       } else {
         setUser(null); setProfile(null);
         setView("landing");
