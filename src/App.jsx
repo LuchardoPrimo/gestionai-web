@@ -4333,7 +4333,9 @@ function TeamPage({ t, user, profile }) {
       if (demoTeam) setMembers(demoTeam);
       return;
     }
-    const { data: m } = await supabase.from("user_profiles").select("*, user:id(email)").eq("company_id", companyId);
+    // Load profiles (without auth.users join which can fail due to RLS)
+    const { data: m, error: mErr } = await supabase.from("user_profiles").select("*").eq("company_id", companyId);
+    if (mErr) console.error("Load members error:", mErr.message);
     if (m) setMembers(m);
     const { data: inv } = await supabase.from("invitations").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
     if (inv) setInvitations(inv);
@@ -4345,7 +4347,7 @@ function TeamPage({ t, user, profile }) {
     setError(""); setSuccess("");
     if (!invForm.email.trim() || !invForm.email.includes("@")) { setError("Ingresá un email válido"); return; }
     if (invForm.channel === "whatsapp" && (!invForm.phone.trim() || invForm.phone.replace(/[^0-9+]/g, "").length < 8)) { setError("Ingresá un teléfono válido con código de país (+54...)"); return; }
-    if (members.some(m => m.user?.email === invForm.email)) { setError("Este email ya es miembro del equipo"); return; }
+    if (members.some(m => (m.email || m.full_name || "").toLowerCase() === invForm.email.toLowerCase())) { setError("Este email ya es miembro del equipo"); return; }
     if (invitations.some(i => i.email === invForm.email && i.status === "pending")) { setError("Ya hay una invitación pendiente para este email"); return; }
     setSending(true);
     try {
@@ -4389,24 +4391,31 @@ function TeamPage({ t, user, profile }) {
         window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, "_blank");
         setSuccess("✅ Se abrió WhatsApp con el mensaje. Si no se abrió, usá 'Copiar link' de la lista.");
       } else {
-        // Email via Edge Function
-        const { data: emailResult, error: emailErr } = await supabase.functions.invoke("send-invite-email", {
-          body: {
-            to_email: invForm.email.trim().toLowerCase(),
-            name: invForm.name || "",
-            role: roleLabel,
-            company_name: companyName,
-            register_url: registerUrl,
-          },
-        });
-        if (emailErr) {
-          console.error("Email invoke error:", emailErr);
-          setSuccess("⚠️ Invitación guardada. Error al enviar email: " + (emailErr.message || "Edge Function no disponible") + ". Usá 'Copiar link' de la lista.");
-        } else if (emailResult?.ok) {
+        // Email via Edge Function — try multiple possible function names
+        const emailBody = {
+          to_email: invForm.email.trim().toLowerCase(),
+          name: invForm.name || "",
+          role: roleLabel,
+          company_name: companyName,
+          register_url: registerUrl,
+        };
+        let emailOk = false;
+        let emailError = "";
+        // Try known function names (in case deploy slug differs from name)
+        for (const fnName of ["send-invite-email", "super-handler"]) {
+          const { data: emailResult, error: emailErr } = await supabase.functions.invoke(fnName, { body: emailBody });
+          if (!emailErr && emailResult?.ok) {
+            emailOk = true;
+            break;
+          }
+          if (emailErr) emailError = emailErr.message || fnName + " failed";
+          else if (emailResult?.error) emailError = emailResult.error;
+        }
+        if (emailOk) {
           setSuccess("✅ Email de invitación enviado a " + invForm.email);
         } else {
-          console.error("Email result error:", emailResult);
-          setSuccess("⚠️ Invitación guardada. " + (emailResult?.error || "Error desconocido") + ". Usá 'Copiar link' de la lista.");
+          console.error("Email error:", emailError);
+          setSuccess("⚠️ Invitación guardada. " + (emailError || "Error al enviar email") + ". Usá 'Copiar link' de la lista.");
         }
       }
 
@@ -4540,11 +4549,11 @@ function TeamPage({ t, user, profile }) {
       <Crd t={t} style={{ padding: 20, marginBottom: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14 }}>Miembros del equipo</div>
         {members.length === 0 ? (
-          <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Cargando miembros...</div>
+          <div style={{ padding: 20, textAlign: "center", color: t.dim, fontSize: 12 }}>Sin miembros registrados</div>
         ) : members.map(m => {
-          const email = m.user?.email || "—";
-          const name = m.full_name || email.split("@")[0];
+          const name = m.full_name || "Usuario";
           const isMe = m.id === user?.id;
+          const displayEmail = isMe ? user?.email : (invitations.find(i => i.status === "accepted" && i.role === m.role)?.email || "");
           return (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid " + t.border + "20" }}>
               <Av name={name} size={36} />
@@ -4553,7 +4562,7 @@ function TeamPage({ t, user, profile }) {
                   <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{name}</span>
                   {isMe && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: t.accentBg, color: t.accentL }}>Vos</span>}
                 </div>
-                <div style={{ fontSize: 11, color: t.dim }}>{email}</div>
+                {displayEmail && <div style={{ fontSize: 11, color: t.dim }}>{displayEmail}</div>}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                   {m.phone_number ? (
                     <span style={{ fontSize: 10, color: t.muted, fontFamily: "monospace" }}>📱 {m.phone_number}</span>
@@ -4590,7 +4599,7 @@ function TeamPage({ t, user, profile }) {
                   </span>
                 )}
                 {isOwner && !isMe && (
-                  <button onClick={() => removeMember(m.id, email)} style={{ padding: "4px 8px", background: t.redBg, border: "1px solid " + t.red + "20", borderRadius: 5, color: t.red, fontSize: 10, cursor: "pointer" }}>Quitar</button>
+                  <button onClick={() => removeMember(m.id, name)} style={{ padding: "4px 8px", background: t.redBg, border: "1px solid " + t.red + "20", borderRadius: 5, color: t.red, fontSize: 10, cursor: "pointer" }}>Quitar</button>
                 )}
               </div>
             </div>
