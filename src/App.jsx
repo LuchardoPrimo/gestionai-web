@@ -4391,37 +4391,22 @@ function TeamPage({ t, user, profile }) {
         window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, "_blank");
         setSuccess("✅ Se abrió WhatsApp con el mensaje. Si no se abrió, usá 'Copiar link' de la lista.");
       } else {
-        // Email via Edge Function — direct fetch con URL hardcodeada
-        const emailBody = {
-          to_email: invForm.email.trim().toLowerCase(),
-          name: invForm.name || "",
-          role: roleLabel,
-          company_name: companyName,
-          register_url: registerUrl,
-        };
-        let emailOk = false;
-        let emailError = "";
-        const baseUrl = "https://nmmpqyoiexkzpahjbqg1.supabase.co/functions/v1";
-        for (const slug of ["send-invite-email", "super-handler"]) {
-          try {
-            const resp = await fetch(baseUrl + "/" + slug, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(emailBody),
-            });
-            const txt = await resp.text();
-            let result = {};
-            try { result = JSON.parse(txt); } catch(e) { result = { error: txt.substring(0, 200) }; }
-            if (resp.ok && result?.ok) { emailOk = true; break; }
-            emailError = slug + ": " + (result?.error || resp.status);
-          } catch (e) {
-            emailError = slug + ": " + e.message;
-          }
-        }
-        if (emailOk) {
-          setSuccess("✅ Email de invitación enviado a " + invForm.email);
+        // Email automático via Edge Function
+        const { data: emailResult, error: emailErr } = await supabase.functions.invoke("super-handler", {
+          body: {
+            to_email: invForm.email.trim().toLowerCase(),
+            name: invForm.name || "",
+            role: roleLabel,
+            company_name: companyName,
+            register_url: registerUrl,
+          },
+        });
+        if (emailErr) {
+          setSuccess("⚠️ Invitación guardada. Error: " + (emailErr.message || "Edge Function no disponible") + ". Usá 'Copiar link'.");
+        } else if (emailResult?.ok) {
+          setSuccess("✅ Email enviado automáticamente a " + invForm.email);
         } else {
-          setSuccess("⚠️ Invitación guardada. Error: " + emailError + ". Usá 'Copiar link' de la lista.");
+          setSuccess("⚠️ Invitación guardada. " + (emailResult?.error || "Error desconocido") + ". Usá 'Copiar link'.");
         }
       }
 
@@ -4491,7 +4476,7 @@ function TeamPage({ t, user, profile }) {
           <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, padding: "8px 10px", background: t.hover, borderRadius: 6 }}>
             {invForm.channel === "whatsapp" 
               ? "Se abrirá WhatsApp con el mensaje listo para que lo envíes desde tu teléfono."
-              : "Se enviará un email automático con el link de registro."
+              : "Se envía un email automático con el link de registro al invitado."
             }
           </div>
           <div style={{ display: "grid", gridTemplateColumns: invForm.channel === "whatsapp" ? "1fr 1fr" : "1fr", gap: 10, marginBottom: 12 }}>
@@ -4545,7 +4530,7 @@ function TeamPage({ t, user, profile }) {
             <button onClick={() => { setShowInvite(false); setError(""); }} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
             <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: invForm.channel === "whatsapp" ? "linear-gradient(135deg, #25D366, #128C7E)" : "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
               {invForm.channel === "whatsapp" ? <MessageSquare size={12} /> : <Mail size={12} />}
-              {sending ? "Enviando..." : invForm.channel === "whatsapp" ? "Invitar por WhatsApp" : "Enviar email de invitación"}
+              {sending ? "Enviando..." : invForm.channel === "whatsapp" ? "Invitar por WhatsApp" : "Enviar invitación por Email"}
             </button>
           </div>
         </Crd>
@@ -4654,10 +4639,10 @@ function TeamPage({ t, user, profile }) {
       <div style={{ marginTop: 20, padding: 16, background: t.hover, borderRadius: 10, border: "1px solid " + t.border }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 6 }}>¿Cómo funciona?</div>
         <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.6 }}>
-          1. Elegí cómo enviar: WhatsApp (se abre WA con el mensaje) o Email (automático).<br />
+          1. Elegí cómo enviar: WhatsApp (se abre WA) o Email (se envía automáticamente).<br />
           2. Completá nombre, email y rol. Si elegís WhatsApp, agregá el teléfono.<br />
-          3. El invitado recibe un link único de registro.<br />
-          4. Se registra con el email indicado y automáticamente queda en tu empresa.
+          3. El invitado recibe el mensaje con un link único de registro.<br />
+          4. Se registra con el email indicado y queda en tu empresa automáticamente.
         </div>
       </div>
     </div>
