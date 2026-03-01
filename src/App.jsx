@@ -4320,7 +4320,7 @@ function TeamPage({ t, user, profile }) {
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [showInvite, setShowInvite] = useState(false);
-  const [invForm, setInvForm] = useState({ email: "", role: "employee", name: "", phone: "" });
+  const [invForm, setInvForm] = useState({ email: "", role: "employee", name: "", phone: "", channel: "whatsapp" });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -4344,53 +4344,69 @@ function TeamPage({ t, user, profile }) {
   const sendInvite = async () => {
     setError(""); setSuccess("");
     if (!invForm.email.trim() || !invForm.email.includes("@")) { setError("Ingresá un email válido"); return; }
-    if (!invForm.phone.trim() || invForm.phone.replace(/[^0-9+]/g, "").length < 8) { setError("Ingresá un teléfono válido con código de país (+54...)"); return; }
+    if (invForm.channel === "whatsapp" && (!invForm.phone.trim() || invForm.phone.replace(/[^0-9+]/g, "").length < 8)) { setError("Ingresá un teléfono válido con código de país (+54...)"); return; }
     if (members.some(m => m.user?.email === invForm.email)) { setError("Este email ya es miembro del equipo"); return; }
     if (invitations.some(i => i.email === invForm.email && i.status === "pending")) { setError("Ya hay una invitación pendiente para este email"); return; }
     setSending(true);
     try {
-      // Generate unique token
       const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-      const cleanPhone = invForm.phone.replace(/[^0-9+]/g, "");
+      const cleanPhone = invForm.phone ? invForm.phone.replace(/[^0-9+]/g, "") : "";
 
-      // Get company name
       const { data: comp } = await supabase.from("companies").select("name").eq("id", companyId).single();
       const companyName = comp?.name || "Tu empresa";
 
-      // Save invitation with token + phone
       const { error: dbErr } = await supabase.from("invitations").insert([{
         company_id: companyId,
         email: invForm.email.trim().toLowerCase(),
         role: invForm.role,
         invited_by: user?.id,
-        phone: cleanPhone,
+        phone: cleanPhone || null,
         name: invForm.name || null,
         invite_token: token,
       }]);
       if (dbErr) { setError(dbErr.message); setSending(false); return; }
 
-      // Send WhatsApp via Edge Function
       const appUrl = window.location.origin;
-      const { data: waResult, error: waErr } = await supabase.functions.invoke("send-invite", {
-        body: {
-          phone: cleanPhone,
-          email: invForm.email.trim().toLowerCase(),
-          name: invForm.name || "",
-          role: invForm.role,
-          company_name: companyName,
-          invite_token: token,
-          app_url: appUrl,
-        },
-      });
+      const registerUrl = appUrl + "/?invite=" + token;
+      const roleLabel = { admin: "Administrador", accountant: "Contador", pm: "Director de Obra", employee: "Empleado" }[invForm.role] || invForm.role;
 
-      if (waErr) {
-        setSuccess("⚠️ Invitación guardada pero el WhatsApp no se pudo enviar. Podés copiar el link manualmente desde la lista de abajo.");
-      } else if (waResult?.ok) {
-        setSuccess("✅ Invitación enviada por WhatsApp a " + cleanPhone);
+      if (invForm.channel === "whatsapp") {
+        const waMessage = [
+          `🏗️ *Invitación a GestiónAI*`,
+          ``,
+          `Hola${invForm.name ? " " + invForm.name : ""} 👋`,
+          ``,
+          `*${companyName}* te invita a unirte a su plataforma de gestión.`,
+          ``,
+          `📋 Rol: *${roleLabel}*`,
+          `📧 Registrate con: ${invForm.email.trim().toLowerCase()}`,
+          ``,
+          `👉 Link: ${registerUrl}`,
+          ``,
+          `Usá ese email para que la vinculación sea automática.`,
+        ].join("\n");
+        const waPhone = cleanPhone.replace("+", "");
+        window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, "_blank");
+        setSuccess("✅ Se abrió WhatsApp con el mensaje. Si no se abrió, usá 'Copiar link' de la lista.");
       } else {
-        setSuccess("⚠️ Invitación guardada. WA: " + (waResult?.error || "no enviado") + ". Usá 'Copiar link' de la lista para mandar manualmente.");
+        // Email via Edge Function
+        const { data: emailResult, error: emailErr } = await supabase.functions.invoke("send-invite-email", {
+          body: {
+            to_email: invForm.email.trim().toLowerCase(),
+            name: invForm.name || "",
+            role: roleLabel,
+            company_name: companyName,
+            register_url: registerUrl,
+          },
+        });
+        if (emailErr || !emailResult?.ok) {
+          setSuccess("⚠️ Invitación guardada pero el email no se pudo enviar. Podés copiar el link desde la lista.");
+        } else {
+          setSuccess("✅ Email de invitación enviado a " + invForm.email);
+        }
       }
-      setInvForm({ email: "", role: "employee", name: "", phone: "" });
+
+      setInvForm({ email: "", role: "employee", name: "", phone: "", channel: invForm.channel });
       setShowInvite(false);
       await loadTeam();
     } catch (e) {
@@ -4441,10 +4457,25 @@ function TeamPage({ t, user, profile }) {
             <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Invitar nuevo miembro</div>
             <span onClick={() => { setShowInvite(false); setError(""); }} style={{ cursor: "pointer", color: t.dim }}>✕</span>
           </div>
-          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, padding: "8px 10px", background: t.hover, borderRadius: 6 }}>
-            La persona recibirá un mensaje por WhatsApp con un link de registro. Al registrarse con el email indicado, se unirá automáticamente a tu empresa.
+          {/* Channel selector */}
+          <div style={{ display: "flex", gap: 0, marginBottom: 14, borderRadius: 8, overflow: "hidden", border: "1px solid " + t.border }}>
+            {[{ id: "whatsapp", label: "WhatsApp", icon: MessageSquare, color: "#25D366" }, { id: "email", label: "Email", icon: Mail, color: t.accentL }].map(ch => {
+              const active = invForm.channel === ch.id;
+              const Icon = ch.icon;
+              return (
+                <button key={ch.id} onClick={() => setInvForm({ ...invForm, channel: ch.id })} style={{ flex: 1, padding: "10px 12px", background: active ? (ch.id === "whatsapp" ? "#25D36615" : t.accentBg) : t.hover, border: "none", color: active ? ch.color : t.dim, fontSize: 12, fontWeight: active ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.2s" }}>
+                  <Icon size={13} /> {ch.label}
+                </button>
+              );
+            })}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14, padding: "8px 10px", background: t.hover, borderRadius: 6 }}>
+            {invForm.channel === "whatsapp" 
+              ? "Se abrirá WhatsApp con el mensaje listo para que lo envíes desde tu teléfono."
+              : "Se enviará un email automático con el link de registro."
+            }
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: invForm.channel === "whatsapp" ? "1fr 1fr" : "1fr", gap: 10, marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>Nombre del invitado</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 10px" }}>
@@ -4452,13 +4483,15 @@ function TeamPage({ t, user, profile }) {
                 <input value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} placeholder="Juan Pérez" style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 12, outline: "none" }} />
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>WhatsApp del invitado *</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 10px" }}>
-                <MessageSquare size={13} color="#25D366" />
-                <input value={invForm.phone} onChange={e => setInvForm({ ...invForm, phone: e.target.value })} placeholder="+54 9 11 5555 1234" style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 12, outline: "none", fontFamily: "monospace" }} />
+            {invForm.channel === "whatsapp" && (
+              <div>
+                <div style={{ fontSize: 11, color: t.muted, marginBottom: 4 }}>WhatsApp del invitado *</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, background: t.hover, border: "1px solid " + t.border, borderRadius: 7, padding: "8px 10px" }}>
+                  <MessageSquare size={13} color="#25D366" />
+                  <input value={invForm.phone} onChange={e => setInvForm({ ...invForm, phone: e.target.value })} placeholder="+54 9 11 5555 1234" style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontSize: 12, outline: "none", fontFamily: "monospace" }} />
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div>
@@ -4491,8 +4524,9 @@ function TeamPage({ t, user, profile }) {
           {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 12, fontSize: 12, color: t.red }}>{error}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button onClick={() => { setShowInvite(false); setError(""); }} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
-            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: "linear-gradient(135deg, #25D366, #128C7E)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
-              <MessageSquare size={12} />{sending ? "Enviando por WhatsApp..." : "Enviar invitación por WhatsApp"}
+            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: invForm.channel === "whatsapp" ? "linear-gradient(135deg, #25D366, #128C7E)" : "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
+              {invForm.channel === "whatsapp" ? <MessageSquare size={12} /> : <Mail size={12} />}
+              {sending ? "Enviando..." : invForm.channel === "whatsapp" ? "Invitar por WhatsApp" : "Enviar email de invitación"}
             </button>
           </div>
         </Crd>
@@ -4601,10 +4635,10 @@ function TeamPage({ t, user, profile }) {
       <div style={{ marginTop: 20, padding: 16, background: t.hover, borderRadius: 10, border: "1px solid " + t.border }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 6 }}>¿Cómo funciona?</div>
         <div style={{ fontSize: 11, color: t.muted, lineHeight: 1.6 }}>
-          1. Invitás a alguien con su WhatsApp, email y rol asignado.<br />
-          2. Le llega un mensaje por WhatsApp con un link de registro único.<br />
-          3. La persona hace click, se registra y automáticamente se une a tu empresa.<br />
-          4. Si no recibió el WA, podés copiar el link y mandárselo manualmente.
+          1. Elegí cómo enviar: WhatsApp (se abre WA con el mensaje) o Email (automático).<br />
+          2. Completá nombre, email y rol. Si elegís WhatsApp, agregá el teléfono.<br />
+          3. El invitado recibe un link único de registro.<br />
+          4. Se registra con el email indicado y automáticamente queda en tu empresa.
         </div>
       </div>
     </div>
