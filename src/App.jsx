@@ -4391,23 +4391,8 @@ function TeamPage({ t, user, profile }) {
         window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, "_blank");
         setSuccess("✅ Se abrió WhatsApp con el mensaje. Si no se abrió, usá 'Copiar link' de la lista.");
       } else {
-        // Email automático via Edge Function
-        const { data: emailResult, error: emailErr } = await supabase.functions.invoke("super-handler", {
-          body: {
-            to_email: invForm.email.trim().toLowerCase(),
-            name: invForm.name || "",
-            role: roleLabel,
-            company_name: companyName,
-            register_url: registerUrl,
-          },
-        });
-        if (emailErr) {
-          setSuccess("⚠️ Invitación guardada. Error: " + (emailErr.message || "Edge Function no disponible") + ". Usá 'Copiar link'.");
-        } else if (emailResult?.ok) {
-          setSuccess("✅ Email enviado automáticamente a " + invForm.email);
-        } else {
-          setSuccess("⚠️ Invitación guardada. " + (emailResult?.error || "Error desconocido") + ". Usá 'Copiar link'.");
-        }
+        // Email se envía automáticamente via trigger en la DB
+        setSuccess("✅ Invitación enviada por email a " + invForm.email.trim().toLowerCase());
       }
 
       setInvForm({ email: "", role: "employee", name: "", phone: "", channel: invForm.channel });
