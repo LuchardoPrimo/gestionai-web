@@ -4411,13 +4411,25 @@ function TeamPage({ t, user, profile }) {
   };
 
   const changeMemberRole = async (memberId, newRole) => {
-    await supabase.from("user_profiles").update({ role: newRole }).eq("id", memberId);
+    const { data, error } = await supabase.rpc("change_member_role", {
+      p_member_id: memberId,
+      p_requester_id: user?.id,
+      p_new_role: newRole,
+    });
+    if (error) { window.alert("Error: " + error.message); return; }
+    if (data && !data.ok) { window.alert(data.error); return; }
     await loadTeam();
   };
 
-  const removeMember = async (memberId, email) => {
-    if (!window.confirm("¿Eliminar a " + email + " del equipo? Ya no podrá acceder a los datos de la empresa.")) return;
-    await supabase.from("user_profiles").update({ company_id: null }).eq("id", memberId);
+  const removeMember = async (memberId, memberName) => {
+    if (!window.confirm("¿Eliminar a " + memberName + " del equipo? Ya no podrá acceder a los datos de la empresa.")) return;
+    const { data, error } = await supabase.rpc("remove_team_member", {
+      p_member_id: memberId,
+      p_requester_id: user?.id,
+    });
+    if (error) { window.alert("Error: " + error.message); return; }
+    if (data && !data.ok) { window.alert(data.error); return; }
+    setSuccess("✅ Miembro eliminado del equipo");
     await loadTeam();
   };
 
@@ -4551,8 +4563,9 @@ function TeamPage({ t, user, profile }) {
                       if (phone === null) return;
                       const clean = phone.replace(/[^0-9+]/g, "");
                       if (clean.length < 8 && clean.length > 0) { window.alert("Teléfono inválido"); return; }
-                      supabase.from("user_profiles").update({ phone_number: clean || null }).eq("id", m.id).then(({ error }) => {
+                      supabase.rpc("update_member_phone", { p_member_id: m.id, p_requester_id: user?.id, p_phone: clean || null }).then(({ data, error }) => {
                         if (error) window.alert("Error: " + error.message);
+                        else if (data && !data.ok) window.alert(data.error);
                         else loadTeam();
                       });
                     }} style={{ fontSize: 9, color: t.accentL, cursor: "pointer", textDecoration: "underline" }}>
