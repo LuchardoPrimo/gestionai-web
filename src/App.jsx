@@ -4391,7 +4391,7 @@ function TeamPage({ t, user, profile }) {
         window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`, "_blank");
         setSuccess("✅ Se abrió WhatsApp con el mensaje. Si no se abrió, usá 'Copiar link' de la lista.");
       } else {
-        // Email via Edge Function — try multiple possible function names
+        // Email via Edge Function — direct fetch con URL hardcodeada
         const emailBody = {
           to_email: invForm.email.trim().toLowerCase(),
           name: invForm.name || "",
@@ -4401,21 +4401,27 @@ function TeamPage({ t, user, profile }) {
         };
         let emailOk = false;
         let emailError = "";
-        // Try known function names (in case deploy slug differs from name)
-        for (const fnName of ["send-invite-email", "super-handler"]) {
-          const { data: emailResult, error: emailErr } = await supabase.functions.invoke(fnName, { body: emailBody });
-          if (!emailErr && emailResult?.ok) {
-            emailOk = true;
-            break;
+        const baseUrl = "https://nmmpqyoiexkzpahjbqg1.supabase.co/functions/v1";
+        for (const slug of ["send-invite-email", "super-handler"]) {
+          try {
+            const resp = await fetch(baseUrl + "/" + slug, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(emailBody),
+            });
+            const txt = await resp.text();
+            let result = {};
+            try { result = JSON.parse(txt); } catch(e) { result = { error: txt.substring(0, 200) }; }
+            if (resp.ok && result?.ok) { emailOk = true; break; }
+            emailError = slug + ": " + (result?.error || resp.status);
+          } catch (e) {
+            emailError = slug + ": " + e.message;
           }
-          if (emailErr) emailError = emailErr.message || fnName + " failed";
-          else if (emailResult?.error) emailError = emailResult.error;
         }
         if (emailOk) {
           setSuccess("✅ Email de invitación enviado a " + invForm.email);
         } else {
-          console.error("Email error:", emailError);
-          setSuccess("⚠️ Invitación guardada. " + (emailError || "Error al enviar email") + ". Usá 'Copiar link' de la lista.");
+          setSuccess("⚠️ Invitación guardada. Error: " + emailError + ". Usá 'Copiar link' de la lista.");
         }
       }
 
