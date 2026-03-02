@@ -20,6 +20,115 @@ const uploadFile = async (file) => {
   const { data } = supabase.storage.from("documents").getPublicUrl(path);
   return data?.publicUrl || null;
 };
+
+// Reusable file drop zone + attachment list component
+// Usage: <FileDropZone t={t} docs={filteredDocs} entityField="contact_id" entityId={c.id} companyId={companyId} onUpload={reload} />
+function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload, label, docType }) {
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const ACCEPT = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.eml,.msg,.txt,.csv,.zip";
+  const emailExts = ["eml", "msg"];
+
+  const getSourceType = (fileName) => {
+    const ext = (fileName || "").split(".").pop().toLowerCase();
+    if (emailExts.includes(ext)) return "email";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
+    if (["pdf"].includes(ext)) return "invoice";
+    return "file";
+  };
+
+  const getIcon = (sourceType) => {
+    if (sourceType === "email") return "✉️";
+    if (sourceType === "image") return "🖼️";
+    if (sourceType === "invoice") return "📄";
+    return "📎";
+  };
+
+  const formatSize = (size) => size > 1048576 ? (size / 1048576).toFixed(1) + " MB" : Math.round(size / 1024) + " KB";
+
+  const handleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (const f of Array.from(files)) {
+      const fileUrl = await uploadFile(f);
+      if (!fileUrl) continue;
+      const insertObj = {
+        name: f.name,
+        type: docType || "other",
+        size: formatSize(f.size),
+        status: "pending",
+        file_url: fileUrl,
+        company_id: companyId,
+        source_type: getSourceType(f.name),
+      };
+      if (entityField && entityId) insertObj[entityField] = entityId;
+      await supabase.from("documents").insert([insertObj]);
+    }
+    setUploading(false);
+    if (onUpload) onUpload();
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    setDragging(false);
+    handleFiles(e.dataTransfer.files);
+  };
+  const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragging(true); };
+  const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragging(false); };
+
+  const deleteDoc = async (docId) => {
+    if (!window.confirm("¿Eliminar este archivo?")) return;
+    await supabase.from("documents").delete().eq("id", docId);
+    if (onUpload) onUpload();
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{label || "Archivos adjuntos"} ({docs.length})</div>
+        <input ref={fileRef} type="file" multiple accept={ACCEPT} style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
+      </div>
+      {/* Drop zone */}
+      <div
+        onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}
+        onClick={() => fileRef.current?.click()}
+        style={{
+          border: "2px dashed " + (dragging ? t.accent : t.border),
+          borderRadius: 10, padding: uploading ? "14px" : "18px 14px",
+          textAlign: "center", cursor: "pointer", marginBottom: 10,
+          background: dragging ? t.accentBg : t.hover,
+          transition: "all 0.2s",
+        }}
+      >
+        {uploading ? (
+          <div style={{ fontSize: 12, color: t.accentL }}>⏳ Subiendo...</div>
+        ) : (
+          <>
+            <Upload size={18} color={dragging ? t.accent : t.dim} style={{ marginBottom: 4 }} />
+            <div style={{ fontSize: 11, color: dragging ? t.accent : t.muted }}>
+              Arrastrá archivos o emails acá, o hacé click para seleccionar
+            </div>
+            <div style={{ fontSize: 9, color: t.dim, marginTop: 4 }}>PDF, imágenes, Word, Excel, emails (.eml, .msg) y más</div>
+          </>
+        )}
+      </div>
+      {/* File list */}
+      {docs.length > 0 ? docs.map(d => (
+        <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+          <span style={{ fontSize: 16 }}>{getIcon(d.source_type || getSourceType(d.name))}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
+            <div style={{ fontSize: 10, color: t.dim }}>{d.size || ""}{d.source_type === "email" ? " · Email" : ""}</div>
+          </div>
+          {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5, flexShrink: 0 }}>Ver ↗</a>}
+          <span onClick={() => deleteDoc(d.id)} style={{ cursor: "pointer", fontSize: 12, color: t.dim, flexShrink: 0 }}>🗑️</span>
+        </div>
+      )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Sin archivos adjuntos</div>}
+    </div>
+  );
+}
 import {
   LayoutDashboard, Users, FolderKanban, Receipt, Wallet, FileText, Bell, Search,
   Plus, MoreHorizontal, ArrowUpRight, ArrowDownRight, Eye, Calendar, Clock,
@@ -961,25 +1070,7 @@ function Clients({ t }) {
               )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 24 }}>Sin movimientos aún</div>}
             </Crd>
             <Crd t={t} style={{ padding: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Documentos ({clientDocs.length})</div>
-                <input ref={clientFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
-                  const f = e.target.files[0]; if (!f) return;
-                  const fileUrl = await uploadFile(f);
-                  if (!fileUrl) return;
-                  await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", contact_id: c.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
-                  const curSel = sel; await reload(); setSel(curSel);
-                }} />
-                <Btn t={t} onClick={() => clientFileRef.current && clientFileRef.current.click()}><Upload size={12} />Subir</Btn>
-              </div>
-              {clientDocs.length ? clientDocs.map(d => (
-                <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                  <FileText size={14} color={t.accentL} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.size}</div></div>
-                  {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a>}
-                  <Badge s={d.status} t={t} />
-                </div>
-              )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 24 }}>Sin documentos</div>}
+              <FileDropZone t={t} docs={clientDocs} entityField="contact_id" entityId={c.id} companyId={companyId} onUpload={async () => { const curSel = sel; await reload(); setSel(curSel); }} label="Documentos" />
             </Crd>
           </div>
         </div>
@@ -1168,25 +1259,7 @@ function ProjectsPage({ t }) {
           </Crd>
         </div>
         <Crd t={t} style={{ padding: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Documentos y facturas</div>
-            <input ref={projFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={async (e) => {
-              const f = e.target.files[0]; if (!f) return;
-              const fileUrl = await uploadFile(f);
-              if (!fileUrl) return;
-              await supabase.from("documents").insert([{ name: f.name, type: "other", size: f.size > 1048576 ? (f.size/1048576).toFixed(1)+" MB" : Math.round(f.size/1024)+" KB", project_id: p.id, status: "pending", file_url: fileUrl, company_id: companyId }]);
-              const curSel = sel; await reload(); setSel(curSel);
-            }} />
-            <Btn t={t} onClick={() => projFileRef.current && projFileRef.current.click()}><Upload size={12} />Subir documento</Btn>
-          </div>
-          {DOCS.filter(d => d.pid === p.id || d.project_id === p.id).length ? DOCS.filter(d => d.pid === p.id || d.project_id === p.id).map(d => (
-            <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
-              <FileText size={14} color={t.accentL} />
-              <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.size} · {d.contact || "—"}</div></div>
-              {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a>}
-              <Badge s={d.status} t={t} />
-            </div>
-          )) : <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 16 }}>Sin documentos aún</div>}
+          <FileDropZone t={t} docs={DOCS.filter(d => d.pid === p.id || d.project_id === p.id)} entityField="project_id" entityId={p.id} companyId={companyId} onUpload={async () => { const curSel = sel; await reload(); setSel(curSel); }} label="Documentos y facturas" />
         </Crd>
         <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
           <button onClick={() => deleteProject(p.id, p.name)} style={{ padding: "9px 18px", borderRadius: 7, border: "1px solid " + t.red + "30", background: t.redBg, color: t.red, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Trash2 size={13} />Eliminar proyecto</button>
@@ -1246,7 +1319,7 @@ function ProjectsPage({ t }) {
 }
 
 function TasksPage({ t }) {
-  const { tasks: dbTasks, reload, companyId } = useData();
+  const { tasks: dbTasks, documents: DOCS, reload, companyId } = useData();
   const [view, setView] = useState("board");
   const [tasks, setTasks] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -1307,6 +1380,10 @@ function TasksPage({ t }) {
           <Inp label="Fecha de vencimiento" val={editForm.due} onChange={v => setEditForm({...editForm, due: v})} t={t} type="date" />
         </div>
         <Inp label="Etiqueta" val={editForm.tag} onChange={v => setEditForm({...editForm, tag: v})} t={t} />
+        {/* Archivos adjuntos de la tarea */}
+        <div style={{ marginTop: 14 }}>
+          <FileDropZone t={t} docs={(DOCS || []).filter(d => d.task_id === editForm.id)} entityField="task_id" entityId={editForm.id} companyId={companyId} onUpload={reload} label="Archivos adjuntos" />
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, paddingTop: 14, borderTop: "1px solid " + t.border }}>
           <Btn t={t} onClick={() => deleteTask(editForm.id)} style={{ color: t.red }}><X size={12} />Eliminar</Btn>
           <div style={{ display: "flex", gap: 6 }}>
@@ -1341,7 +1418,10 @@ function TasksPage({ t }) {
                       <div style={{ fontSize: 12, fontWeight: 500, color: t.text, marginBottom: 5 }}>{tk.title}</div>
                       <div style={{ fontSize: 10, color: t.dim, marginBottom: 7 }}>{tk.project}</div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ ...pill(t.hover, t.muted), fontSize: 9, padding: "1px 6px" }}>{tk.tag}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ ...pill(t.hover, t.muted), fontSize: 9, padding: "1px 6px" }}>{tk.tag}</span>
+                          {(DOCS || []).filter(d => d.task_id === tk.id).length > 0 && <span style={{ fontSize: 9, color: t.dim }}>📎{(DOCS || []).filter(d => d.task_id === tk.id).length}</span>}
+                        </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 10, color: t.dim }}>{( tk.due || "").slice(8)}/{(tk.due || "").slice(5, 7)}</span><Av name={tk.who} size={18} /></div>
                       </div>
                     </div>
@@ -1557,19 +1637,7 @@ function Transactions({ t }) {
           <div>
             <Crd t={t} style={{ padding: 14, marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Documentos vinculados</div>
-              {linkedDocs.length ? linkedDocs.map(d => (
-                <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                  <FileText size={16} color={t.accentL} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{d.name}</div><div style={{ fontSize: 10, color: t.dim }}>{d.size} · <Badge s={d.type} t={t} /></div></div>
-                  {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5 }}>Ver ↗</a>}
-                </div>
-              )) : (
-                <div style={{ fontSize: 11, color: t.dim, marginBottom: 8, textAlign: "center" }}>Sin documentos</div>
-              )}
-              <div style={{ textAlign: "center", marginTop: 8 }}>
-                <input ref={txFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={attachDoc} />
-                <Btn t={t} onClick={() => txFileRef.current && txFileRef.current.click()}><Upload size={12} />Adjuntar factura</Btn>
-              </div>
+              <FileDropZone t={t} docs={linkedDocs} entityField="transaction_id" entityId={tx.id} companyId={companyId} onUpload={reload} label="Facturas y comprobantes" docType="invoice" />
             </Crd>
             <Crd t={t} style={{ padding: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Asiento contable</div>
