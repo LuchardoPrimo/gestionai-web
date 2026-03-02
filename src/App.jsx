@@ -84,59 +84,51 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
     // 2. Outlook Web drag — sends custom "multimaillistconversationrows" type
     const outlookTypes = ["multimaillistconversationrows", "multimaillistitemrows", "maillistconversationrows", "maillistitemrows"];
     for (const ot of outlookTypes) {
-      let raw = "";
-      try { raw = e.dataTransfer.getData(ot); } catch (_) {}
-      if (!raw || raw.length < 10) continue;
       try {
-        const data = JSON.parse(raw);
-        const subjects = data.subjects || [];
-        const itemIds = data.latestItemIds || data.rowKeys || [];
-        const count = Math.max(subjects.length, 1);
-        console.log("Outlook drop detected:", count, "email(s)", subjects);
-        setUploading(true);
-        for (let i = 0; i < count; i++) {
-          const subject = (subjects[i] || "Email de Outlook").trim();
-          const itemId = itemIds[i] || "";
-          const emlContent = [
-            "MIME-Version: 1.0",
-            "Subject: " + subject,
-            "X-Outlook-Item-Id: " + itemId,
-            "Content-Type: text/html; charset=UTF-8",
-            "",
-            "<html><body>",
-            "<h2>" + subject + "</h2>",
-            "<p style='color:#666'>Email arrastrado desde Outlook Web</p>",
-            "<p style='color:#999;font-size:12px'>ID: " + itemId.substring(0, 60) + "</p>",
-            "</body></html>",
-          ].join("\r\n");
-          const blob = new Blob([emlContent], { type: "application/octet-stream" });
-          const safeName = subject.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\-_.]/g, "").trim().slice(0, 80) || "email";
-          const file = new File([blob], safeName + ".eml", { type: "application/octet-stream" });
-          console.log("Uploading:", file.name, file.size, "bytes");
-          const fileUrl = await uploadFile(file);
-          console.log("Upload result:", fileUrl ? "OK" : "FAILED");
-          if (fileUrl) {
-            const insertObj = {
-              name: "✉️ " + subject,
-              type: docType || "other",
-              size: formatSize(emlContent.length),
-              status: "pending",
-              file_url: fileUrl,
-              company_id: companyId,
-            };
-            if (entityField && entityId) insertObj[entityField] = entityId;
-            const { error: dbErr } = await supabase.from("documents").insert([insertObj]);
-            if (dbErr) console.error("DB insert error:", dbErr.message);
-            else console.log("Document saved OK");
+        const raw = e.dataTransfer.getData(ot);
+        if (raw && raw.length > 10) {
+          const data = JSON.parse(raw);
+          const subjects = data.subjects || [];
+          const itemIds = data.latestItemIds || data.rowKeys || [];
+          setUploading(true);
+          for (let i = 0; i < Math.max(subjects.length, 1); i++) {
+            const subject = (subjects[i] || "Email de Outlook").trim();
+            const itemId = itemIds[i] || "";
+            const emlContent = [
+              "MIME-Version: 1.0",
+              "Subject: " + subject,
+              "X-Outlook-Item-Id: " + itemId,
+              "Content-Type: text/html; charset=UTF-8",
+              "",
+              "<html><body>",
+              "<h2>" + subject + "</h2>",
+              "<p style='color:#666'>Email arrastrado desde Outlook Web</p>",
+              "<p style='color:#999;font-size:12px'>ID: " + itemId.substring(0, 60) + "</p>",
+              "</body></html>",
+            ].join("\r\n");
+            const blob = new Blob([emlContent], { type: "message/rfc822" });
+            const safeName = subject.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\-_.]/g, "").trim().slice(0, 80) || "email";
+            const file = new File([blob], safeName + ".eml", { type: "message/rfc822" });
+            const fileUrl = await uploadFile(file);
+            if (fileUrl) {
+              const insertObj = {
+                name: "✉️ " + subject,
+                type: docType || "email",
+                size: formatSize(emlContent.length),
+                status: "pending",
+                file_url: fileUrl,
+                company_id: companyId,
+                source_type: "email",
+              };
+              if (entityField && entityId) insertObj[entityField] = entityId;
+              await supabase.from("documents").insert([insertObj]);
+            }
           }
+          setUploading(false);
+          if (onUpload) onUpload();
+          return;
         }
-        setUploading(false);
-        if (onUpload) onUpload();
-        return;
-      } catch (err) {
-        console.error("Outlook drop error:", err);
-        setUploading(false);
-      }
+      } catch (_) {}
     }
 
     // 3. Try dataTransfer.items for files or text
@@ -614,6 +606,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
     { id: "reports", icon: BarChart3, label: "Reportes", roles: ["owner","admin","accountant"] },
     { id: "team", icon: UserPlus, label: "Equipo", roles: ["owner","admin"] },
     { id: "help", icon: HelpCircle, label: "Ayuda", roles: ["owner","admin","accountant","pm","employee"] },
+    { id: "subscription", icon: Sparkles, label: "Suscripción", roles: ["owner","admin"] },
   ];
   const nav = allNav.filter(n => n.roles.includes(role || "owner"));
   const w = collapsed ? 64 : 230;
@@ -3451,11 +3444,44 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState("dark");
   const [showWelcome, setShowWelcome] = useState(isDemo);
-  const { loading } = useData();
+  const [subscription, setSubscription] = useState(null);
+  const [subLoaded, setSubLoaded] = useState(false);
+  const { loading, companyId } = useData();
   const t = themes[theme];
   const role = isDemo ? "owner" : (profile?.role || user?.user_metadata?.role || "owner");
 
+  // Check subscription status
+  useEffect(() => {
+    if (isDemo || !companyId || companyId === "demo") { setSubLoaded(true); return; }
+    supabase.rpc("check_subscription", { p_company_id: companyId }).then(({ data }) => {
+      if (data) setSubscription(data);
+      setSubLoaded(true);
+    }).catch(() => setSubLoaded(true));
+  }, [companyId, isDemo]);
+
+  // Check URL params for payment return
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success" || params.get("subscription") === "success") {
+      setPage("subscription");
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      // Reload subscription status after payment
+      setTimeout(() => {
+        if (companyId && companyId !== "demo") {
+          supabase.rpc("check_subscription", { p_company_id: companyId }).then(({ data }) => { if (data) setSubscription(data); });
+        }
+      }, 2000);
+    }
+  }, [companyId]);
+
   if (loading) return <LoadingScreen t={t} />;
+
+  // Paywall: if subscription expired and not demo, show paywall
+  const subExpired = !isDemo && subLoaded && subscription && !subscription.is_active;
+  if (subExpired && page !== "subscription") {
+    return <PaywallScreen t={t} subscription={subscription} onSubscribe={() => setPage("subscription")} />;
+  }
 
   const meta = {
     dashboard: ["Dashboard", "Resumen financiero"], clients: ["Clientes / Proveedores", "Gestión de contactos"],
@@ -3466,9 +3492,10 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
     reports: ["Reportes", "Informes financieros"],
     team: ["Equipo", "Gestión de usuarios e invitaciones"],
     help: ["Ayuda", "Tutoriales y guía de uso"],
+    subscription: ["Suscripción", "Plan y pagos"],
     superadmin: ["Panel de Control", "Administración de todas las empresas"],
   };
-  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, payroll: PayrollPage, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, help: HelpPage, superadmin: SuperAdminPage };
+  const pages = { dashboard: Dashboard, clients: Clients, projects: ProjectsPage, tasks: TasksPage, transactions: Transactions, payroll: PayrollPage, treasury: Treasury, documents: DocumentsPage, reports: Reports, team: TeamPage, help: HelpPage, subscription: SubscriptionPage, superadmin: SuperAdminPage };
   const Page = pages[page] || Dashboard;
 
   return (
@@ -4041,6 +4068,173 @@ function HelpPage({ t, onNav, isDemo }) {
         <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Necesito%20ayuda%20con%20GestiónAI" target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: 10, background: "#25D366", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Phone size={14} /> Contactar soporte
         </a>
+      </Crd>
+    </div>
+  );
+}
+
+// ─── Subscription / Paywall ─────────────────────────────────
+function PaywallScreen({ t, subscription, onSubscribe }) {
+  const daysLeft = subscription?.days_remaining || 0;
+  const isTrialExpired = subscription?.status === "expired" && !subscription?.current_period_end;
+  const isPastDue = subscription?.status === "past_due";
+
+  return (
+    <div style={{ minHeight: "100vh", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ maxWidth: 520, width: "100%", textAlign: "center" }}>
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+          <Sparkles size={30} color="#fff" />
+        </div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: t.text, marginBottom: 8 }}>
+          {isTrialExpired ? "Tu prueba gratuita terminó" : isPastDue ? "Pago pendiente" : "Suscribite a GestiónAI"}
+        </h1>
+        <p style={{ fontSize: 14, color: t.muted, marginBottom: 32, lineHeight: 1.6 }}>
+          {isTrialExpired ? "Para seguir usando GestiónAI necesitás activar tu suscripción." :
+           isPastDue ? "Tu último pago no se pudo procesar. Actualizá tu método de pago para no perder acceso." :
+           "Activá tu plan para desbloquear todas las funcionalidades."}
+        </p>
+        <div style={{ background: t.card, border: "1px solid " + t.accent + "30", borderRadius: 16, padding: 28, marginBottom: 24, textAlign: "left" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>GestiónAI Pro</div>
+              <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Plan mensual · Todo incluido</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: t.accent }}>$195</div>
+              <div style={{ fontSize: 11, color: t.dim }}>USD / mes</div>
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid " + t.border, paddingTop: 16 }}>
+            {["Usuarios ilimitados", "Proyectos y obras ilimitadas", "Documentos y archivos ilimitados", "Diseño personalizado para tu empresa", "IA / OCR para tickets y facturas", "WhatsApp integrado", "Soporte prioritario"].map(f => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, color: t.text }}>
+                <CheckCircle2 size={15} color={t.green} style={{ flexShrink: 0 }} />
+                {f}
+              </div>
+            ))}
+          </div>
+        </div>
+        <button onClick={onSubscribe} style={{ width: "100%", padding: "14px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #6366F1, #A78BFA)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px #6366F140", marginBottom: 12 }}>
+          Activar suscripción
+        </button>
+        <div style={{ fontSize: 11, color: t.dim }}>Pagás con MercadoPago · Tarjeta, transferencia o efectivo</div>
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionPage({ t, user, profile }) {
+  const { companyId } = useData();
+  const [sub, setSub] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
+
+  const loadSub = async () => {
+    if (companyId === "demo") { setLoading(false); return; }
+    const { data } = await supabase.rpc("check_subscription", { p_company_id: companyId });
+    if (data) setSub(data);
+    const { data: ph } = await supabase.from("payment_history").select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(10);
+    if (ph) setPayments(ph);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadSub(); }, [companyId]);
+
+  const startPayment = async () => {
+    setPaying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("mp-subscriptions", {
+        body: { action: "create_preference", company_id: companyId, email: user?.email, company_name: profile?.company?.name || "Mi Empresa" }
+      });
+      if (data?.init_point) {
+        window.location.href = data.init_point;
+      } else if (data?.sandbox_init_point) {
+        window.location.href = data.sandbox_init_point;
+      } else {
+        window.alert("Error al crear el pago: " + JSON.stringify(data));
+      }
+    } catch (err) {
+      window.alert("Error: " + err.message);
+    }
+    setPaying(false);
+  };
+
+  const statusColors = { trialing: "#3B82F6", active: "#22C55E", past_due: "#F59E0B", expired: "#EF4444", cancelled: "#6B7280" };
+  const statusLabels = { trialing: "Prueba gratuita", active: "Activa", past_due: "Pago pendiente", expired: "Expirada", cancelled: "Cancelada" };
+  const fmt = (n) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD" }).format(n || 0);
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: t.dim }}>Cargando...</div>;
+
+  return (
+    <div style={{ padding: 22, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18 }}>
+        <div><div style={{ fontSize: 20, fontWeight: 800, color: t.text }}>Suscripción</div><div style={{ fontSize: 12, color: t.muted }}>Gestioná tu plan y pagos</div></div>
+      </div>
+
+      {/* Current plan card */}
+      <Crd t={t} style={{ padding: 20, marginBottom: 18, borderTop: "3px solid " + (statusColors[sub?.status] || t.accent) }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{sub?.plan_name || "GestiónAI Pro"}</div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, background: (statusColors[sub?.status] || t.accent) + "20", color: statusColors[sub?.status] || t.accent, fontSize: 11, fontWeight: 600, marginTop: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: statusColors[sub?.status] || t.accent }} />
+              {statusLabels[sub?.status] || sub?.status}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: t.accent }}>$195</div>
+            <div style={{ fontSize: 11, color: t.dim }}>USD / mes</div>
+          </div>
+        </div>
+        {sub?.status === "trialing" && (
+          <div style={{ marginTop: 14, padding: "10px 14px", background: t.hover, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>Período de prueba</div><div style={{ fontSize: 11, color: t.muted }}>{sub.days_remaining} días restantes</div></div>
+            <button onClick={startPayment} disabled={paying} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: t.accent, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              {paying ? "Procesando..." : "Activar ahora"}
+            </button>
+          </div>
+        )}
+        {sub?.status === "active" && sub?.current_period_end && (
+          <div style={{ marginTop: 14, padding: "10px 14px", background: t.hover, borderRadius: 8 }}>
+            <div style={{ fontSize: 12, color: t.text }}>Próximo cobro: <b>{new Date(sub.current_period_end).toLocaleDateString("es-AR")}</b></div>
+          </div>
+        )}
+        {(sub?.status === "expired" || sub?.status === "past_due") && (
+          <div style={{ marginTop: 14 }}>
+            <button onClick={startPayment} disabled={paying} style={{ width: "100%", padding: "12px 24px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #6366F1, #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              {paying ? "Procesando..." : "Pagar ahora — $195 USD"}
+            </button>
+          </div>
+        )}
+      </Crd>
+
+      {/* Features */}
+      <Crd t={t} style={{ padding: 18, marginBottom: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Tu plan incluye</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {["Usuarios ilimitados", "Proyectos ilimitados", "Documentos ilimitados", "Diseño personalizado", "IA / OCR", "WhatsApp integrado", "Reportes avanzados", "Soporte prioritario"].map(f => (
+            <div key={f} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", fontSize: 12, color: t.text }}>
+              <CheckCircle2 size={13} color={t.green} style={{ flexShrink: 0 }} />
+              {f}
+            </div>
+          ))}
+        </div>
+      </Crd>
+
+      {/* Payment history */}
+      <Crd t={t} style={{ padding: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Historial de pagos</div>
+        {payments.length > 0 ? payments.map(p => (
+          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + t.border + "15" }}>
+            <div>
+              <div style={{ fontSize: 12, color: t.text }}>{fmt(p.amount)}</div>
+              <div style={{ fontSize: 10, color: t.dim }}>{new Date(p.created_at).toLocaleDateString("es-AR")} · {p.mp_payment_type || "—"}</div>
+            </div>
+            <div style={{ padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 600, background: p.mp_status === "approved" ? t.green + "20" : t.red + "20", color: p.mp_status === "approved" ? t.green : t.red }}>
+              {p.mp_status === "approved" ? "Aprobado" : p.mp_status === "pending" ? "Pendiente" : "Rechazado"}
+            </div>
+          </div>
+        )) : <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 20 }}>Sin pagos registrados</div>}
       </Crd>
     </div>
   );
