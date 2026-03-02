@@ -26,7 +26,6 @@ const uploadFile = async (file) => {
 function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload, label, docType }) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [tip, setTip] = useState("");
   const fileRef = useRef(null);
   const dropRef = useRef(null);
 
@@ -43,7 +42,7 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
 
   const handleFiles = async (files) => {
     if (!files || files.length === 0) return;
-    setUploading(true); setTip("");
+    setUploading(true);
     for (const f of Array.from(files)) {
       const fileUrl = await uploadFile(f);
       if (!fileUrl) continue;
@@ -76,28 +75,40 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
   const onDrop = async (e) => {
     e.preventDefault(); e.stopPropagation(); setDragging(false);
 
-    // 1. Standard files (normal drag from desktop/explorer)
+    // 1. Standard files (drag from desktop, explorer, other browser tabs)
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFiles(e.dataTransfer.files);
       return;
     }
 
-    // 2. Try dataTransfer.items (some browsers expose Outlook items here)
-    if (e.dataTransfer.items) {
+    // 2. Try dataTransfer.items — browsers sometimes expose Outlook data here
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       const fileItems = [];
-      for (const item of e.dataTransfer.items) {
+      const textItems = [];
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        const item = e.dataTransfer.items[i];
         if (item.kind === "file") {
           const f = item.getAsFile();
-          if (f) fileItems.push(f);
+          if (f && f.size > 0) fileItems.push(f);
         }
+        if (item.kind === "string") textItems.push(item.type);
       }
       if (fileItems.length > 0) { handleFiles(fileItems); return; }
 
-      // 3. Try text content (Outlook sometimes sends as text/html)
-      let html = e.dataTransfer.getData("text/html");
-      let text = e.dataTransfer.getData("text/plain");
+      // 3. Try every text format the browser received
+      const tryTypes = ["text/html", "text/plain", "text/uri-list", "text/x-moz-url", "application/x-moz-file"];
+      let html = "", text = "";
+      for (const mt of tryTypes) {
+        try {
+          const d = e.dataTransfer.getData(mt);
+          if (d && d.length > 15) {
+            if (mt.includes("html")) html = d;
+            else if (!text) text = d;
+          }
+        } catch (_) {}
+      }
       if (html && html.length > 20) {
-        const subMatch = html.match(/Subject[:\s]+([^<]+)/i);
+        const subMatch = html.match(/Subject[:\s]+([^<]+)/i) || html.match(/<title>([^<]+)/i);
         await saveAsEml(subMatch ? subMatch[1].trim() : "Email arrastrado", text, html);
         return;
       }
@@ -107,9 +118,8 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
       }
     }
 
-    // 4. Nothing worked - show Outlook tip
-    setTip("outlook");
-    setTimeout(() => setTip(""), 10000);
+    // 4. Nothing worked — auto-open file picker immediately (most practical fallback)
+    fileRef.current?.click();
   };
 
   const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragging(true); };
@@ -156,20 +166,12 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
           <>
             <Upload size={18} color={dragging ? t.accent : t.dim} style={{ marginBottom: 4 }} />
             <div style={{ fontSize: 11, color: dragging ? t.accent : t.muted }}>
-              Arrastrá archivos acá, hacé click, o pegá con Ctrl+V
+              Arrastrá archivos acá o hacé click para seleccionar
             </div>
-            <div style={{ fontSize: 9, color: t.dim, marginTop: 4 }}>PDF, imágenes, Word, Excel, emails (.eml, .msg) y más</div>
+            <div style={{ fontSize: 9, color: t.dim, marginTop: 4 }}>PDF, imágenes, Word, Excel, emails (.eml, .msg), Ctrl+V para pegar</div>
           </>
         )}
       </div>
-      {/* Outlook tip */}
-      {tip === "outlook" && (
-        <div style={{ padding: "10px 12px", background: t.hover, border: "1px solid " + (t.yellow || "#EAB308") + "30", borderRadius: 8, marginBottom: 10, fontSize: 11, lineHeight: 1.6, color: t.text }}>
-          <strong>💡 Para emails de Outlook:</strong><br />
-          <strong>Opción 1:</strong> Guardá el email como archivo (Archivo → Guardar como → .msg) y arrastralo acá.<br />
-          <strong>Opción 2:</strong> Abrí el email, seleccioná todo (Ctrl+A), copiá (Ctrl+C), hacé click acá y pegá (Ctrl+V).
-        </div>
-      )}
       {/* File list */}
       {docs.length > 0 ? docs.map(d => (
         <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
