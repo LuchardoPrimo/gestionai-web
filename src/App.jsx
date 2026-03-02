@@ -26,41 +26,30 @@ const uploadFile = async (file) => {
 function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload, label, docType }) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [tip, setTip] = useState("");
   const fileRef = useRef(null);
-
-  const ACCEPT = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.eml,.msg,.txt,.csv,.zip";
-  const emailExts = ["eml", "msg"];
+  const dropRef = useRef(null);
 
   const getSourceType = (fileName) => {
     const ext = (fileName || "").split(".").pop().toLowerCase();
-    if (emailExts.includes(ext)) return "email";
+    if (["eml", "msg"].includes(ext)) return "email";
     if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
     if (["pdf"].includes(ext)) return "invoice";
     return "file";
   };
 
-  const getIcon = (sourceType) => {
-    if (sourceType === "email") return "✉️";
-    if (sourceType === "image") return "🖼️";
-    if (sourceType === "invoice") return "📄";
-    return "📎";
-  };
-
+  const getIcon = (sourceType) => ({ email: "✉️", image: "🖼️", invoice: "📄" }[sourceType] || "📎");
   const formatSize = (size) => size > 1048576 ? (size / 1048576).toFixed(1) + " MB" : Math.round(size / 1024) + " KB";
 
   const handleFiles = async (files) => {
     if (!files || files.length === 0) return;
-    setUploading(true);
+    setUploading(true); setTip("");
     for (const f of Array.from(files)) {
       const fileUrl = await uploadFile(f);
       if (!fileUrl) continue;
       const insertObj = {
-        name: f.name,
-        type: docType || "other",
-        size: formatSize(f.size),
-        status: "pending",
-        file_url: fileUrl,
-        company_id: companyId,
+        name: f.name, type: docType || "other", size: formatSize(f.size),
+        status: "pending", file_url: fileUrl, company_id: companyId,
         source_type: getSourceType(f.name),
       };
       if (entityField && entityId) insertObj[entityField] = entityId;
@@ -70,13 +59,81 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
     if (onUpload) onUpload();
   };
 
-  const onDrop = (e) => {
-    e.preventDefault(); e.stopPropagation();
-    setDragging(false);
-    handleFiles(e.dataTransfer.files);
+  // Save pasted/dragged email content as .eml file
+  const saveAsEml = async (subject, body, htmlBody) => {
+    const emlContent = [
+      "MIME-Version: 1.0",
+      "Subject: " + (subject || "Email adjunto"),
+      "Content-Type: text/html; charset=UTF-8",
+      "",
+      htmlBody || ("<html><body><pre>" + (body || "").replace(/</g, "&lt;") + "</pre></body></html>"),
+    ].join("\r\n");
+    const blob = new Blob([emlContent], { type: "message/rfc822" });
+    const file = new File([blob], (subject || "email_" + Date.now()).replace(/[^a-zA-Z0-9áéíóúñ ]/g, "_").slice(0, 60) + ".eml", { type: "message/rfc822" });
+    await handleFiles([file]);
   };
+
+  const onDrop = async (e) => {
+    e.preventDefault(); e.stopPropagation(); setDragging(false);
+
+    // 1. Standard files (normal drag from desktop/explorer)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+      return;
+    }
+
+    // 2. Try dataTransfer.items (some browsers expose Outlook items here)
+    if (e.dataTransfer.items) {
+      const fileItems = [];
+      for (const item of e.dataTransfer.items) {
+        if (item.kind === "file") {
+          const f = item.getAsFile();
+          if (f) fileItems.push(f);
+        }
+      }
+      if (fileItems.length > 0) { handleFiles(fileItems); return; }
+
+      // 3. Try text content (Outlook sometimes sends as text/html)
+      let html = e.dataTransfer.getData("text/html");
+      let text = e.dataTransfer.getData("text/plain");
+      if (html && html.length > 20) {
+        const subMatch = html.match(/Subject[:\s]+([^<]+)/i);
+        await saveAsEml(subMatch ? subMatch[1].trim() : "Email arrastrado", text, html);
+        return;
+      }
+      if (text && text.length > 10) {
+        await saveAsEml("Email arrastrado", text, null);
+        return;
+      }
+    }
+
+    // 4. Nothing worked - show Outlook tip
+    setTip("outlook");
+    setTimeout(() => setTip(""), 10000);
+  };
+
   const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragging(true); };
   const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragging(false); };
+
+  // Paste handler (Ctrl+V) - works for Outlook content
+  useEffect(() => {
+    const el = dropRef.current;
+    if (!el) return;
+    const onPaste = async (e) => {
+      const clipFiles = e.clipboardData?.files;
+      if (clipFiles && clipFiles.length > 0) { handleFiles(clipFiles); return; }
+      const html = e.clipboardData?.getData("text/html") || "";
+      const text = e.clipboardData?.getData("text/plain") || "";
+      if (html || (text && text.length > 10)) {
+        e.preventDefault();
+        const subMatch = (html + text).match(/(?:Subject|Asunto|De:|From:)[:\s]+([^\n<]+)/i);
+        const subject = subMatch ? subMatch[1].trim() : "Email pegado " + new Date().toLocaleDateString();
+        await saveAsEml(subject, text, html || null);
+      }
+    };
+    el.addEventListener("paste", onPaste);
+    return () => el.removeEventListener("paste", onPaste);
+  }, [entityField, entityId, companyId]);
 
   const deleteDoc = async (docId) => {
     if (!window.confirm("¿Eliminar este archivo?")) return;
@@ -85,42 +142,41 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
   };
 
   return (
-    <div>
+    <div ref={dropRef} tabIndex={0} style={{ outline: "none" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{label || "Archivos adjuntos"} ({docs.length})</div>
-        <input ref={fileRef} type="file" multiple accept={ACCEPT} style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
+        <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.eml,.msg,.txt,.csv,.zip" style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
       </div>
       {/* Drop zone */}
-      <div
-        onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}
-        onClick={() => fileRef.current?.click()}
-        style={{
-          border: "2px dashed " + (dragging ? t.accent : t.border),
-          borderRadius: 10, padding: uploading ? "14px" : "18px 14px",
-          textAlign: "center", cursor: "pointer", marginBottom: 10,
-          background: dragging ? t.accentBg : t.hover,
-          transition: "all 0.2s",
-        }}
-      >
+      <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} onClick={() => fileRef.current?.click()}
+        style={{ border: "2px dashed " + (dragging ? t.accent : t.border), borderRadius: 10, padding: uploading ? "14px" : "16px 14px", textAlign: "center", cursor: "pointer", marginBottom: 10, background: dragging ? t.accentBg : t.hover, transition: "all 0.2s" }}>
         {uploading ? (
           <div style={{ fontSize: 12, color: t.accentL }}>⏳ Subiendo...</div>
         ) : (
           <>
             <Upload size={18} color={dragging ? t.accent : t.dim} style={{ marginBottom: 4 }} />
             <div style={{ fontSize: 11, color: dragging ? t.accent : t.muted }}>
-              Arrastrá archivos o emails acá, o hacé click para seleccionar
+              Arrastrá archivos acá, hacé click, o pegá con Ctrl+V
             </div>
             <div style={{ fontSize: 9, color: t.dim, marginTop: 4 }}>PDF, imágenes, Word, Excel, emails (.eml, .msg) y más</div>
           </>
         )}
       </div>
+      {/* Outlook tip */}
+      {tip === "outlook" && (
+        <div style={{ padding: "10px 12px", background: t.hover, border: "1px solid " + (t.yellow || "#EAB308") + "30", borderRadius: 8, marginBottom: 10, fontSize: 11, lineHeight: 1.6, color: t.text }}>
+          <strong>💡 Para emails de Outlook:</strong><br />
+          <strong>Opción 1:</strong> Guardá el email como archivo (Archivo → Guardar como → .msg) y arrastralo acá.<br />
+          <strong>Opción 2:</strong> Abrí el email, seleccioná todo (Ctrl+A), copiá (Ctrl+C), hacé click acá y pegá (Ctrl+V).
+        </div>
+      )}
       {/* File list */}
       {docs.length > 0 ? docs.map(d => (
         <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
           <span style={{ fontSize: 16 }}>{getIcon(d.source_type || getSourceType(d.name))}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
-            <div style={{ fontSize: 10, color: t.dim }}>{d.size || ""}{d.source_type === "email" ? " · Email" : ""}</div>
+            <div style={{ fontSize: 10, color: t.dim }}>{d.size || ""}{(d.source_type === "email" || getSourceType(d.name) === "email") ? " · Email" : ""}</div>
           </div>
           {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accentL, textDecoration: "none", padding: "3px 8px", background: t.accentBg, borderRadius: 5, flexShrink: 0 }}>Ver ↗</a>}
           <span onClick={() => deleteDoc(d.id)} style={{ cursor: "pointer", fontSize: 12, color: t.dim, flexShrink: 0 }}>🗑️</span>
