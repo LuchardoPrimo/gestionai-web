@@ -81,44 +81,76 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
       return;
     }
 
-    // 2. Try dataTransfer.items — browsers sometimes expose Outlook data here
+    // 2. Outlook Web drag — sends custom "multimaillistconversationrows" type
+    const outlookTypes = ["multimaillistconversationrows", "multimaillistitemrows", "maillistconversationrows", "maillistitemrows"];
+    for (const ot of outlookTypes) {
+      try {
+        const raw = e.dataTransfer.getData(ot);
+        if (raw && raw.length > 10) {
+          const data = JSON.parse(raw);
+          const subjects = data.subjects || [];
+          const itemIds = data.latestItemIds || data.rowKeys || [];
+          setUploading(true);
+          for (let i = 0; i < Math.max(subjects.length, 1); i++) {
+            const subject = (subjects[i] || "Email de Outlook").trim();
+            const itemId = itemIds[i] || "";
+            const emlContent = [
+              "MIME-Version: 1.0",
+              "Subject: " + subject,
+              "X-Outlook-Item-Id: " + itemId,
+              "Content-Type: text/html; charset=UTF-8",
+              "",
+              "<html><body>",
+              "<h2>" + subject + "</h2>",
+              "<p style='color:#666'>Email arrastrado desde Outlook Web</p>",
+              "<p style='color:#999;font-size:12px'>ID: " + itemId.substring(0, 60) + "</p>",
+              "</body></html>",
+            ].join("\r\n");
+            const blob = new Blob([emlContent], { type: "message/rfc822" });
+            const safeName = subject.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\-_.]/g, "").trim().slice(0, 80) || "email";
+            const file = new File([blob], safeName + ".eml", { type: "message/rfc822" });
+            const fileUrl = await uploadFile(file);
+            if (fileUrl) {
+              const insertObj = {
+                name: "✉️ " + subject,
+                type: docType || "email",
+                size: formatSize(emlContent.length),
+                status: "pending",
+                file_url: fileUrl,
+                company_id: companyId,
+                source_type: "email",
+              };
+              if (entityField && entityId) insertObj[entityField] = entityId;
+              await supabase.from("documents").insert([insertObj]);
+            }
+          }
+          setUploading(false);
+          if (onUpload) onUpload();
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // 3. Try dataTransfer.items for files or text
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       const fileItems = [];
-      const textItems = [];
       for (let i = 0; i < e.dataTransfer.items.length; i++) {
         const item = e.dataTransfer.items[i];
         if (item.kind === "file") {
           const f = item.getAsFile();
           if (f && f.size > 0) fileItems.push(f);
         }
-        if (item.kind === "string") textItems.push(item.type);
       }
       if (fileItems.length > 0) { handleFiles(fileItems); return; }
-
-      // 3. Try every text format the browser received
-      const tryTypes = ["text/html", "text/plain", "text/uri-list", "text/x-moz-url", "application/x-moz-file"];
       let html = "", text = "";
-      for (const mt of tryTypes) {
-        try {
-          const d = e.dataTransfer.getData(mt);
-          if (d && d.length > 15) {
-            if (mt.includes("html")) html = d;
-            else if (!text) text = d;
-          }
-        } catch (_) {}
+      for (const mt of ["text/html", "text/plain"]) {
+        try { const d = e.dataTransfer.getData(mt); if (d && d.length > 15) { if (mt.includes("html")) html = d; else text = d; } } catch (_) {}
       }
-      if (html && html.length > 20) {
-        const subMatch = html.match(/Subject[:\s]+([^<]+)/i) || html.match(/<title>([^<]+)/i);
-        await saveAsEml(subMatch ? subMatch[1].trim() : "Email arrastrado", text, html);
-        return;
-      }
-      if (text && text.length > 10) {
-        await saveAsEml("Email arrastrado", text, null);
-        return;
-      }
+      if (html && html.length > 20) { await saveAsEml("Email arrastrado", text, html); return; }
+      if (text && text.length > 10) { await saveAsEml("Email arrastrado", text, null); return; }
     }
 
-    // 4. Nothing worked — auto-open file picker immediately (most practical fallback)
+    // 4. Fallback
     fileRef.current?.click();
   };
 
@@ -166,9 +198,9 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
           <>
             <Upload size={18} color={dragging ? t.accent : t.dim} style={{ marginBottom: 4 }} />
             <div style={{ fontSize: 11, color: dragging ? t.accent : t.muted }}>
-              Arrastrá archivos acá o hacé click para seleccionar
+              Arrastrá archivos o emails de Outlook acá
             </div>
-            <div style={{ fontSize: 9, color: t.dim, marginTop: 4 }}>PDF, imágenes, Word, Excel, emails (.eml, .msg), Ctrl+V para pegar</div>
+            <div style={{ fontSize: 9, color: t.dim, marginTop: 4 }}>PDF, imágenes, Word, Excel, emails de Outlook Web · Ctrl+V para pegar</div>
           </>
         )}
       </div>
