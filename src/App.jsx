@@ -84,51 +84,59 @@ function FileDropZone({ t, docs = [], entityField, entityId, companyId, onUpload
     // 2. Outlook Web drag — sends custom "multimaillistconversationrows" type
     const outlookTypes = ["multimaillistconversationrows", "multimaillistitemrows", "maillistconversationrows", "maillistitemrows"];
     for (const ot of outlookTypes) {
+      let raw = "";
+      try { raw = e.dataTransfer.getData(ot); } catch (_) {}
+      if (!raw || raw.length < 10) continue;
       try {
-        const raw = e.dataTransfer.getData(ot);
-        if (raw && raw.length > 10) {
-          const data = JSON.parse(raw);
-          const subjects = data.subjects || [];
-          const itemIds = data.latestItemIds || data.rowKeys || [];
-          setUploading(true);
-          for (let i = 0; i < Math.max(subjects.length, 1); i++) {
-            const subject = (subjects[i] || "Email de Outlook").trim();
-            const itemId = itemIds[i] || "";
-            const emlContent = [
-              "MIME-Version: 1.0",
-              "Subject: " + subject,
-              "X-Outlook-Item-Id: " + itemId,
-              "Content-Type: text/html; charset=UTF-8",
-              "",
-              "<html><body>",
-              "<h2>" + subject + "</h2>",
-              "<p style='color:#666'>Email arrastrado desde Outlook Web</p>",
-              "<p style='color:#999;font-size:12px'>ID: " + itemId.substring(0, 60) + "</p>",
-              "</body></html>",
-            ].join("\r\n");
-            const blob = new Blob([emlContent], { type: "message/rfc822" });
-            const safeName = subject.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\-_.]/g, "").trim().slice(0, 80) || "email";
-            const file = new File([blob], safeName + ".eml", { type: "message/rfc822" });
-            const fileUrl = await uploadFile(file);
-            if (fileUrl) {
-              const insertObj = {
-                name: "✉️ " + subject,
-                type: docType || "email",
-                size: formatSize(emlContent.length),
-                status: "pending",
-                file_url: fileUrl,
-                company_id: companyId,
-                source_type: "email",
-              };
-              if (entityField && entityId) insertObj[entityField] = entityId;
-              await supabase.from("documents").insert([insertObj]);
-            }
+        const data = JSON.parse(raw);
+        const subjects = data.subjects || [];
+        const itemIds = data.latestItemIds || data.rowKeys || [];
+        const count = Math.max(subjects.length, 1);
+        console.log("Outlook drop detected:", count, "email(s)", subjects);
+        setUploading(true);
+        for (let i = 0; i < count; i++) {
+          const subject = (subjects[i] || "Email de Outlook").trim();
+          const itemId = itemIds[i] || "";
+          const emlContent = [
+            "MIME-Version: 1.0",
+            "Subject: " + subject,
+            "X-Outlook-Item-Id: " + itemId,
+            "Content-Type: text/html; charset=UTF-8",
+            "",
+            "<html><body>",
+            "<h2>" + subject + "</h2>",
+            "<p style='color:#666'>Email arrastrado desde Outlook Web</p>",
+            "<p style='color:#999;font-size:12px'>ID: " + itemId.substring(0, 60) + "</p>",
+            "</body></html>",
+          ].join("\r\n");
+          const blob = new Blob([emlContent], { type: "application/octet-stream" });
+          const safeName = subject.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\-_.]/g, "").trim().slice(0, 80) || "email";
+          const file = new File([blob], safeName + ".eml", { type: "application/octet-stream" });
+          console.log("Uploading:", file.name, file.size, "bytes");
+          const fileUrl = await uploadFile(file);
+          console.log("Upload result:", fileUrl ? "OK" : "FAILED");
+          if (fileUrl) {
+            const insertObj = {
+              name: "✉️ " + subject,
+              type: docType || "other",
+              size: formatSize(emlContent.length),
+              status: "pending",
+              file_url: fileUrl,
+              company_id: companyId,
+            };
+            if (entityField && entityId) insertObj[entityField] = entityId;
+            const { error: dbErr } = await supabase.from("documents").insert([insertObj]);
+            if (dbErr) console.error("DB insert error:", dbErr.message);
+            else console.log("Document saved OK");
           }
-          setUploading(false);
-          if (onUpload) onUpload();
-          return;
         }
-      } catch (_) {}
+        setUploading(false);
+        if (onUpload) onUpload();
+        return;
+      } catch (err) {
+        console.error("Outlook drop error:", err);
+        setUploading(false);
+      }
     }
 
     // 3. Try dataTransfer.items for files or text
