@@ -4357,6 +4357,9 @@ function TeamPage({ t, user, profile }) {
       const { data: comp } = await supabase.from("companies").select("name").eq("id", companyId).single();
       const companyName = comp?.name || "Tu empresa";
 
+      // Borrar invitación anterior si existe (para re-invitar)
+      await supabase.from("invitations").delete().eq("company_id", companyId).eq("email", invForm.email.trim().toLowerCase());
+
       const { error: dbErr } = await supabase.from("invitations").insert([{
         company_id: companyId,
         email: invForm.email.trim().toLowerCase(),
