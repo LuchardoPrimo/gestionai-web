@@ -1268,7 +1268,7 @@ function ProjectsPage({ t }) {
             <input type="range" min={0} max={100} step={5} value={p.progress} onChange={async (e) => {
               const val = Number(e.target.value);
               await updateProgress(p.id, val);
-            }} style={{ width: 120, accentColor: p.progress > 80 ? "#34D399" : "" + t.accent + "" }} />
+            }} style={{ width: 120, accentColor: p.progress > 80 ? "#34D399" : t.accent }} />
           </div>
           <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
             {[0,25,50,75,100].map(v => (
@@ -3416,7 +3416,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
       }</style>
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s", flexDirection: "column" }}>
         {isDemo && (
-          <div style={{ background: "" + t.accent + "", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
+          <div style={{ background: t.accent, padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🎯 Estás viendo la demo con datos ficticios</span>
             <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Vi%20la%20demo%20y%20quiero%20mi%20plataforma%20GestiónAI" target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <MessageSquare size={12} /> Solicitar mi plataforma →
@@ -4590,7 +4590,7 @@ function TeamPage({ t, user, profile }) {
   const [success, setSuccess] = useState("");
 
   const roleLabels = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", employee: "Empleado" };
-  const roleColors = { owner: t.accent, admin: "" + t.accent + "", accountant: t.blue, pm: t.orange, employee: t.green };
+  const roleColors = { owner: t.accent, admin: t.accent, accountant: t.blue, pm: t.orange, employee: t.green };
 
   const loadTeam = async () => {
     if (!companyId || companyId === "demo") {
@@ -5047,7 +5047,7 @@ function LoginPage({ onLogin }) {
       <div style={{ minHeight: "100vh", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", pointerEvents: "none" }}>
           <div style={{ position: "absolute", top: "20%", left: "10%", width: 300, height: 300, borderRadius: "50%", background: t.accent + "08", filter: "blur(80px)" }} />
-          <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 250, height: 250, borderRadius: "50%", background: "" + t.accentBg + "", filter: "blur(80px)" }} />
+          <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 250, height: 250, borderRadius: "50%", background: t.accentBg, filter: "blur(80px)" }} />
         </div>
         <div style={{ width: isLogin ? 400 : 460, padding: 40, position: "relative", zIndex: 1 }}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -5251,7 +5251,7 @@ export default function App() {
     setView("landing");
   };
 
-  if (!authReady) return <div style={{ minHeight: "100vh", background: "#111113", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
+  if (!authReady) return <div style={{ minHeight: "100vh", background: "#111113", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "#0A84FF", display: "flex", alignItems: "center", justifyContent: "center" }}><Zap size={20} color="#fff" /></div></div>;
 
   if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => { if (user) { setView("app"); } else { setView("login"); } }} isLoggedIn={!!user} />;
   if (view === "login") return <LoginPage onLogin={() => setView("app")} />;
