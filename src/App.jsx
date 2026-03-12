@@ -434,28 +434,26 @@ function DemoDataProvider({ children }) {
 
 const themes = {
   dark: {
-    // Bg hierarchy: bg (deepest) → sidebar/topbar → card → hover (lightest surface)
-    bg:"#0B0E14", card:"#161B26", hover:"#1E2433", sidebar:"#101520", topbar:"#101520",
-    border:"#2A3142", text:"#E8ECF4", muted:"#94A0B8", dim:"#5E6B82",
-    accent:"#7C6DF0", accentL:"#A899FF", accentBg:"rgba(124,109,240,0.12)",
-    green:"#34D399", greenBg:"rgba(52,211,153,0.12)",
-    red:"#F87171", redBg:"rgba(248,113,113,0.12)",
-    orange:"#FBBF24", orangeBg:"rgba(251,191,36,0.12)",
-    blue:"#60A5FA", blueBg:"rgba(96,165,250,0.12)",
-    yellow:"#FACC15", yellowBg:"rgba(250,204,21,0.12)",
-    shadow:"0 2px 8px rgba(0,0,0,0.35)",
+    bg:"#111113", card:"#1C1C1E", hover:"#252528", sidebar:"#161618", topbar:"#161618",
+    border:"#2C2C30", text:"#EDEDEF", muted:"#8E8E93", dim:"#636366",
+    accent:"#0A84FF", accentL:"#5AC8FA", accentBg:"rgba(10,132,255,0.10)",
+    green:"#30D158", greenBg:"rgba(48,209,88,0.10)",
+    red:"#FF453A", redBg:"rgba(255,69,58,0.10)",
+    orange:"#FF9F0A", orangeBg:"rgba(255,159,10,0.10)",
+    blue:"#0A84FF", blueBg:"rgba(10,132,255,0.10)",
+    yellow:"#FFD60A", yellowBg:"rgba(255,214,10,0.10)",
+    shadow:"0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)",
   },
   light: {
-    // Bg hierarchy: bg (lightest) → sidebar/topbar → card → hover (subtle tint)
-    bg:"#EFF1F5", card:"#FFFFFF", hover:"#F5F6FA", sidebar:"#FFFFFF", topbar:"#FFFFFF",
-    border:"#D0D5DD", text:"#1A1D2A", muted:"#4B5167", dim:"#868EA5",
-    accent:"#6C5CE7", accentL:"#5A4BD6", accentBg:"rgba(108,92,231,0.08)",
-    green:"#059669", greenBg:"rgba(5,150,105,0.08)",
-    red:"#DC2626", redBg:"rgba(220,38,38,0.08)",
-    orange:"#D97706", orangeBg:"rgba(217,119,6,0.08)",
-    blue:"#2563EB", blueBg:"rgba(37,99,235,0.08)",
-    yellow:"#CA8A04", yellowBg:"rgba(202,138,4,0.08)",
-    shadow:"0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)",
+    bg:"#F7F7F7", card:"#FFFFFF", hover:"#F2F2F7", sidebar:"#FFFFFF", topbar:"#FFFFFF",
+    border:"#E5E5EA", text:"#1C1C1E", muted:"#636366", dim:"#AEAEB2",
+    accent:"#007AFF", accentL:"#0060CC", accentBg:"rgba(0,122,255,0.06)",
+    green:"#34C759", greenBg:"rgba(52,199,89,0.06)",
+    red:"#FF3B30", redBg:"rgba(255,59,48,0.06)",
+    orange:"#FF9500", orangeBg:"rgba(255,149,0,0.06)",
+    blue:"#007AFF", blueBg:"rgba(0,122,255,0.06)",
+    yellow:"#FFCC00", yellowBg:"rgba(255,204,0,0.06)",
+    shadow:"0 1px 2px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.06)",
   },
 };
 
@@ -613,7 +611,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t, user, onLogout, role, pr
   return (
     <div style={{ width: w, minWidth: w, height: "100vh", background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", transition: "width 0.2s", overflow: "hidden" }}>
       <div onClick={toggle} style={{ padding: collapsed ? "18px 14px" : "18px 18px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid " + t.border, cursor: "pointer", minHeight: 60 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px " + t.accent + "40" }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px " + t.accent + "40" }}>
           <Zap size={16} color="#fff" />
         </div>
         {!collapsed && <div><span style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: "-0.3px" }}>GestiónAI</span><div style={{ fontSize: 9, color: t.dim, marginTop: 1, letterSpacing: "1px", textTransform: "uppercase" }}>Construcción</div></div>}
@@ -916,169 +914,157 @@ function Dashboard({ t, onNav }) {
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
 
-  // Tasks categorized by actual dates
-  const overdueTasks = tasks.filter(tk => {
-    if (!tk.due || tk.st === "done") return false;
-    return new Date(tk.due) < new Date(todayStr);
-  });
-  const todayTasks = tasks.filter(tk => {
-    if (!tk.due || tk.st === "done") return false;
-    return tk.due.startsWith(todayStr);
-  });
+  const overdueTasks = tasks.filter(tk => tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr));
+  const todayTasks = tasks.filter(tk => tk.due && tk.st !== "done" && tk.due.startsWith(todayStr));
   const pendingTasks = tasks.filter(tk => tk.st === "todo" || tk.st === "in_progress");
-  const tasksForToday = [...overdueTasks, ...todayTasks]; // overdue + due today
-  const urgentTasks = overdueTasks; // truly urgent = overdue
-
+  const doneTasks = tasks.filter(tk => tk.st === "done");
   const pendingTx = TXS.filter(tx => tx.status === "pending" || tx.status === "overdue");
   const overdueTx = TXS.filter(tx => tx.status === "overdue");
-  const recentDocs = documents.slice(0, 5);
+  const totalIncome = TXS.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
+  const totalExpense = TXS.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+  const recentDocs = documents.slice(0, 4);
   const today = now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  const activeProjects = projects.filter(p => p.status === "active" || p.status === "in_progress");
 
-  // Tasks due soon (next 7 days, NOT including overdue)
   const dueSoon = tasks.filter(tk => {
     if (!tk.due || tk.st === "done") return false;
     const d = new Date(tk.due); const diff = (d - now) / (1000*60*60*24);
     return diff >= 0 && diff <= 7;
   }).sort((a, b) => new Date(a.due) - new Date(b.due));
 
+  const taskCompletion = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+
   return (
-    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 54px)" }}>
-      {/* Welcome + date */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Buen día</div>
-        <div style={{ fontSize: 12, color: t.muted, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 54px)" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>Buen día</div>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+        </div>
+        {overdueTasks.length > 0 && (
+          <div onClick={() => onNav && onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: t.redBg, cursor: "pointer" }}>
+            <AlertCircle size={13} color={t.red} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: t.red }}>{overdueTasks.length} vencida{overdueTasks.length > 1 ? "s" : ""}</span>
+          </div>
+        )}
       </div>
 
-      {/* Quick stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+      {/* KPI Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {[
-          { icon: Target, label: "Tareas pendientes", val: pendingTasks.length, sub: overdueTasks.length > 0 ? overdueTasks.length + " vencidas" : "Todo al día", color: t.accent, bg: t.accentBg, nav: "tasks" },
-          { icon: AlertCircle, label: "Pagos vencidos", val: overdueTx.length, sub: overdueTx.length ? fmt(overdueTx.reduce((s, tx) => s + Math.abs(tx.amount), 0)) : "Ninguno", color: t.red, bg: t.redBg, nav: "transactions" },
-          { icon: Clock, label: "Cobros pendientes", val: pendingTx.filter(tx => tx.amount > 0).length, sub: fmt(pendingTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0)), color: t.green, bg: t.greenBg, nav: "transactions" },
-          { icon: FolderKanban, label: "Obras activas", val: projects.filter(p => p.status === "active" || p.status === "in_progress").length || projects.length, sub: clients.length + " clientes", color: t.blue, bg: "rgba(96,165,250,0.08)", nav: "projects" },
+          { label: "Ingresos", val: fmt(totalIncome), color: t.green, icon: ArrowUpRight },
+          { label: "Egresos", val: fmt(totalExpense), color: t.red, icon: ArrowDownRight },
+          { label: "Pendiente cobro", val: fmt(pendingTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0)), color: t.blue, icon: Clock },
+          { label: "Tareas", val: `${doneTasks.length}/${tasks.length}`, sub: taskCompletion + "% completado", color: t.accent, icon: Target },
         ].map((k, i) => (
-          <Crd key={i} t={t} style={{ padding: 16, cursor: "pointer", transition: "transform 0.15s" }} onClick={() => onNav && onNav(k.nav)} onMouseEnter={e => e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e => e.currentTarget.style.transform="none"}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><k.icon size={17} color={k.color} /></div>
+          <Crd key={i} t={t} style={{ padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: t.muted, textTransform: "uppercase", letterSpacing: "0.5px" }}>{k.label}</span>
+              <k.icon size={14} color={k.color} />
             </div>
-            <div style={{ fontSize: 10, color: t.muted }}>{k.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: t.text }}>{k.val}</div>
-            <div style={{ fontSize: 10, color: t.dim, marginTop: 2 }}>{k.sub}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>{k.val}</div>
+            {k.sub && <div style={{ fontSize: 10, color: t.dim, marginTop: 3 }}>{k.sub}</div>}
           </Crd>
         ))}
       </div>
 
-      {/* Main grid: tasks + agenda */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr", gap: 14, marginBottom: 20 }}>
-        {/* Tasks panel */}
+      {/* Main grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr", gap: 14, marginBottom: 14 }}>
+        {/* Tasks */}
         <Crd t={t} style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>
-              {tasksForToday.length > 0 ? "Tareas para hoy" : "Próximas tareas"}
-              {overdueTasks.length > 0 && <span style={{ fontSize: 11, color: t.red, fontWeight: 600, marginLeft: 8 }}>({overdueTasks.length} vencidas)</span>}
-            </div>
-            <span onClick={() => onNav && onNav("tasks")} style={{ fontSize: 11, color: t.accentL, cursor: "pointer", fontWeight: 500 }}>Ver todas →</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Tareas pendientes</span>
+            <span onClick={() => onNav && onNav("tasks")} style={{ fontSize: 11, color: t.accent, cursor: "pointer", fontWeight: 600 }}>Ver todas →</span>
           </div>
-          {(tasksForToday.length > 0 ? tasksForToday : dueSoon).length === 0 ? (
-            <div style={{ padding: 30, textAlign: "center" }}>
-              <CheckCircle2 size={28} color={t.green} style={{ marginBottom: 8 }} />
-              <div style={{ fontSize: 13, color: t.green, fontWeight: 600 }}>Todo al día</div>
-              <div style={{ fontSize: 11, color: t.dim }}>No hay tareas pendientes</div>
+          {pendingTasks.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center" }}>
+              <CheckCircle2 size={24} color={t.green} style={{ marginBottom: 6 }} />
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.green }}>Todo al día</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>Podés crear tareas desde acá o por WhatsApp</div>
             </div>
-          ) : (tasksForToday.length > 0 ? tasksForToday : dueSoon).slice(0, 8).map(tk => {
+          ) : [...overdueTasks, ...todayTasks, ...dueSoon].slice(0, 7).map(tk => {
             const isOverdue = tk.due && new Date(tk.due) < new Date(todayStr);
             return (
-            <div key={tk.id} onClick={() => onNav && onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: isOverdue ? t.redBg : t.hover, marginBottom: 5, borderLeft: "3px solid " + (isOverdue ? t.red : tk.pri === "high" ? t.orange : tk.pri === "medium" ? t.blue : t.green), cursor: "pointer" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
-                <div style={{ fontSize: 10, color: t.dim }}>{tk.project} · {tk.who || "Sin asignar"}</div>
+              <div key={tk.id} onClick={() => onNav && onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 3, cursor: "pointer", borderLeft: "3px solid " + (isOverdue ? t.red : tk.pri === "high" ? t.orange : t.accent + "40"), background: isOverdue ? t.redBg : "transparent" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>{tk.project}{tk.who ? " · " + tk.who : ""}</div>
+                </div>
+                {tk.due && <span style={{ fontSize: 10, fontWeight: 600, color: isOverdue ? t.red : t.dim }}>{isOverdue ? "Vencida" : tk.due.substring(5)}</span>}
               </div>
-              <div style={{ textAlign: "right" }}>
-                {tk.due && <div style={{ fontSize: 10, fontWeight: 600, color: isOverdue ? t.red : t.dim }}>{isOverdue ? "Vencida" : tk.due}</div>}
-                <Badge s={tk.st} t={t} />
-              </div>
-            </div>
             );
           })}
-          {(tasksForToday.length > 0 ? tasksForToday : dueSoon).length > 8 && <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: t.accentL }}>+{(tasksForToday.length > 0 ? tasksForToday : dueSoon).length - 8} tareas más</div>}
         </Crd>
 
-        {/* Right column: vencimientos + próximos */}
+        {/* Right sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Due soon */}
-          <Crd t={t} style={{ padding: 16 }}>
-            <div onClick={() => onNav && onNav("tasks")} style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10, cursor: "pointer" }}>Vencimientos próximos <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
-            {dueSoon.length === 0 ? (
-              <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Sin vencimientos esta semana</div>
-            ) : dueSoon.slice(0, 5).map(tk => {
-              const d = new Date(tk.due); const now = new Date(); const diff = Math.ceil((d - now) / (1000*60*60*24));
-              const urgency = diff < 0 ? "Vencida" : diff === 0 ? "Hoy" : diff === 1 ? "Mañana" : diff + " días";
-              return (
-                <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: diff <= 0 ? t.red : diff <= 2 ? t.orange : t.blue, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.title}</div>
-                    <div style={{ fontSize: 10, color: t.dim }}>{tk.project}</div>
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: diff <= 0 ? t.red : diff <= 2 ? t.orange : t.muted, whiteSpace: "nowrap" }}>{urgency}</span>
+          {/* Projects summary */}
+          <Crd t={t} style={{ padding: 18 }}>
+            <div onClick={() => onNav && onNav("projects")} style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10, cursor: "pointer" }}>Obras activas <span style={{ fontSize: 10, color: t.accent }}>→</span></div>
+            {(activeProjects.length > 0 ? activeProjects : projects).length === 0 ? (
+              <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 10 }}>Sin proyectos aún</div>
+            ) : (activeProjects.length > 0 ? activeProjects : projects).slice(0, 4).map(p => (
+              <div key={p.id} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{p.name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.accent }}>{p.progress || 0}%</span>
                 </div>
-              );
-            })}
+                <div style={{ height: 4, borderRadius: 2, background: t.hover }}>
+                  <div style={{ height: 4, borderRadius: 2, background: t.accent, width: (p.progress || 0) + "%", transition: "width 0.3s" }} />
+                </div>
+              </div>
+            ))}
           </Crd>
 
-          {/* Cobros/pagos urgentes */}
-          <Crd t={t} style={{ padding: 16 }}>
-            <div onClick={() => onNav && onNav("transactions")} style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10, cursor: "pointer" }}>Cobros y pagos pendientes <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
+          {/* Pending payments */}
+          <Crd t={t} style={{ padding: 18 }}>
+            <div onClick={() => onNav && onNav("transactions")} style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10, cursor: "pointer" }}>Cobros pendientes <span style={{ fontSize: 10, color: t.accent }}>→</span></div>
             {pendingTx.length === 0 ? (
-              <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 12 }}>Todo al día</div>
-            ) : pendingTx.slice(0, 5).map(tx => (
-              <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.desc}</div>
-                  <div style={{ fontSize: 10, color: t.dim }}>{tx.contact}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</div>
-                  <Badge s={tx.status} t={t} />
-                </div>
+              <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 10 }}>Sin pendientes</div>
+            ) : pendingTx.slice(0, 4).map(tx => (
+              <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid " + t.border + "20" }}>
+                <div style={{ fontSize: 11, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{tx.desc}</div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
               </div>
             ))}
           </Crd>
         </div>
       </div>
 
-      {/* Bottom row: recent activity + docs */}
+      {/* Bottom row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        {/* Last transactions */}
+        {/* Recent transactions */}
         <Crd t={t} style={{ padding: 20 }}>
-          <div onClick={() => onNav && onNav("transactions")} style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14, cursor: "pointer" }}>Últimos movimientos <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
-          {TXS.slice(0, 5).map(tx => (
-            <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
+          <div onClick={() => onNav && onNav("transactions")} style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12, cursor: "pointer" }}>Últimos movimientos <span style={{ fontSize: 10, color: t.accent }}>→</span></div>
+          {TXS.length === 0 ? (
+            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 16 }}>Registrá tu primer ingreso o egreso para empezar</div>
+          ) : TXS.slice(0, 5).map(tx => (
+            <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 26, height: 26, borderRadius: 6, background: tx.amount > 0 ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 24, height: 24, borderRadius: 6, background: tx.amount > 0 ? t.greenBg : t.redBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {tx.amount > 0 ? <ArrowUpRight size={11} color={t.green} /> : <ArrowDownRight size={11} color={t.red} />}
                 </div>
-                <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date} · {tx.contact}</div></div>
+                <div><div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tx.desc}</div><div style={{ fontSize: 10, color: t.dim }}>{tx.date}</div></div>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: tx.amount > 0 ? t.green : t.red }}>{fmt(tx.amount)}</span>
             </div>
           ))}
         </Crd>
 
         {/* Recent docs */}
         <Crd t={t} style={{ padding: 20 }}>
-          <div onClick={() => onNav && onNav("documents")} style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 14, cursor: "pointer" }}>Documentos recientes <span style={{ fontSize: 10, color: t.accentL, fontWeight: 500 }}>→</span></div>
+          <div onClick={() => onNav && onNav("documents")} style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12, cursor: "pointer" }}>Documentos <span style={{ fontSize: 10, color: t.accent }}>→</span></div>
           {recentDocs.length === 0 ? (
-            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 20 }}>Sin documentos</div>
+            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 16 }}>Subí documentos desde la web o enviá fotos por WhatsApp</div>
           ) : recentDocs.map(d => (
-            <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + t.border + "15" }}>
-              <FileText size={14} color={t.accentL} />
+            <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid " + t.border + "15" }}>
+              <FileText size={13} color={t.accent} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
-                <div style={{ fontSize: 10, color: t.dim }}>{d.date} · {d.contact || d.project || "—"}</div>
+                <div style={{ fontSize: 10, color: t.dim }}>{d.date}</div>
               </div>
-              <Badge s={d.status} t={t} />
-              {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: t.accentL, textDecoration: "none", padding: "2px 6px", background: t.accentBg, borderRadius: 4 }}>Ver</a>}
+              {d.file_url && <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: t.accent, textDecoration: "none", padding: "2px 8px", background: t.accentBg, borderRadius: 4, fontWeight: 600 }}>Ver</a>}
             </div>
           ))}
         </Crd>
@@ -1282,7 +1268,7 @@ function ProjectsPage({ t }) {
             <input type="range" min={0} max={100} step={5} value={p.progress} onChange={async (e) => {
               const val = Number(e.target.value);
               await updateProgress(p.id, val);
-            }} style={{ width: 120, accentColor: p.progress > 80 ? "#34D399" : "#7C6DF0" }} />
+            }} style={{ width: 120, accentColor: p.progress > 80 ? "#34D399" : "" + t.accent + "" }} />
           </div>
           <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
             {[0,25,50,75,100].map(v => (
@@ -3145,282 +3131,200 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
   const handleScroll = (e) => setScrollY(e.target.scrollTop);
 
   const features = [
-    { icon: LayoutDashboard, title: "Dashboard inteligente", desc: "KPIs financieros en tiempo real con alertas automáticas de IA. Visualizá ingresos, egresos y cash flow de un vistazo." },
-    { icon: Receipt, title: "Transacciones y facturación", desc: "Registrá cobros y pagos, vinculá facturas, controlá pendientes y vencidos. Exportá todo a Excel." },
-    { icon: Layers, title: "Contabilidad automatizada", desc: "Libro Diario con asientos propuestos por IA, Libro Mayor y Balance de Comprobación. Partida doble visual." },
-    { icon: Wallet, title: "Tesorería y bancos", desc: "Cuentas bancarias en vivo, forecast de 4 semanas, CxC/CxP por antigüedad, alertas de pagos." },
-    { icon: FolderKanban, title: "Proyectos y obras", desc: "Seguimiento de avance, presupuesto vs real, tareas por obra. Todo en un solo lugar." },
-    { icon: FileText, title: "OCR de comprobantes", desc: "Sacá una foto del ticket por WhatsApp. La IA extrae monto, proveedor, IVA y lo registra automáticamente." },
-  ];
-
-  const stats = [
-    { val: "85%", label: "menos tiempo en administración" },
-    { val: "30%", label: "más rentabilidad en obras" },
-    { val: "100%", label: "trazabilidad de gastos" },
-    { val: "24/7", label: "acceso desde cualquier lugar" },
+    { icon: LayoutDashboard, title: "Dashboard ejecutivo", desc: "Tareas vencidas, cobros pendientes y avance de obras. Todo en una pantalla." },
+    { icon: Receipt, title: "Finanzas integradas", desc: "Ingresos, egresos, facturas y cobros. Controlá el flujo de dinero en tiempo real." },
+    { icon: Wallet, title: "Tesorería y bancos", desc: "Saldos de cuentas, forecast semanal y alertas de vencimiento automáticas." },
+    { icon: FolderKanban, title: "Proyectos y obras", desc: "Avance, presupuesto vs. real y tareas por obra con asignación de equipo." },
+    { icon: FileText, title: "Comprobantes por WhatsApp", desc: "Sacá una foto del ticket y la IA extrae monto, proveedor e IVA automáticamente." },
+    { icon: Users, title: "Equipos y sueldos", desc: "Liquidación de sueldos, aprobación de pagos y control de equipo por obra." },
   ];
 
   const steps = [
-    { num: "01", title: "Conectá tus datos", desc: "Importá tu información existente o empezá de cero. En minutos tenés todo configurado." },
-    { num: "02", title: "Operá día a día", desc: "Registrá gastos por WhatsApp, gestioná cobros, controlá obras. Todo fluye naturalmente." },
-    { num: "03", title: "Tomá mejores decisiones", desc: "Reportes automáticos, alertas inteligentes y proyecciones que te permiten anticiparte." },
+    { num: "1", title: "Conectá tus datos", desc: "Importá tu información o empezá de cero. En minutos tenés todo configurado." },
+    { num: "2", title: "Operá día a día", desc: "Registrá gastos por WhatsApp, gestioná cobros, controlá obras. Todo natural." },
+    { num: "3", title: "Tomá decisiones", desc: "Reportes automáticos, alertas y proyecciones para anticiparte." },
   ];
 
+  const C = "#0A84FF";
+  const bg = "#FAFAFA";
+  const tx = "#1C1C1E";
+  const mu = "#6E6E73";
+  const bd = "#E5E5EA";
+
   return (
-    <div onScroll={handleScroll} style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "#06080D", color: "#ECF0F6", fontFamily: "'DM Sans', sans-serif", scrollBehavior: "smooth" }}>
+    <div onScroll={handleScroll} style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: bg, color: tx, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", scrollBehavior: "smooth" }}>
       <style>{
-        "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');" +
-        "@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}" +
-        "@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}" +
-        "@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}" +
-        "@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}" +
-        "*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif}" +
-        "::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#262940;border-radius:3px}"
+        "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');" +
+        "@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}" +
+        "*{box-sizing:border-box;margin:0;padding:0}" +
+        "::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#D1D1D6;border-radius:3px}"
       }</style>
 
       {/* Nav */}
       <nav style={{
-        position: "sticky", top: 0, left: 0, right: 0, zIndex: 100, padding: "16px 40px",
+        position: "sticky", top: 0, zIndex: 100, padding: "12px 40px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        background: scrollY > 50 ? "rgba(6,8,13,0.95)" : "rgba(6,8,13,0.8)",
-        backdropFilter: "blur(20px)",
-        borderBottom: scrollY > 50 ? "1px solid rgba(124,109,240,0.1)" : "1px solid transparent",
-        transition: "all 0.3s",
+        background: scrollY > 30 ? "rgba(250,250,250,0.85)" : "transparent",
+        backdropFilter: scrollY > 30 ? "blur(20px)" : "none",
+        borderBottom: scrollY > 30 ? "1px solid " + bd : "1px solid transparent",
+        transition: "all 0.2s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(124,109,240,0.4)" }}>
-            <Zap size={17} color="#fff" />
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: tx, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Zap size={15} color="#fff" />
           </div>
-          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.5px" }}>GestiónAI</span>
+          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.3px", color: tx }}>GestiónAI</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          <span onClick={() => document.getElementById("features").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Funcionalidades</span>
-          <span onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
-          <span onClick={() => document.getElementById("pricing").scrollIntoView({ behavior: "smooth" })} style={{ color: "#8890A8", textDecoration: "none", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
-          <button onClick={onLogin} style={{ background: isLoggedIn ? "linear-gradient(135deg, #34D399, #10B981)" : "transparent", color: "#ECF0F6", border: isLoggedIn ? "none" : "1px solid rgba(255,255,255,0.15)", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            {isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión"}
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <span onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} style={{ color: mu, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Funcionalidades</span>
+          <span onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })} style={{ color: mu, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cómo funciona</span>
+          <button onClick={onLogin} style={{ background: "transparent", color: tx, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 0" }}>
+            {isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}
           </button>
-          <button onClick={onEnter} style={{ background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none", borderRadius: 9, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 16px rgba(124,109,240,0.35)" }}>
-            Ver Demo
+          <button onClick={onEnter} style={{ background: tx, color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Ver demo
           </button>
         </div>
       </nav>
 
       {/* Hero */}
-      <section style={{
-        minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-        textAlign: "center", padding: "60px 40px 80px", position: "relative", overflow: "hidden",
-      }}>
-        {/* BG effects */}
-        <div style={{ position: "absolute", top: "20%", left: "10%", width: 400, height: 400, background: "radial-gradient(circle, rgba(124,109,240,0.12) 0%, transparent 70%)", borderRadius: "50%", filter: "blur(60px)", animation: "float 8s ease-in-out infinite", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: "10%", right: "10%", width: 350, height: 350, background: "radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 70%)", borderRadius: "50%", filter: "blur(60px)", animation: "float 10s ease-in-out infinite 2s", pointerEvents: "none" }} />
-
-        <div style={{ animation: "fadeUp 0.8s ease-out" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 16px", borderRadius: 20, background: "rgba(124,109,240,0.1)", border: "1px solid rgba(124,109,240,0.2)", marginBottom: 28 }}>
-            <Bot size={13} color="#9F92FF" />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#9F92FF" }}>Potenciado por Inteligencia Artificial</span>
-          </div>
+      <section style={{ maxWidth: 900, margin: "0 auto", padding: "100px 40px 80px", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 20, background: "#F2F2F7", border: "1px solid " + bd, marginBottom: 28, animation: "fadeUp 0.6s ease-out" }}>
+          <Bot size={13} color={C} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: mu }}>Potenciado por inteligencia artificial</span>
         </div>
 
-        <h1 style={{ fontSize: 62, fontWeight: 900, lineHeight: 1.05, maxWidth: 800, letterSpacing: "-2px", animation: "fadeUp 0.8s ease-out 0.1s both" }}>
-          Gestión financiera
-          <span style={{ background: "linear-gradient(135deg, #7C6DF0, #34D399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}> inteligente</span>
-          <br />para constructoras
+        <h1 style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.08, letterSpacing: "-2.5px", animation: "fadeUp 0.6s ease-out 0.05s both", color: tx }}>
+          Gestión integral<br/>para constructoras
         </h1>
 
-        <p style={{ fontSize: 18, color: "#8890A8", maxWidth: 560, marginTop: 24, lineHeight: 1.6, animation: "fadeUp 0.8s ease-out 0.2s both" }}>
-          Controlá obras, finanzas y equipos desde un solo lugar.
-          Con IA que automatiza tu contabilidad y WhatsApp como canal de carga.
+        <p style={{ fontSize: 18, color: mu, maxWidth: 520, margin: "20px auto 0", lineHeight: 1.6, animation: "fadeUp 0.6s ease-out 0.1s both" }}>
+          Obras, finanzas, equipos y documentos en una sola plataforma.
+          Con WhatsApp como canal de operación diaria.
         </p>
 
-        <div style={{ display: "flex", gap: 14, marginTop: 36, animation: "fadeUp 0.8s ease-out 0.3s both" }}>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 36, animation: "fadeUp 0.6s ease-out 0.15s both" }}>
           <button onClick={onLogin} style={{
-            background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
-            borderRadius: 12, padding: "15px 36px", fontSize: 16, fontWeight: 700, cursor: "pointer",
-            boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "flex", alignItems: "center", gap: 8,
+            background: tx, color: "#fff", border: "none", borderRadius: 10, padding: "14px 32px",
+            fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
           }}>
-            {isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión"} <ArrowUpRight size={18} />
+            {isLoggedIn ? "Ir a mi cuenta" : "Comenzar gratis"} <ArrowUpRight size={16} />
           </button>
           <button onClick={onEnter} style={{
-            background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 12, padding: "15px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8,
+            background: "#fff", color: tx, border: "1px solid " + bd, borderRadius: 10, padding: "14px 28px",
+            fontSize: 15, fontWeight: 600, cursor: "pointer",
           }}>
             Ver demo interactiva
           </button>
-          <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20info%20sobre%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{
-            background: "rgba(255,255,255,0.04)", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 12, padding: "15px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8, textDecoration: "none",
-          }}>
-            <MessageSquare size={16} color="#25D366" /> Contactar por WhatsApp
-          </a>
         </div>
 
-        {/* Stats strip */}
-        <div style={{
-          display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 0,
-          marginTop: 72, padding: "28px 0", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)",
-          maxWidth: 740, width: "100%", animation: "fadeUp 0.8s ease-out 0.5s both",
-        }}>
-          {stats.map((s, i) => (
-            <div key={i} style={{ textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-              <div style={{ fontSize: 32, fontWeight: 900, background: "linear-gradient(135deg, #7C6DF0, #34D399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.val}</div>
-              <div style={{ fontSize: 12, color: "#555B75", marginTop: 4 }}>{s.label}</div>
+        {/* Trust bar */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 40, marginTop: 56, animation: "fadeUp 0.6s ease-out 0.2s both" }}>
+          {[
+            { val: "85%", label: "menos tiempo en admin" },
+            { val: "100%", label: "trazabilidad de gastos" },
+            { val: "24/7", label: "acceso WhatsApp" },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: tx, letterSpacing: "-1px" }}>{s.val}</div>
+              <div style={{ fontSize: 12, color: mu, marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 60 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#7C6DF0", textTransform: "uppercase", letterSpacing: 2 }}>Funcionalidades</span>
-          <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Todo lo que tu constructora necesita</h2>
-          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, maxWidth: 500, margin: "12px auto 0" }}>Una sola plataforma para reemplazar las planillas, los papeles y los sistemas desconectados.</p>
+      <section id="features" style={{ maxWidth: 1000, margin: "0 auto", padding: "80px 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: C, marginBottom: 10 }}>Funcionalidades</div>
+          <h2 style={{ fontSize: 36, fontWeight: 900, letterSpacing: "-1.5px" }}>Todo lo que necesitás, nada que sobre</h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {features.map((f, i) => (
             <div key={i} style={{
-              padding: 30, borderRadius: 16, background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s",
-            }}>
-              <div style={{ width: 44, height: 44, borderRadius: 11, background: "rgba(124,109,240,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                <f.icon size={21} color="#9F92FF" />
+              padding: "28px 24px", borderRadius: 14, background: "#fff", border: "1px solid " + bd,
+              transition: "box-shadow 0.2s, border-color 0.2s",
+              cursor: "default",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.06)"; e.currentTarget.style.borderColor = "#D1D1D6"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = bd; }}
+            >
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "#F2F2F7", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                <f.icon size={18} color={tx} />
               </div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
-              <p style={{ fontSize: 13, color: "#8890A8", lineHeight: 1.6 }}>{f.desc}</p>
+              <div style={{ fontSize: 15, fontWeight: 700, color: tx, marginBottom: 6 }}>{f.title}</div>
+              <div style={{ fontSize: 13, color: mu, lineHeight: 1.5 }}>{f.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section id="how" style={{ padding: "100px 40px", background: "rgba(124,109,240,0.03)" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 60 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#34D399", textTransform: "uppercase", letterSpacing: 2 }}>Cómo funciona</span>
-            <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Arrancá en 3 pasos</h2>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 32 }}>
-            {steps.map((s, i) => (
-              <div key={i} style={{ position: "relative" }}>
-                <div style={{ fontSize: 48, fontWeight: 900, color: "rgba(124,109,240,0.12)", marginBottom: 12, lineHeight: 1 }}>{s.num}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{s.title}</h3>
-                <p style={{ fontSize: 13, color: "#8890A8", lineHeight: 1.6 }}>{s.desc}</p>
-                {i < 2 && <div style={{ position: "absolute", top: 24, right: -16, fontSize: 20, color: "rgba(124,109,240,0.2)" }}>→</div>}
-              </div>
-            ))}
-          </div>
+      <section id="how" style={{ maxWidth: 800, margin: "0 auto", padding: "80px 40px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: C, marginBottom: 10 }}>Cómo funciona</div>
+          <h2 style={{ fontSize: 36, fontWeight: 900, letterSpacing: "-1.5px" }}>Arrancá en minutos, no en semanas</h2>
         </div>
-      </section>
-
-      {/* How it works */}
-      <section id="pricing" style={{ padding: "100px 40px", maxWidth: 1000, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 60 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#FBBF24", textTransform: "uppercase", letterSpacing: 2 }}>Cómo funciona</span>
-          <h2 style={{ fontSize: 40, fontWeight: 900, marginTop: 12, letterSpacing: "-1px" }}>Tu plataforma, diseñada a medida</h2>
-          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, maxWidth: 600, margin: "12px auto 0" }}>Cada empresa es única. Por eso armamos un plan personalizado que se adapta a tu operación, tus obras y tu equipo.</p>
-        </div>
-
-        {/* Steps */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginBottom: 60 }}>
-          {[
-            { step: "01", title: "Nos contactás", desc: "Nos contás sobre tu empresa, tus obras activas, tu equipo y qué necesitás automatizar.", icon: MessageSquare },
-            { step: "02", title: "Diseñamos tu plan", desc: "Configuramos GestiónAI a medida: módulos, integraciones, usuarios y branding de tu empresa.", icon: LayoutDashboard },
-            { step: "03", title: "Arrancás a operar", desc: "En menos de 48hs tenés tu plataforma lista, con onboarding para todo tu equipo.", icon: Zap },
-          ].map((s, i) => (
-            <div key={i} style={{ padding: 28, borderRadius: 16, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
-              <div style={{ fontSize: 48, fontWeight: 900, color: "rgba(124,109,240,0.15)", position: "absolute", top: 16, right: 20 }}>{s.step}</div>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(124,109,240,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                <s.icon size={20} color="#9F92FF" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: "flex", gap: 24, padding: "28px 0", borderBottom: i < steps.length - 1 ? "1px solid " + bd : "none" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: tx, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{s.num}</div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: tx, marginBottom: 4 }}>{s.title}</div>
+                <div style={{ fontSize: 14, color: mu, lineHeight: 1.5 }}>{s.desc}</div>
               </div>
-              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{s.title}</div>
-              <div style={{ fontSize: 13, color: "#8890A8", lineHeight: 1.6 }}>{s.desc}</div>
             </div>
           ))}
         </div>
+      </section>
 
-        {/* What's included */}
-        <div style={{
-          padding: 40, borderRadius: 20,
-          background: "linear-gradient(160deg, rgba(124,109,240,0.1), rgba(52,211,153,0.04))",
-          border: "1px solid rgba(124,109,240,0.2)",
-        }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>Todas las implementaciones incluyen</div>
-            <div style={{ fontSize: 13, color: "#8890A8" }}>Sin sorpresas, sin costos ocultos</div>
+      {/* WhatsApp highlight */}
+      <section style={{ maxWidth: 800, margin: "0 auto", padding: "60px 40px" }}>
+        <div style={{ padding: "40px 36px", borderRadius: 16, background: "#fff", border: "1px solid " + bd, display: "flex", gap: 32, alignItems: "center" }}>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(37,211,102,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <MessageSquare size={28} color="#25D366" />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }}>
-            {[
-              "Dashboard inteligente en tiempo real",
-              "Gestión de obras, clientes y proveedores",
-              "Control financiero con IA",
-              "Liquidación de sueldos integrada",
-              "WhatsApp Bot con OCR de facturas",
-              "Reportes automáticos personalizados",
-              "App web responsive (PC + celular)",
-              "Branding de tu empresa en la plataforma",
-              "Soporte técnico dedicado",
-              "Actualizaciones continuas sin costo extra",
-            ].map((f, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
-                <CheckCircle2 size={15} color="#34D399" />
-                <span style={{ fontSize: 13, color: "#B0B8CC" }}>{f}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ textAlign: "center", marginTop: 32 }}>
-            <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20info%20sobre%20Gesti%C3%B3nAI%20para%20mi%20empresa" target="_blank" rel="noopener noreferrer" style={{
-              display: "inline-flex", alignItems: "center", gap: 10, padding: "16px 40px", borderRadius: 12,
-              background: "#25D366", color: "#fff", fontSize: 16, fontWeight: 700, textDecoration: "none", cursor: "pointer",
-              boxShadow: "0 4px 20px rgba(37,211,102,0.3)",
-            }}>
-              <MessageSquare size={18} /> Hablemos por WhatsApp
-            </a>
-            <div style={{ fontSize: 12, color: "#555B75", marginTop: 10 }}>Respondemos en menos de 2 horas</div>
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: tx, marginBottom: 6 }}>WhatsApp es tu oficina</div>
+            <div style={{ fontSize: 14, color: mu, lineHeight: 1.6 }}>
+              Cargá facturas con una foto, creá tareas por voz, consultá saldos y controlá obras.
+              Todo sin abrir la computadora. La IA entiende lo que necesitás y lo ejecuta.
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section style={{ padding: "100px 40px", textAlign: "center" }}>
-        <div style={{
-          maxWidth: 700, margin: "0 auto", padding: "60px 40px", borderRadius: 24,
-          background: "linear-gradient(160deg, rgba(124,109,240,0.1), rgba(52,211,153,0.05))",
-          border: "1px solid rgba(124,109,240,0.15)",
-        }}>
-          <h2 style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-1px" }}>¿Listo para profesionalizar tu gestión?</h2>
-          <p style={{ fontSize: 16, color: "#8890A8", marginTop: 12, marginBottom: 28 }}>Dejá las planillas de Excel. Armamos tu plataforma a medida en menos de 48 horas.</p>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
-            <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20una%20demo%20personalizada%20de%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{
-              background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", color: "#fff", border: "none",
-              borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer", textDecoration: "none",
-              boxShadow: "0 4px 24px rgba(124,109,240,0.4)", display: "inline-flex", alignItems: "center", gap: 8,
-            }}>
-              Solicitar demo personalizada <ArrowUpRight size={18} />
-            </a>
-            <button onClick={onEnter} style={{
-              background: "transparent", color: "#ECF0F6", border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12, padding: "16px 30px", fontSize: 16, fontWeight: 600, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", gap: 8,
-            }}>
-              Ver demo
-            </button>
-          </div>
+      <section style={{ maxWidth: 700, margin: "0 auto", padding: "80px 40px", textAlign: "center" }}>
+        <h2 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-1px" }}>¿Listo para arrancar?</h2>
+        <p style={{ fontSize: 15, color: mu, marginTop: 10, marginBottom: 28 }}>Probá la demo interactiva o contactanos para una configuración personalizada.</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Quiero%20una%20demo%20personalizada%20de%20Gesti%C3%B3nAI" target="_blank" rel="noopener noreferrer" style={{
+            background: tx, color: "#fff", border: "none", borderRadius: 10, padding: "14px 32px",
+            fontSize: 15, fontWeight: 700, cursor: "pointer", textDecoration: "none",
+            display: "inline-flex", alignItems: "center", gap: 8,
+          }}>
+            Solicitar demo <ArrowUpRight size={16} />
+          </a>
+          <button onClick={onEnter} style={{
+            background: "#fff", color: tx, border: "1px solid " + bd, borderRadius: 10,
+            padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer",
+          }}>
+            Probar gratis
+          </button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ padding: "40px 40px", borderTop: "1px solid rgba(255,255,255,0.06)", maxWidth: 1100, margin: "0 auto" }}>
+      <footer style={{ padding: "32px 40px", borderTop: "1px solid " + bd, maxWidth: 900, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg, #7C6DF0, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Zap size={13} color="#fff" />
+            <div style={{ width: 22, height: 22, borderRadius: 6, background: tx, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Zap size={11} color="#fff" />
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>GestiónAI</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: tx }}>GestiónAI</span>
           </div>
-          <span style={{ fontSize: 11, color: "#555B75" }}>© 2026 GestiónAI — Hecho en Argentina</span>
+          <span style={{ fontSize: 11, color: mu }}>© 2026 GestiónAI — Hecho en Argentina</span>
         </div>
       </footer>
     </div>
@@ -3430,11 +3334,11 @@ function Landing({ onEnter, onLogin, isLoggedIn }) {
 function LoadingScreen({ t }) {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: t.bg }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, animation: "float 2s ease-in-out infinite" }}>
-        <Zap size={24} color="#fff" />
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: t.text, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+        <Zap size={22} color={t.bg} />
       </div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>GestiónAI</div>
-      <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>Cargando datos...</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>GestiónAI</div>
+      <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>Cargando...</div>
     </div>
   );
 }
@@ -3512,7 +3416,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
       }</style>
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: t.bg, transition: "background 0.25s", flexDirection: "column" }}>
         {isDemo && (
-          <div style={{ background: "linear-gradient(90deg, #7C6DF0, #34D399)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
+          <div style={{ background: "" + t.accent + "", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🎯 Estás viendo la demo con datos ficticios</span>
             <a href="https://wa.me/542926540590?text=Hola%20%F0%9F%91%8B%20Vi%20la%20demo%20y%20quiero%20mi%20plataforma%20GestiónAI" target="_blank" rel="noopener noreferrer" style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <MessageSquare size={12} /> Solicitar mi plataforma →
@@ -3531,7 +3435,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
           <div style={{ position: "fixed", bottom: 24, right: 24, width: 340, background: t.card, border: "1px solid " + t.accent + "30", borderRadius: 14, padding: 18, boxShadow: "0 12px 40px rgba(0,0,0,0.3)", zIndex: 150, animation: "fadeUp 0.5s ease-out" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Sparkles size={18} color="#fff" />
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>¡Bienvenido a GestiónAI!</div>
@@ -3540,7 +3444,7 @@ function AppContent({ user, profile, onLogout, isDemo, onRegister }) {
             </div>
             <div style={{ fontSize: 12, color: t.muted, lineHeight: 1.6, marginBottom: 14 }}>Estás viendo datos ficticios de ejemplo. ¿Querés un recorrido rápido por la plataforma?</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { setShowWelcome(false); setPage("help"); }} style={{ flex: 1, padding: "9px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              <button onClick={() => { setShowWelcome(false); setPage("help"); }} style={{ flex: 1, padding: "9px 14px", borderRadius: 8, border: "none", background: t.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                 Ver tutorial
               </button>
               <button onClick={() => setShowWelcome(false)} style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
@@ -3947,7 +3851,7 @@ function HelpPage({ t, onNav, isDemo }) {
                   Ir a {step.title} →
                 </button>
                 {tutorialStep < tutorialSteps.length - 1 ? (
-                  <button onClick={() => setTutorialStep(tutorialStep + 1)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Siguiente →</button>
+                  <button onClick={() => setTutorialStep(tutorialStep + 1)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: t.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Siguiente →</button>
                 ) : (
                   <button onClick={() => setTutorialStep(-1)} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #34D399, #059669)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ ¡Listo!</button>
                 )}
@@ -3970,16 +3874,16 @@ function HelpPage({ t, onNav, isDemo }) {
       </div>
 
       {/* Start Tutorial CTA */}
-      <Crd t={t} style={{ padding: 0, marginBottom: 20, overflow: "hidden", background: "linear-gradient(135deg, " + t.accent + "15, #A78BFA10)", border: "1px solid " + t.accent + "25" }}>
+      <Crd t={t} style={{ padding: 0, marginBottom: 20, overflow: "hidden", background: "linear-gradient(135deg, " + t.accent + "15, " + t.accentBg + ")", border: "1px solid " + t.accent + "25" }}>
         <div style={{ padding: 24, display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 16px " + t.accent + "40" }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 16px " + t.accent + "40" }}>
             <Play size={24} color="#fff" />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Tutorial interactivo</div>
             <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>Recorré las {tutorialSteps.length} secciones de la plataforma con explicaciones detalladas y tips.</div>
           </div>
-          <button onClick={() => setTutorialStep(0)} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 2px 10px " + t.accent + "30" }}>
+          <button onClick={() => setTutorialStep(0)} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: t.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 2px 10px " + t.accent + "30" }}>
             Empezar tutorial
           </button>
         </div>
@@ -4082,7 +3986,7 @@ function PaywallScreen({ t, subscription, onSubscribe }) {
   return (
     <div style={{ minHeight: "100vh", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ maxWidth: 520, width: "100%", textAlign: "center" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 16, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
           <Sparkles size={30} color="#fff" />
         </div>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: t.text, marginBottom: 8 }}>
@@ -4113,7 +4017,7 @@ function PaywallScreen({ t, subscription, onSubscribe }) {
             ))}
           </div>
         </div>
-        <button onClick={onSubscribe} style={{ width: "100%", padding: "14px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #6366F1, #A78BFA)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px #6366F140", marginBottom: 12 }}>
+        <button onClick={onSubscribe} style={{ width: "100%", padding: "14px 24px", borderRadius: 10, border: "none", background: t.accent, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(0,122,255,0.25)", marginBottom: 12 }}>
           Activar suscripción
         </button>
         <div style={{ fontSize: 11, color: t.dim }}>Pagás con MercadoPago · Tarjeta, transferencia o efectivo</div>
@@ -4201,7 +4105,7 @@ function SubscriptionPage({ t, user, profile }) {
         )}
         {(sub?.status === "expired" || sub?.status === "past_due") && (
           <div style={{ marginTop: 14 }}>
-            <button onClick={startPayment} disabled={paying} style={{ width: "100%", padding: "12px 24px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #6366F1, #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={startPayment} disabled={paying} style={{ width: "100%", padding: "12px 24px", borderRadius: 8, border: "none", background: t.accent, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               {paying ? "Procesando..." : "Pagar ahora — $195 USD"}
             </button>
           </div>
@@ -4379,7 +4283,7 @@ function SuperAdminPage({ t }) {
             <Crd2 key={comp.id} style={{ cursor: "pointer" }}>
               <div onClick={() => selectCompany(comp)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Building2 size={18} color="#fff" />
                   </div>
                   <div style={{ flex: 1 }}>
@@ -4456,7 +4360,7 @@ function SuperAdminPage({ t }) {
         <div onClick={() => { setSelected(null); setCompanyData(null); setLoadError(null); }} style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 6 }}>
           <ChevronLeft size={14} color={t.muted} /><span style={{ fontSize: 12, color: t.muted }}>Volver</span>
         </div>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center" }}><Building2 size={20} color="#fff" /></div>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center" }}><Building2 size={20} color="#fff" /></div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{selected.name}</div>
           <div style={{ fontSize: 12, color: t.dim }}>{selected.cuit || "—"} · {selected.phone || "—"}{selected.wa_phone ? " · WA: +" + selected.wa_phone : ""}</div>
@@ -4686,7 +4590,7 @@ function TeamPage({ t, user, profile }) {
   const [success, setSuccess] = useState("");
 
   const roleLabels = { owner: "Dueño / Socio", admin: "Administrador", accountant: "Contador", pm: "Director de obra", employee: "Empleado" };
-  const roleColors = { owner: t.accent, admin: "#A78BFA", accountant: t.blue, pm: t.orange, employee: t.green };
+  const roleColors = { owner: t.accent, admin: "" + t.accent + "", accountant: t.blue, pm: t.orange, employee: t.green };
 
   const loadTeam = async () => {
     if (!companyId || companyId === "demo") {
@@ -4807,7 +4711,7 @@ function TeamPage({ t, user, profile }) {
           <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Equipo</div>
           <div style={{ fontSize: 12, color: t.muted }}>{members.length} miembros · {invitations.filter(i => i.status === "pending").length} invitaciones pendientes</div>
         </div>
-        <button onClick={() => setShowInvite(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={() => setShowInvite(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 8, border: "none", background: t.accent, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           <UserPlus size={14} /> Invitar miembro
         </button>
       </div>
@@ -4888,7 +4792,7 @@ function TeamPage({ t, user, profile }) {
           {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 12, fontSize: 12, color: t.red }}>{error}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button onClick={() => { setShowInvite(false); setError(""); }} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
-            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: invForm.channel === "whatsapp" ? "linear-gradient(135deg, #25D366, #128C7E)" : "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={sendInvite} disabled={sending} style={{ padding: "8px 20px", borderRadius: 7, border: "none", background: invForm.channel === "whatsapp" ? "linear-gradient(135deg, #25D366, #128C7E)" : "t.accent", color: "#fff", fontSize: 12, fontWeight: 600, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
               {invForm.channel === "whatsapp" ? <MessageSquare size={12} /> : <Mail size={12} />}
               {sending ? "Enviando..." : invForm.channel === "whatsapp" ? "Invitar por WhatsApp" : "Enviar invitación por Email"}
             </button>
@@ -5143,11 +5047,11 @@ function LoginPage({ onLogin }) {
       <div style={{ minHeight: "100vh", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", pointerEvents: "none" }}>
           <div style={{ position: "absolute", top: "20%", left: "10%", width: 300, height: 300, borderRadius: "50%", background: t.accent + "08", filter: "blur(80px)" }} />
-          <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 250, height: 250, borderRadius: "50%", background: "#A78BFA10", filter: "blur(80px)" }} />
+          <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 250, height: 250, borderRadius: "50%", background: "" + t.accentBg + "", filter: "blur(80px)" }} />
         </div>
         <div style={{ width: isLogin ? 400 : 460, padding: 40, position: "relative", zIndex: 1 }}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 4px 20px " + t.accent + "40" }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 4px 20px " + t.accent + "40" }}>
               <Zap size={26} color="#fff" />
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>GestiónAI</div>
@@ -5275,11 +5179,11 @@ function LoginPage({ onLogin }) {
             {error && <div style={{ padding: "8px 12px", background: t.redBg, border: "1px solid " + t.red + "25", borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.red }}>{error}</div>}
 
             {isLogin ? (
-              <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1 }}>
+              <button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: t.accent, color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1 }}>
                 {loading ? "Ingresando..." : "Iniciar sesión"}
               </button>
             ) : step === 1 ? (
-              <button onClick={() => { if (validateRegStep1()) setStep(2); }} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              <button onClick={() => { if (validateRegStep1()) setStep(2); }} style={{ width: "100%", padding: "11px 0", borderRadius: 9, border: "none", background: t.accent, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                 Siguiente →
               </button>
             ) : (
@@ -5287,7 +5191,7 @@ function LoginPage({ onLogin }) {
                 <button onClick={() => setStep(1)} style={{ flex: 1, padding: "11px 0", borderRadius: 9, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                   ← Atrás
                 </button>
-                <button onClick={handleSubmit} disabled={loading || pass.length < 6 || pass !== pass2} style={{ flex: 2, padding: "11px 0", borderRadius: 9, border: "none", background: "linear-gradient(135deg, " + t.accent + ", #A78BFA)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: (loading || pass.length < 6 || pass !== pass2) ? 0.5 : 1 }}>
+                <button onClick={handleSubmit} disabled={loading || pass.length < 6 || pass !== pass2} style={{ flex: 2, padding: "11px 0", borderRadius: 9, border: "none", background: t.accent, color: "#fff", fontSize: 14, fontWeight: 700, cursor: loading ? "wait" : "pointer", opacity: (loading || pass.length < 6 || pass !== pass2) ? 0.5 : 1 }}>
                   {loading ? "Creando cuenta..." : "Crear cuenta"}
                 </button>
               </div>
@@ -5347,7 +5251,7 @@ export default function App() {
     setView("landing");
   };
 
-  if (!authReady) return <div style={{ minHeight: "100vh", background: "#0B0F1A", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #6366F1, #A78BFA)", display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
+  if (!authReady) return <div style={{ minHeight: "100vh", background: "#111113", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 40, height: 40, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", animation: "float 2s ease-in-out infinite" }}><Zap size={20} color="#fff" /></div></div>;
 
   if (view === "landing") return <Landing onEnter={() => setView("demo")} onLogin={() => { if (user) { setView("app"); } else { setView("login"); } }} isLoggedIn={!!user} />;
   if (view === "login") return <LoginPage onLogin={() => setView("app")} />;
