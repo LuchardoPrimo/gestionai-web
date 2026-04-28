@@ -10,29 +10,45 @@ import {
   ChevronLeft, Sparkles, Menu, Sun, Moon, LogOut, Home
 } from "lucide-react";
 
-// ─── Theme ───
+// ─── Theme: Linear/Notion dark, vivid accents ───
 const themes = {
   dark: {
-    bg:"#111113", card:"#1C1C1E", hover:"#252528", sidebar:"#161618", topbar:"#161618",
-    border:"#2C2C30", text:"#EDEDEF", muted:"#8E8E93", dim:"#636366",
-    accent:"#0A84FF", accentL:"#5AC8FA", accentBg:"rgba(10,132,255,0.10)",
-    green:"#30D158", greenBg:"rgba(48,209,88,0.10)",
-    red:"#FF453A", redBg:"rgba(255,69,58,0.10)",
-    orange:"#FF9F0A", orangeBg:"rgba(255,159,10,0.10)",
-    blue:"#0A84FF", blueBg:"rgba(10,132,255,0.10)",
-    yellow:"#FFD60A", yellowBg:"rgba(255,214,10,0.10)",
-    shadow:"0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)",
+    bg:"#0A0A0F", card:"#15151D", cardElev:"#1A1A24", hover:"#1F1F2A",
+    sidebar:"#0E0E14", topbar:"rgba(14,14,20,0.85)",
+    border:"#26262F", borderStrong:"#33333F",
+    text:"#F4F4F7", muted:"#A0A0AE", dim:"#6B6B78",
+    accent:"#7C5CFF", accentL:"#A78BFF", accentD:"#5B3FE3",
+    accentBg:"rgba(124,92,255,0.14)", accentGlow:"rgba(124,92,255,0.45)",
+    green:"#3DDC84", greenBg:"rgba(61,220,132,0.13)",
+    red:"#FF4D6D", redBg:"rgba(255,77,109,0.13)",
+    orange:"#FFA34D", orangeBg:"rgba(255,163,77,0.13)",
+    blue:"#4DA8FF", blueBg:"rgba(77,168,255,0.13)",
+    yellow:"#FFD93D", yellowBg:"rgba(255,217,61,0.13)",
+    pink:"#FF6FB5", pinkBg:"rgba(255,111,181,0.13)",
+    purple:"#B86BFF", purpleBg:"rgba(184,107,255,0.13)",
+    shadow:"0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
+    shadowLg:"0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05)",
+    grad:"linear-gradient(135deg, #7C5CFF 0%, #A78BFF 100%)",
+    gradGlow:"linear-gradient(135deg, rgba(124,92,255,0.18) 0%, rgba(184,107,255,0.10) 100%)",
   },
   light: {
-    bg:"#F2F2F7", card:"#FFFFFF", hover:"#E8E8ED", sidebar:"#FBFBFD", topbar:"#FBFBFD",
-    border:"#C6C6CC", text:"#1C1C1E", muted:"#48484A", dim:"#8A8A8E",
-    accent:"#0066CC", accentL:"#004999", accentBg:"rgba(0,102,204,0.12)",
-    green:"#248A3D", greenBg:"rgba(36,138,61,0.12)",
-    red:"#D70015", redBg:"rgba(215,0,21,0.12)",
-    orange:"#C93400", orangeBg:"rgba(201,52,0,0.12)",
-    blue:"#0066CC", blueBg:"rgba(0,102,204,0.12)",
-    yellow:"#A05A00", yellowBg:"rgba(160,90,0,0.12)",
-    shadow:"0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05)",
+    bg:"#F6F6FA", card:"#FFFFFF", cardElev:"#FFFFFF", hover:"#F0F0F5",
+    sidebar:"#FAFAFC", topbar:"rgba(250,250,252,0.85)",
+    border:"#E4E4EB", borderStrong:"#D0D0DA",
+    text:"#0F0F18", muted:"#5F5F70", dim:"#9494A4",
+    accent:"#5B3FE3", accentL:"#7C5CFF", accentD:"#4730B5",
+    accentBg:"rgba(91,63,227,0.10)", accentGlow:"rgba(91,63,227,0.30)",
+    green:"#15A569", greenBg:"rgba(21,165,105,0.10)",
+    red:"#E11048", redBg:"rgba(225,16,72,0.10)",
+    orange:"#D97706", orangeBg:"rgba(217,119,6,0.10)",
+    blue:"#2563EB", blueBg:"rgba(37,99,235,0.10)",
+    yellow:"#B8860B", yellowBg:"rgba(184,134,11,0.10)",
+    pink:"#DB2777", pinkBg:"rgba(219,39,119,0.10)",
+    purple:"#9333EA", purpleBg:"rgba(147,51,234,0.10)",
+    shadow:"0 1px 3px rgba(15,15,24,0.06), 0 0 0 1px rgba(15,15,24,0.05)",
+    shadowLg:"0 12px 32px rgba(15,15,24,0.10), 0 0 0 1px rgba(15,15,24,0.06)",
+    grad:"linear-gradient(135deg, #5B3FE3 0%, #7C5CFF 100%)",
+    gradGlow:"linear-gradient(135deg, rgba(91,63,227,0.10) 0%, rgba(124,92,255,0.06) 100%)",
   },
 };
 
@@ -117,18 +133,44 @@ function DataProvider({ children, userId }) {
 }
 
 // ─── UI Primitives ───
-function Crd({ children, t, style: s, onClick }) {
-  return <div onClick={onClick} style={{ background: t.card, borderRadius: 12, border: "1px solid " + t.border, ...s }}>{children}</div>;
+function Crd({ children, t, style: s, onClick, hoverable }) {
+  const [hov, setHov] = useState(false);
+  const interactive = !!onClick || hoverable;
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => interactive && setHov(true)}
+      onMouseLeave={() => interactive && setHov(false)}
+      style={{
+        background: t.card,
+        borderRadius: 14,
+        border: "1px solid " + (interactive && hov ? t.borderStrong : t.border),
+        boxShadow: interactive && hov ? t.shadowLg : t.shadow,
+        transform: interactive && hov ? "translateY(-1px)" : "translateY(0)",
+        transition: "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
+        cursor: onClick ? "pointer" : "default",
+        ...s,
+      }}>
+      {children}
+    </div>
+  );
 }
 
-function Badge({ label, color, bg }) {
-  return <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: bg, color }}>{label}</span>;
+function Badge({ label, color, bg, dot }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 999, background: bg, color, border: "1px solid " + color + "30", letterSpacing: 0.1 }}>
+      {dot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, boxShadow: "0 0 6px " + color + "80" }} />}
+      {label}
+    </span>
+  );
 }
 
 function StatusBadge({ s, t }) {
   const m = {
     todo: { l: "Pendiente", c: t.orange, b: t.orangeBg },
     in_progress: { l: "En curso", c: t.blue, b: t.blueBg },
+    waiting_response: { l: "Esperando respuesta", c: t.pink, b: t.pinkBg },
+    pending_solution: { l: "Pendiente solución", c: t.purple, b: t.purpleBg },
     done: { l: "Listo", c: t.green, b: t.greenBg },
     active: { l: "Activo", c: t.green, b: t.greenBg },
     planning: { l: "Planificación", c: t.muted, b: t.hover },
@@ -141,34 +183,80 @@ function StatusBadge({ s, t }) {
     overdue: { l: "Vencido", c: t.red, b: t.redBg },
   };
   const v = m[s] || { l: s || "—", c: t.dim, b: t.hover };
-  return <Badge label={v.l} color={v.c} bg={v.b} />;
+  return <Badge label={v.l} color={v.c} bg={v.b} dot />;
 }
 
 function PBar({ v, h = 5, color, t, bg }) {
+  const c = color || t.accent;
   return (
     <div style={{ height: h, borderRadius: h, background: bg || t.hover, overflow: "hidden" }}>
-      <div style={{ height: "100%", borderRadius: h, background: color || t.accent, width: Math.min(v, 100) + "%", transition: "width 0.4s" }} />
+      <div style={{ height: "100%", borderRadius: h, background: "linear-gradient(90deg, " + c + ", " + c + "CC)", width: Math.min(v, 100) + "%", transition: "width 0.4s ease", boxShadow: "0 0 12px " + c + "60" }} />
     </div>
   );
 }
 
-function Inp({ label, val, onChange, t, placeholder, type = "text", style }) {
+function Btn({ children, onClick, t, variant = "primary", size = "md", icon: Icon, disabled, style }) {
+  const [hov, setHov] = useState(false);
+  const sizes = {
+    sm: { px: 12, py: 7, fs: 12, gap: 6, ic: 13 },
+    md: { px: 18, py: 10, fs: 13, gap: 7, ic: 15 },
+    lg: { px: 22, py: 12, fs: 14, gap: 8, ic: 16 },
+  };
+  const sz = sizes[size];
+  const variants = {
+    primary: { bg: t.grad, color: "#fff", border: "transparent", shadow: hov ? "0 6px 20px " + t.accentGlow : "0 2px 8px " + t.accentGlow + "80" },
+    secondary: { bg: t.hover, color: t.text, border: t.border, shadow: "none" },
+    ghost: { bg: hov ? t.hover : "transparent", color: t.muted, border: "transparent", shadow: "none" },
+    danger: { bg: t.redBg, color: t.red, border: t.red + "40", shadow: "none" },
+    success: { bg: t.greenBg, color: t.green, border: t.green + "40", shadow: "none" },
+    accent: { bg: t.accentBg, color: t.accent, border: t.accent + "40", shadow: "none" },
+  };
+  const v = variants[variant];
   return (
-    <div style={{ marginBottom: 12, ...style }}>
-      {label && <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 4 }}>{label}</div>}
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: sz.gap,
+        padding: sz.py + "px " + sz.px + "px",
+        borderRadius: 10, background: v.bg, color: v.color,
+        border: "1px solid " + v.border,
+        fontSize: sz.fs, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1, outline: "none",
+        boxShadow: v.shadow,
+        transform: hov && !disabled ? "translateY(-1px)" : "translateY(0)",
+        transition: "transform 140ms ease, box-shadow 140ms ease, background 140ms ease",
+        ...style,
+      }}>
+      {Icon && <Icon size={sz.ic} />}
+      {children}
+    </button>
+  );
+}
+
+function Inp({ label, val, onChange, t, placeholder, type = "text", style }) {
+  const [foc, setFoc] = useState(false);
+  return (
+    <div style={{ marginBottom: 14, ...style }}>
+      {label && <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 6, letterSpacing: 0.2, textTransform: "uppercase" }}>{label}</div>}
       <input value={val} onChange={e => onChange(e.target.value)} type={type} placeholder={placeholder}
-        style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" }} />
+        onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + (foc ? t.accent : t.border), background: t.hover, color: t.text, fontSize: 13, outline: "none", boxShadow: foc ? "0 0 0 3px " + t.accentBg : "none", transition: "border-color 140ms, box-shadow 140ms" }} />
     </div>
   );
 }
 
 function Select({ label, val, onChange, options, t, style }) {
+  const [foc, setFoc] = useState(false);
   return (
-    <div style={{ marginBottom: 12, ...style }}>
-      {label && <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 4 }}>{label}</div>}
+    <div style={{ marginBottom: 14, ...style }}>
+      {label && <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 6, letterSpacing: 0.2, textTransform: "uppercase" }}>{label}</div>}
       <select value={val} onChange={e => onChange(e.target.value)}
-        style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, outline: "none" }}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + (foc ? t.accent : t.border), background: t.hover, color: t.text, fontSize: 13, outline: "none", boxShadow: foc ? "0 0 0 3px " + t.accentBg : "none", appearance: "none", cursor: "pointer", transition: "border-color 140ms, box-shadow 140ms" }}>
+        {options.map(o => <option key={o.value} value={o.value} style={{ background: t.card, color: t.text }}>{o.label}</option>)}
       </select>
     </div>
   );
@@ -177,11 +265,13 @@ function Select({ label, val, onChange, options, t, style }) {
 function Modal({ open, onClose, title, children, t, width = 500 }) {
   if (!open) return null;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 14, padding: 24, width, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{title}</span>
-          <X size={18} color={t.muted} style={{ cursor: "pointer" }} onClick={onClose} />
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 150ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 16, padding: 26, width, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto", boxShadow: t.shadowLg, animation: "scaleIn 180ms ease" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>{title}</span>
+          <div onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: t.hover, transition: "background 140ms" }}>
+            <X size={16} color={t.muted} />
+          </div>
         </div>
         {children}
       </div>
@@ -191,20 +281,53 @@ function Modal({ open, onClose, title, children, t, width = 500 }) {
 
 function EmptyState({ icon: Icon, title, sub, t, action, onAction }) {
   return (
-    <div style={{ padding: 40, textAlign: "center" }}>
-      <Icon size={32} color={t.dim} style={{ marginBottom: 10 }} />
-      <div style={{ fontSize: 14, fontWeight: 600, color: t.muted, marginBottom: 4 }}>{title}</div>
-      <div style={{ fontSize: 12, color: t.dim, marginBottom: action ? 16 : 0 }}>{sub}</div>
-      {action && <button onClick={onAction} style={{ padding: "8px 16px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Plus size={14} /> {action}</button>}
+    <div style={{ padding: 48, textAlign: "center" }}>
+      <div style={{ width: 60, height: 60, borderRadius: 16, background: t.gradGlow, border: "1px solid " + t.border, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+        <Icon size={26} color={t.muted} />
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4, letterSpacing: -0.2 }}>{title}</div>
+      <div style={{ fontSize: 13, color: t.dim, marginBottom: action ? 18 : 0, lineHeight: 1.5 }}>{sub}</div>
+      {action && <Btn t={t} onClick={onAction} icon={Plus}>{action}</Btn>}
     </div>
   );
 }
 
 // ─── Sidebar ───
+function NavItem({ id, icon: Icon, label, indent, count, color, active, onNav, collapsed, t, hoverItem, setHoverItem }) {
+  const isActive = active === id;
+  const isHov = hoverItem === id;
+  return (
+    <div
+      onClick={() => onNav(id)}
+      onMouseEnter={() => setHoverItem(id)}
+      onMouseLeave={() => setHoverItem(null)}
+      style={{
+        position: "relative",
+        display: "flex", alignItems: "center", gap: 10,
+        padding: collapsed ? "10px 12px" : "8px 12px",
+        marginLeft: indent ? 16 : 0, marginBottom: 2,
+        borderRadius: 8, cursor: "pointer", fontSize: 13,
+        fontWeight: isActive ? 600 : 500,
+        color: isActive ? t.text : (isHov ? t.text : t.muted),
+        background: isActive ? t.accentBg : (isHov ? t.hover : "transparent"),
+        transition: "color 140ms, background 140ms",
+      }}>
+      {isActive && <div style={{ position: "absolute", left: -6, top: "50%", transform: "translateY(-50%)", width: 3, height: 16, borderRadius: 2, background: t.accent, boxShadow: "0 0 8px " + t.accentGlow }} />}
+      {color ? (
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: "0 0 6px " + color + "70" }} />
+      ) : (
+        Icon && <Icon size={15} color={isActive ? t.accent : "currentColor"} strokeWidth={isActive ? 2.4 : 2} />
+      )}
+      {!collapsed && <span style={{ flex: 1, letterSpacing: -0.1 }}>{label}</span>}
+      {count > 0 && !collapsed && <span style={{ fontSize: 10, fontWeight: 700, color: t.red, background: t.redBg, padding: "1px 7px", borderRadius: 999 }}>{count}</span>}
+    </div>
+  );
+}
+
 function Sidebar({ active, onNav, collapsed, toggle, t }) {
-  const { sedes, notifications } = useData();
-  const unread = notifications.filter(n => !n.read).length;
+  const { sedes } = useData();
   const [sedesOpen, setSedesOpen] = useState(true);
+  const [hoverItem, setHoverItem] = useState(null);
 
   const navItems = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -217,108 +340,118 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     { id: "calendar", icon: Calendar, label: "Calendario" },
   ];
 
-  const NavItem = ({ id, icon: Icon, label, indent, count, color }) => (
-    <div onClick={() => onNav(id)} style={{
-      display: "flex", alignItems: "center", gap: 10, padding: collapsed ? "10px 12px" : "8px 14px",
-      marginLeft: indent ? 12 : 0, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: active === id ? 600 : 400,
-      color: active === id ? t.accent : t.muted, background: active === id ? t.accentBg : "transparent",
-      transition: "all 0.15s",
-    }}>
-      {color && <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />}
-      {!color && <Icon size={16} />}
-      {!collapsed && <span style={{ flex: 1 }}>{label}</span>}
-      {count > 0 && !collapsed && <span style={{ fontSize: 10, fontWeight: 700, color: t.red, background: t.redBg, padding: "1px 6px", borderRadius: 8 }}>{count}</span>}
-    </div>
-  );
+  const navProps = { active, onNav, collapsed, t, hoverItem, setHoverItem };
 
   return (
-    <div style={{ width: collapsed ? 56 : 220, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0, transition: "width 0.2s", overflow: "hidden" }}>
+    <div style={{ width: collapsed ? 60 : 232, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0, transition: "width 200ms ease", overflow: "hidden" }}>
       {/* Logo */}
-      <div onClick={toggle} style={{ padding: collapsed ? "16px 12px" : "16px 18px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", borderBottom: "1px solid " + t.border }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: t.text, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Zap size={14} color={t.bg} />
+      <div onClick={toggle} style={{ padding: collapsed ? "18px 12px" : "18px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+        <div style={{ width: 30, height: 30, borderRadius: 9, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px " + t.accentGlow }}>
+          <Zap size={15} color="#fff" strokeWidth={2.5} fill="#fff" />
         </div>
-        {!collapsed && <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: "-0.3px" }}>LuchoNeitor</span>}
+        {!collapsed && (
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: -0.4 }}>LuchoNeitor</span>
+            <span style={{ fontSize: 10, color: t.dim, fontWeight: 500 }}>Gestor multi-sede</span>
+          </div>
+        )}
       </div>
 
+      <div style={{ height: 1, background: "linear-gradient(90deg, transparent, " + t.border + ", transparent)", margin: "0 12px" }} />
+
       {/* Nav */}
-      <div style={{ flex: 1, padding: "8px 6px", overflowY: "auto" }}>
+      <div style={{ flex: 1, padding: "10px 8px", overflowY: "auto" }}>
         {navItems.map(item => {
           if (item.id === "_sedes") {
             return (
               <div key="sedes">
-                <div onClick={() => setSedesOpen(!sedesOpen)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 8, cursor: "pointer", color: t.muted, fontSize: 13 }}>
-                  <Building2 size={16} />
+                <div
+                  onClick={() => setSedesOpen(!sedesOpen)}
+                  onMouseEnter={() => setHoverItem("_sedes")}
+                  onMouseLeave={() => setHoverItem(null)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 2, borderRadius: 8, cursor: "pointer", color: hoverItem === "_sedes" ? t.text : t.muted, fontSize: 13, fontWeight: 500, background: hoverItem === "_sedes" ? t.hover : "transparent", transition: "color 140ms, background 140ms" }}>
+                  <Building2 size={15} strokeWidth={2} />
                   {!collapsed && <>
-                    <span style={{ flex: 1 }}>Sedes</span>
-                    <ChevronDown size={14} style={{ transform: sedesOpen ? "rotate(0)" : "rotate(-90deg)", transition: "transform 0.15s" }} />
+                    <span style={{ flex: 1, letterSpacing: -0.1 }}>Sedes</span>
+                    <span style={{ fontSize: 10, color: t.dim, fontWeight: 600 }}>{sedes.length}</span>
+                    <ChevronDown size={13} style={{ transform: sedesOpen ? "rotate(0)" : "rotate(-90deg)", transition: "transform 160ms" }} />
                   </>}
                 </div>
                 {sedesOpen && !collapsed && sedes.map(s => (
-                  <NavItem key={s.id} id={"sede:" + s.id} icon={MapPin} label={s.name} indent color={s.color} />
+                  <NavItem key={s.id} id={"sede:" + s.id} icon={MapPin} label={s.name} indent color={s.color} {...navProps} />
                 ))}
                 {sedesOpen && !collapsed && (
-                  <div onClick={() => onNav("settings")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", marginLeft: 12, fontSize: 11, color: t.dim, cursor: "pointer" }}>
+                  <div onClick={() => onNav("settings")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", marginLeft: 16, fontSize: 11, color: t.dim, cursor: "pointer", fontWeight: 500 }}>
                     <Plus size={12} /> Agregar sede
                   </div>
                 )}
               </div>
             );
           }
-          return <NavItem key={item.id} {...item} />;
+          return <NavItem key={item.id} {...item} {...navProps} />;
         })}
       </div>
 
       {/* Bottom */}
-      <div style={{ padding: "8px 6px", borderTop: "1px solid " + t.border }}>
-        <NavItem id="settings" icon={Settings} label="Configuración" />
+      <div style={{ padding: "10px 8px", borderTop: "1px solid " + t.border }}>
+        <NavItem id="settings" icon={Settings} label="Configuración" {...navProps} />
       </div>
     </div>
   );
 }
 
 // ─── TopBar ───
+function IconBtn({ t, onClick, children, title, dot }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ position: "relative", width: 34, height: 34, borderRadius: 9, background: hov ? t.hover : "transparent", border: "1px solid " + (hov ? t.borderStrong : t.border), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 140ms, border-color 140ms" }}>
+      {children}
+      {dot && <div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: t.red, boxShadow: "0 0 6px " + t.red + "90", border: "1.5px solid " + t.topbar }} />}
+    </div>
+  );
+}
+
 function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
-  const { notifications, reload } = useData();
+  const { notifications } = useData();
   const unread = notifications.filter(n => !n.read).length;
   const [showNotif, setShowNotif] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
 
   return (
-    <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", background: t.topbar, borderBottom: "1px solid " + t.border, flexShrink: 0 }}>
+    <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", background: t.topbar, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + t.border, flexShrink: 0, position: "relative", zIndex: 50 }}>
       <div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{title}</div>
-        {sub && <div style={{ fontSize: 11, color: t.muted }}>{sub}</div>}
+        <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>{title}</div>
+        {sub && <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{sub}</div>}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div onClick={() => setShowSearch(true)} style={{ width: 32, height: 32, borderRadius: 8, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <Search size={15} color={t.muted} />
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ position: "relative" }}>
-          <div onClick={() => setShowNotif(!showNotif)} style={{ width: 32, height: 32, borderRadius: 8, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <IconBtn t={t} onClick={() => setShowNotif(!showNotif)} title="Notificaciones" dot={unread > 0}>
             <Bell size={15} color={t.muted} />
-            {unread > 0 && <div style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: t.red }} />}
-          </div>
+          </IconBtn>
           {showNotif && (
-            <div style={{ position: "absolute", top: 40, right: 0, width: 320, background: t.card, border: "1px solid " + t.border, borderRadius: 12, padding: 8, zIndex: 100, boxShadow: t.shadow }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, padding: "8px 10px" }}>Notificaciones</div>
+            <div style={{ position: "absolute", top: 42, right: 0, width: 340, background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 12, padding: 8, zIndex: 100, boxShadow: t.shadowLg }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, padding: "8px 12px", letterSpacing: -0.2 }}>Notificaciones {unread > 0 && <span style={{ fontSize: 10, color: t.accent, marginLeft: 6 }}>{unread} sin leer</span>}</div>
               {notifications.length === 0 ? (
-                <div style={{ padding: 16, textAlign: "center", fontSize: 12, color: t.dim }}>Sin notificaciones</div>
+                <div style={{ padding: 24, textAlign: "center", fontSize: 12, color: t.dim }}>Sin notificaciones</div>
               ) : notifications.slice(0, 8).map(n => (
-                <div key={n.id} style={{ padding: "8px 10px", borderRadius: 6, background: n.read ? "transparent" : t.accentBg, marginBottom: 2 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{n.title}</div>
-                  <div style={{ fontSize: 10, color: t.dim }}>{n.message}</div>
+                <div key={n.id} style={{ padding: "10px 12px", borderRadius: 8, background: n.read ? "transparent" : t.accentBg, marginBottom: 2, borderLeft: "2px solid " + (n.read ? "transparent" : t.accent) }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{n.title}</div>
+                  <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>{n.message}</div>
                 </div>
               ))}
             </div>
           )}
         </div>
-        <div onClick={toggleTheme} style={{ width: 32, height: 32, borderRadius: 8, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <IconBtn t={t} onClick={toggleTheme} title={theme === "dark" ? "Modo claro" : "Modo oscuro"}>
           {theme === "dark" ? <Sun size={15} color={t.muted} /> : <Moon size={15} color={t.muted} />}
-        </div>
-        <div onClick={onLogout} style={{ width: 32, height: 32, borderRadius: 8, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} title="Cerrar sesión">
+        </IconBtn>
+        <IconBtn t={t} onClick={onLogout} title="Cerrar sesión">
           <LogOut size={15} color={t.muted} />
-        </div>
+        </IconBtn>
       </div>
     </div>
   );
@@ -343,47 +476,66 @@ function Dashboard({ t, onNav }) {
   }).sort((a, b) => new Date(a.due) - new Date(b.due));
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24 }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>Dashboard</div>
-          <div style={{ fontSize: 12, color: t.muted, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
-        </div>
-        {overdueTasks.length > 0 && (
-          <div onClick={() => onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, background: t.redBg, cursor: "pointer" }}>
-            <AlertCircle size={13} color={t.red} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: t.red }}>{overdueTasks.length} vencida{overdueTasks.length > 1 ? "s" : ""}</span>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      {/* Hero header */}
+      <div style={{ position: "relative", marginBottom: 28, padding: "8px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Vista general</div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: t.text, letterSpacing: -0.8, lineHeight: 1.15 }}>
+              Buen día — {sedes.length} sede{sedes.length !== 1 ? "s" : ""} en gestión
+            </div>
+            <div style={{ fontSize: 13, color: t.muted, marginTop: 6, textTransform: "capitalize" }}>{today}</div>
           </div>
-        )}
+          {overdueTasks.length > 0 && (
+            <div onClick={() => onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, background: t.redBg, border: "1px solid " + t.red + "40", cursor: "pointer", boxShadow: "0 4px 14px " + t.red + "30" }}>
+              <AlertCircle size={15} color={t.red} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.red, lineHeight: 1.1 }}>{overdueTasks.length} tarea{overdueTasks.length > 1 ? "s" : ""} vencida{overdueTasks.length > 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 10, color: t.red, opacity: 0.8 }}>Click para revisar</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
         {[
-          { label: "Proyectos activos", val: activeProjects.length, icon: FolderKanban, color: t.accent, nav: "projects" },
+          { label: "Proyectos activos", val: activeProjects.length, sub: projects.length + " totales", icon: FolderKanban, color: t.accent, nav: "projects" },
           { label: "Tareas pendientes", val: pendingTasks.length, sub: doneTasks.length + " completadas", icon: CheckSquare, color: t.orange, nav: "tasks" },
-          { label: "Tareas vencidas", val: overdueTasks.length, sub: overdueTasks.length > 0 ? "Requieren atención" : "Todo al día", icon: AlertCircle, color: t.red, nav: "tasks" },
-          { label: "Sedes activas", val: sedes.length, sub: projects.length + " proyectos totales", icon: Building2, color: t.green, nav: "settings" },
+          { label: "Tareas vencidas", val: overdueTasks.length, sub: overdueTasks.length > 0 ? "Requieren atención" : "Todo al día", icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green, nav: "tasks" },
+          { label: "Sedes", val: sedes.length, sub: "En gestión", icon: Building2, color: t.green, nav: "settings" },
         ].map((k, i) => (
-          <Crd key={i} t={t} style={{ padding: 18, cursor: "pointer" }} onClick={() => onNav(k.nav)}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: "uppercase", letterSpacing: "0.5px" }}>{k.label}</span>
-              <k.icon size={14} color={k.color} />
+          <Crd key={i} t={t} onClick={() => onNav(k.nav)} style={{ padding: 20, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, borderRadius: "50%", background: k.color + "12", filter: "blur(28px)" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: t.muted, letterSpacing: 0.3 }}>{k.label}</span>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: k.color + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <k.icon size={14} color={k.color} strokeWidth={2.4} />
+                </div>
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: t.text, letterSpacing: -1, lineHeight: 1 }}>{k.val}</div>
+              {k.sub && <div style={{ fontSize: 11, color: t.dim, marginTop: 6, fontWeight: 500 }}>{k.sub}</div>}
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: "-0.5px" }}>{k.val}</div>
-            {k.sub && <div style={{ fontSize: 10, color: t.dim, marginTop: 2 }}>{k.sub}</div>}
           </Crd>
         ))}
       </div>
 
       {/* Sedes Grid */}
-      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 12 }}>Sedes</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Tus sedes</div>
+          <div style={{ fontSize: 12, color: t.dim, marginTop: 2 }}>Click para ver el detalle de cada una</div>
+        </div>
+      </div>
       {sedes.length === 0 ? (
-        <Crd t={t} style={{ padding: 20 }}>
-          <EmptyState icon={Building2} title="Sin sedes" sub="Agregá tu primera sede desde Configuración" t={t} action="Agregar sede" onAction={() => onNav("settings")} />
+        <Crd t={t} style={{ padding: 20, marginBottom: 28 }}>
+          <EmptyState icon={Building2} title="Sin sedes todavía" sub="Agregá tu primera sede para empezar a gestionar proyectos" t={t} action="Agregar sede" onAction={() => onNav("settings")} />
         </Crd>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: sedes.length >= 3 ? "repeat(3,1fr)" : "repeat(" + Math.max(sedes.length, 1) + ",1fr)", gap: 14, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: sedes.length >= 3 ? "repeat(3,1fr)" : "repeat(" + Math.max(sedes.length, 1) + ",1fr)", gap: 14, marginBottom: 28 }}>
           {sedes.map(s => {
             const sedeProjects = projects.filter(p => p.sede_id === s.id);
             const sedeTasks = tasks.filter(tk => tk.sede_id === s.id || sedeProjects.some(p => p.id === tk.project_id));
@@ -391,49 +543,56 @@ function Dashboard({ t, onNav }) {
             const sedePending = sedeTasks.filter(tk => tk.st !== "done");
             const budget = Number(s.budget || 0);
             const spent = sedeProjects.reduce((sum, p) => sum + (p.cost_spent || 0), 0);
+            const sedeColor = s.color || t.accent;
             return (
-              <Crd key={s.id} t={t} style={{ padding: 22, cursor: "pointer", borderLeft: "4px solid " + (s.color || t.accent), transition: "transform 0.1s" }} onClick={() => onNav("sede:" + s.id)}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <span style={{ fontSize: 24 }}>{s.icon || "🏢"}</span>
-                  <div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: t.text }}>{s.name}</div>
-                    {s.address && <div style={{ fontSize: 11, color: t.dim }}>{s.address}</div>}
+              <Crd key={s.id} t={t} onClick={() => onNav("sede:" + s.id)} style={{ padding: 22, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + sedeColor + ", " + sedeColor + "60)", boxShadow: "0 0 14px " + sedeColor + "60" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: sedeColor + "20", border: "1px solid " + sedeColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{s.icon || "🏢"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                    {s.address && <div style={{ fontSize: 11, color: t.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.address}</div>}
+                  </div>
+                  <ArrowUpRight size={16} color={t.dim} />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, background: t.hover }}>
+                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Proyectos</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: t.text, lineHeight: 1 }}>{sedeProjects.length}</div>
+                  </div>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, background: sedePending.length > 0 ? t.orangeBg : t.hover }}>
+                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Pendientes</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: sedePending.length > 0 ? t.orange : t.text, lineHeight: 1 }}>{sedePending.length}</div>
+                  </div>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, background: sedeOverdue.length > 0 ? t.redBg : t.greenBg }}>
+                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Vencidas</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: sedeOverdue.length > 0 ? t.red : t.green, lineHeight: 1 }}>{sedeOverdue.length}</div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: t.dim, marginBottom: 2 }}>Proyectos</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: t.text }}>{sedeProjects.length}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: t.dim, marginBottom: 2 }}>Tareas pend.</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: sedePending.length > 0 ? t.orange : t.text }}>{sedePending.length}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: t.dim, marginBottom: 2 }}>Vencidas</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: sedeOverdue.length > 0 ? t.red : t.green }}>{sedeOverdue.length}</div>
-                  </div>
-                </div>
+
                 {budget > 0 && (
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: t.muted, marginBottom: 4 }}>
-                      <span>Presupuesto</span><span>{fmt(spent)} / {fmt(budget)}</span>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, background: t.hover, marginBottom: sedeProjects.length > 0 ? 12 : 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
+                      <span style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Presupuesto</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: pct(spent, budget) > 90 ? t.red : pct(spent, budget) > 70 ? t.orange : t.green }}>{pct(spent, budget)}%</span>
                     </div>
-                    <PBar v={pct(spent, budget)} t={t} color={pct(spent, budget) > 90 ? t.red : pct(spent, budget) > 70 ? t.orange : t.accent} h={5} />
+                    <div style={{ fontSize: 11, color: t.muted, fontWeight: 500 }}>{fmt(spent)} <span style={{ color: t.dim }}>de</span> {fmt(budget)}</div>
                   </div>
                 )}
+
                 {sedeProjects.length > 0 && (
-                  <div style={{ marginTop: 10, borderTop: "1px solid " + t.border, paddingTop: 8 }}>
+                  <div style={{ borderTop: "1px solid " + t.border, paddingTop: 10 }}>
                     {sedeProjects.slice(0, 3).map(p => (
-                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, padding: "3px 0" }}>
-                        <span style={{ color: t.text }}>{p.name}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0" }}>
+                        <span style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8 }}>{p.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: p.status === "completed" ? t.green : t.accent }}>{p.progress}%</span>
                           <StatusBadge s={p.status} t={t} />
-                          <span style={{ fontSize: 10, fontWeight: 600, color: t.accent }}>{p.progress}%</span>
                         </div>
                       </div>
                     ))}
-                    {sedeProjects.length > 3 && <div style={{ fontSize: 10, color: t.dim, marginTop: 2 }}>+{sedeProjects.length - 3} más</div>}
+                    {sedeProjects.length > 3 && <div style={{ fontSize: 11, color: t.accent, marginTop: 4, fontWeight: 600 }}>+{sedeProjects.length - 3} más →</div>}
                   </div>
                 )}
               </Crd>
@@ -443,46 +602,51 @@ function Dashboard({ t, onNav }) {
       )}
 
       {/* Tasks + Projects */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr", gap: 14 }}>
-        <Crd t={t} style={{ padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Próximas tareas</span>
-            <span onClick={() => onNav("tasks")} style={{ fontSize: 11, color: t.accent, cursor: "pointer", fontWeight: 600 }}>Ver todas →</span>
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr", gap: 16 }}>
+        <Crd t={t} style={{ padding: 22 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Próximas tareas</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>Vencidas y de los próximos 7 días</div>
+            </div>
+            <span onClick={() => onNav("tasks")} style={{ fontSize: 12, color: t.accent, cursor: "pointer", fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: t.accentBg }}>Ver todas →</span>
           </div>
           {[...overdueTasks, ...dueSoon].length === 0 ? (
-            <div style={{ padding: 16, textAlign: "center" }}>
-              <CheckCircle2 size={22} color={t.green} style={{ marginBottom: 6 }} />
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.green }}>Todo al día</div>
+            <div style={{ padding: 28, textAlign: "center" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: t.greenBg, border: "1px solid " + t.green + "40", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <CheckCircle2 size={24} color={t.green} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: t.green }}>Todo al día</div>
+              <div style={{ fontSize: 12, color: t.dim, marginTop: 2 }}>No hay tareas urgentes</div>
             </div>
           ) : [...overdueTasks, ...dueSoon].slice(0, 8).map(tk => {
             const isOverdue = tk.due && new Date(tk.due) < new Date(todayStr);
             return (
-              <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, marginBottom: 2, borderLeft: "3px solid " + (isOverdue ? t.red : t.accent + "40"), background: isOverdue ? t.redBg : "transparent" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{tk.title}</div>
-                  <div style={{ fontSize: 10, color: t.dim }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
+              <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, marginBottom: 4, borderLeft: "3px solid " + (isOverdue ? t.red : t.accent), background: isOverdue ? t.redBg : t.hover }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: t.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.title}</div>
+                  <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
                 </div>
-                {tk.due && <span style={{ fontSize: 10, fontWeight: 600, color: isOverdue ? t.red : t.dim }}>{isOverdue ? "Vencida" : fmtDate(tk.due)}</span>}
+                {tk.due && <span style={{ fontSize: 11, fontWeight: 700, color: isOverdue ? t.red : t.muted, padding: "3px 8px", borderRadius: 6, background: isOverdue ? t.red + "20" : t.card }}>{isOverdue ? "Vencida" : fmtDate(tk.due)}</span>}
               </div>
             );
           })}
         </Crd>
 
-        <Crd t={t} style={{ padding: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Proyectos activos</span>
-            <span onClick={() => onNav("projects")} style={{ fontSize: 11, color: t.accent, cursor: "pointer", fontWeight: 600 }}>→</span>
+        <Crd t={t} style={{ padding: 22 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Proyectos activos</div>
+            <span onClick={() => onNav("projects")} style={{ fontSize: 12, color: t.accent, cursor: "pointer", fontWeight: 600 }}>→</span>
           </div>
           {activeProjects.length === 0 ? (
-            <div style={{ fontSize: 11, color: t.dim, textAlign: "center", padding: 10 }}>Sin proyectos activos</div>
+            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 18 }}>Sin proyectos activos</div>
           ) : activeProjects.slice(0, 6).map(p => (
-            <div key={p.id} style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{p.name}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: t.accent }}>{p.progress}%</span>
+            <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid " + t.border }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8 }}>{p.name}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: t.accent }}>{p.progress}%</span>
               </div>
-              <PBar v={p.progress} t={t} />
-              <div style={{ fontSize: 9, color: t.dim, marginTop: 2 }}>{p.sede?.name || "—"}{p.deadline ? " · " + fmtDate(p.deadline) : ""}</div>
+              <div style={{ fontSize: 10, color: t.dim }}>{p.sede?.name || "Sin sede"}{p.deadline ? " · " + fmtDate(p.deadline) : ""}</div>
             </div>
           ))}
         </Crd>
@@ -575,8 +739,14 @@ function SedeDetail({ sedeId, t, onNav }) {
   };
 
   const toggleTask = async (id, st) => {
+    // Cycle through todo → in_progress → done → todo (skip blocked states for quick toggle)
     const next = st === "todo" ? "in_progress" : st === "in_progress" ? "done" : "todo";
     await supabase.from("tasks").update({ status: next }).eq("id", id);
+    reload();
+  };
+
+  const setTaskStatus = async (id, status) => {
+    await supabase.from("tasks").update({ status }).eq("id", id);
     reload();
   };
 
@@ -605,23 +775,28 @@ function SedeDetail({ sedeId, t, onNav }) {
   const priColor = { high: t.red, medium: t.orange, low: t.green };
   const priLabel = { high: "Alta", medium: "Media", low: "Baja" };
 
+  const sedeColor = sede.color || t.accent;
+
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={e => { if (uploadTarget) uploadDoc(e.target.files, uploadTarget); e.target.value = ""; }} />
 
       {/* Breadcrumb */}
-      <div onClick={() => onNav("dashboard")} style={{ fontSize: 13, color: t.accent, cursor: "pointer", marginBottom: 12, fontWeight: 600 }}>← Dashboard</div>
+      <div onClick={() => onNav("dashboard")} style={{ fontSize: 12, color: t.muted, cursor: "pointer", marginBottom: 16, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, background: t.hover, border: "1px solid " + t.border }}>
+        <ChevronLeft size={13} /> Dashboard
+      </div>
 
       {/* Sede Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: (sede.color || t.accent) + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{sede.icon || "🏢"}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg, " + sedeColor + "30, " + sedeColor + "08)", border: "1px solid " + sedeColor + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, boxShadow: "0 8px 24px " + sedeColor + "20" }}>{sede.icon || "🏢"}</div>
           <div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: t.text, letterSpacing: "-0.5px" }}>{sede.name}</div>
-            <div style={{ fontSize: 14, color: t.muted }}>{sede.address || ""} · {sedeProjects.length} proyectos</div>
+            <div style={{ fontSize: 11, color: sedeColor, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Sede</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.8, lineHeight: 1.1 }}>{sede.name}</div>
+            <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>{sede.address || "Sin dirección"} · <span style={{ color: t.text, fontWeight: 600 }}>{sedeProjects.length}</span> proyecto{sedeProjects.length !== 1 ? "s" : ""}</div>
           </div>
         </div>
-        <button onClick={() => setShowForm(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 12, background: t.accent, color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer" }}><Plus size={16} /> Nuevo proyecto</button>
+        <Btn t={t} onClick={() => setShowForm(true)} icon={Plus} size="lg">Nuevo proyecto</Btn>
       </div>
 
       {/* Dashboard KPIs */}
@@ -629,30 +804,25 @@ function SedeDetail({ sedeId, t, onNav }) {
         {[
           { label: "Proyectos", val: sedeProjects.length, sub: activeProjects.length + " activos", color: t.accent, icon: FolderKanban },
           { label: "Tareas pend.", val: pendingTasks.length, sub: doneTasks.length + " completadas", color: t.orange, icon: CheckSquare },
-          { label: "Vencidas", val: overdueTasks.length, sub: overdueTasks.length > 0 ? "Requieren atención" : "Todo al día", color: overdueTasks.length > 0 ? t.red : t.green, icon: AlertCircle },
-          { label: "Avance prom.", val: avgProgress + "%", sub: "Promedio proyectos", color: t.accent, icon: Target },
+          { label: "Vencidas", val: overdueTasks.length, sub: overdueTasks.length > 0 ? "Atención" : "Todo al día", color: overdueTasks.length > 0 ? t.red : t.green, icon: AlertCircle },
+          { label: "Avance prom.", val: avgProgress + "%", sub: "Proyectos", color: t.blue, icon: Target },
           { label: "Presupuesto", val: budget > 0 ? pct(spent, budget) + "%" : "—", sub: budget > 0 ? fmt(spent) + " / " + fmt(budget) : "Sin asignar", color: budget > 0 && pct(spent, budget) > 90 ? t.red : t.green, icon: Wallet },
         ].map((k, i) => (
-          <Crd key={i} t={t} style={{ padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, color: t.dim, textTransform: "uppercase", letterSpacing: "0.5px" }}>{k.label}</span>
-              <k.icon size={14} color={k.color} />
+          <Crd key={i} t={t} style={{ padding: 18, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -20, right: -20, width: 70, height: 70, borderRadius: "50%", background: k.color + "15", filter: "blur(20px)" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>{k.label}</span>
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: k.color + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <k.icon size={13} color={k.color} strokeWidth={2.4} />
+                </div>
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: -0.7, lineHeight: 1 }}>{k.val}</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 4, fontWeight: 500 }}>{k.sub}</div>
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: t.text }}>{k.val}</div>
-            <div style={{ fontSize: 10, color: t.dim, marginTop: 1 }}>{k.sub}</div>
           </Crd>
         ))}
       </div>
-
-      {budget > 0 && (
-        <Crd t={t} style={{ padding: 14, marginBottom: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: t.muted }}>Presupuesto sede</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{fmt(spent)} / {fmt(budget)}</span>
-          </div>
-          <PBar v={pct(spent, budget)} t={t} h={7} color={pct(spent, budget) > 90 ? t.red : pct(spent, budget) > 70 ? t.orange : t.accent} />
-        </Crd>
-      )}
 
       {/* Projects — each one is a full workspace card */}
       {sedeProjects.length === 0 ? (
@@ -666,39 +836,50 @@ function SedeDetail({ sedeId, t, onNav }) {
         const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline) - new Date()) / (1000*60*60*24)) : null;
         const typeEmoji = { obra: "🏗️", mejora: "🔧", academico: "📚", mri: "🏥", general: "📋" };
 
+        const projColor = p.status === "completed" ? t.green : p.status === "in_progress" ? t.accent : t.muted;
         return (
-          <Crd key={p.id} t={t} style={{ marginBottom: 16, overflow: "hidden", borderLeft: "4px solid " + (p.status === "completed" ? t.green : p.status === "in_progress" ? t.accent : t.dim) }}>
+          <Crd key={p.id} t={t} style={{ marginBottom: 16, overflow: "hidden", padding: 0, position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + projColor + ", " + projColor + "60)", boxShadow: "0 0 14px " + projColor + "60" }} />
             {/* Project header with status and progress */}
-            <div style={{ padding: "20px 24px", background: t.hover + "60" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 26 }}>{typeEmoji[p.type] || "📋"}</span>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{p.name}</div>
-                    <div style={{ fontSize: 12, color: t.muted }}>{p.type}{p.deadline ? " · Deadline: " + fmtDate(p.deadline) : ""}{daysLeft !== null ? (daysLeft < 0 ? " · ⚠️ Vencido" : " · " + daysLeft + " días") : ""}</div>
+            <div style={{ padding: "20px 24px", background: t.gradGlow, borderBottom: "1px solid " + t.border }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: -0.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: t.muted, marginTop: 2, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ textTransform: "capitalize", fontWeight: 600 }}>{p.type}</span>
+                      {p.deadline && <><span style={{ color: t.dim }}>•</span><span>Deadline {fmtDate(p.deadline)}</span></>}
+                      {daysLeft !== null && (
+                        <><span style={{ color: t.dim }}>•</span>
+                        <span style={{ color: daysLeft < 0 ? t.red : daysLeft <= 7 ? t.orange : t.muted, fontWeight: 600 }}>
+                          {daysLeft < 0 ? "Vencido hace " + Math.abs(daysLeft) + "d" : daysLeft + "d restantes"}
+                        </span></>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                   <StatusBadge s={p.status} t={t} />
-                  {p.status !== "in_progress" && p.status !== "completed" && <div onClick={() => quickStatus(p.id, "in_progress")} style={{ padding: "7px 16px", borderRadius: 8, background: t.blueBg, color: t.blue, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>▶ Iniciar</div>}
-                  {p.status === "in_progress" && <div onClick={() => quickStatus(p.id, "completed")} style={{ padding: "7px 16px", borderRadius: 8, background: t.greenBg, color: t.green, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✓ Completar</div>}
-                  <div onClick={() => deleteProject(p.id)} style={{ padding: "7px 12px", borderRadius: 8, background: t.redBg, color: t.red, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🗑️</div>
+                  {p.status !== "in_progress" && p.status !== "completed" && <Btn t={t} variant="accent" size="sm" onClick={() => quickStatus(p.id, "in_progress")}>Iniciar</Btn>}
+                  {p.status === "in_progress" && <Btn t={t} variant="success" size="sm" icon={CheckCircle2} onClick={() => quickStatus(p.id, "completed")}>Completar</Btn>}
+                  <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteProject(p.id)} />
                 </div>
               </div>
 
               {/* Progress */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 12, color: t.muted, flexShrink: 0 }}>Avance</span>
-                <input type="range" min="0" max="100" value={p.progress || 0} onChange={e => quickProgress(p.id, e.target.value)} style={{ flex: 1, accentColor: t.accent, height: 6 }} />
-                <span style={{ fontSize: 16, fontWeight: 800, color: donePct >= 100 ? t.green : t.accent, minWidth: 48, textAlign: "right" }}>{p.progress || 0}%</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 10, background: t.card, border: "1px solid " + t.border }}>
+                <span style={{ fontSize: 11, color: t.muted, flexShrink: 0, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Avance</span>
+                <input type="range" min="0" max="100" value={p.progress || 0} onChange={e => quickProgress(p.id, e.target.value)} style={{ flex: 1, accentColor: t.accent, height: 6, cursor: "pointer" }} />
+                <span style={{ fontSize: 22, fontWeight: 800, color: donePct >= 100 ? t.green : t.accent, minWidth: 56, textAlign: "right", letterSpacing: -0.5 }}>{p.progress || 0}<span style={{ fontSize: 14, color: t.dim, fontWeight: 600 }}>%</span></span>
               </div>
 
               {/* Mini stats */}
-              <div style={{ display: "flex", gap: 20, marginTop: 10, fontSize: 12, color: t.muted }}>
-                <span>{pending.length} tareas pendientes</span>
-                <span>{done.length} completadas</span>
-                <span>{pDocs.length} documentos</span>
-                {p.cost > 0 && <span>Costo: {fmt(p.cost_spent)} / {fmt(p.cost)}</span>}
+              <div style={{ display: "flex", gap: 18, marginTop: 12, fontSize: 12, color: t.muted, fontWeight: 500, flexWrap: "wrap" }}>
+                <span><span style={{ color: pending.length > 0 ? t.orange : t.text, fontWeight: 700 }}>{pending.length}</span> pendientes</span>
+                <span><span style={{ color: t.green, fontWeight: 700 }}>{done.length}</span> completadas</span>
+                <span><span style={{ color: t.text, fontWeight: 700 }}>{pDocs.length}</span> documentos</span>
+                {p.cost > 0 && <span>Costo: <span style={{ color: t.text, fontWeight: 700 }}>{fmt(p.cost_spent)}</span> / {fmt(p.cost)}</span>}
               </div>
             </div>
 
@@ -747,32 +928,45 @@ function SedeDetail({ sedeId, t, onNav }) {
                 {/* Task list */}
                 {pTasks.map(tk => {
                   const isOverdue = tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr);
+                  const stColor = tk.st === "done" ? t.green : tk.st === "waiting_response" ? t.pink : tk.st === "pending_solution" ? t.purple : isOverdue ? t.red : priColor[tk.pri] || t.accent;
                   return (
-                    <div key={tk.id} style={{ marginBottom: 6 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: isOverdue ? t.redBg : t.hover, borderLeft: "3px solid " + (tk.st === "done" ? t.green : isOverdue ? t.red : priColor[tk.pri] || t.accent) }}>
-                        <div onClick={() => toggleTask(tk.id, tk.st)} style={{ cursor: "pointer", padding: 2 }}>
+                    <div key={tk.id} style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, background: isOverdue ? t.redBg : t.hover, borderLeft: "3px solid " + stColor }}>
+                        <div onClick={() => toggleTask(tk.id, tk.st)} style={{ cursor: "pointer", padding: 2 }} title="Cambiar estado">
                           {tk.st === "done" ? <CheckCircle2 size={20} color={t.green} /> : <Circle size={20} color={t.dim} />}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontSize: 14, color: t.text, fontWeight: 500, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 14, color: t.text, fontWeight: 600, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</span>
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: (priColor[tk.pri] || t.accent) + "15", color: priColor[tk.pri] || t.accent }}>{priLabel[tk.pri]}</span>
-                        {tk.due && <span style={{ fontSize: 11, fontWeight: 500, color: isOverdue ? t.red : t.dim }}>{fmtDate(tk.due)}</span>}
-                        <div onClick={() => { if (editingTaskNote === tk.id) { setEditingTaskNote(null); } else { setEditingTaskNote(tk.id); setTaskNoteText(tk.raw?.notes || ""); } }} style={{ padding: "3px 8px", borderRadius: 6, background: tk.raw?.notes ? t.yellowBg : t.hover, color: tk.raw?.notes ? t.yellow : t.dim, cursor: "pointer", fontSize: 11, fontWeight: 500 }}>📝</div>
-                        <div onClick={() => deleteTask(tk.id)} style={{ padding: "3px 8px", borderRadius: 6, background: t.redBg, color: t.red, cursor: "pointer" }}><Trash2 size={14} /></div>
+                        <StatusBadge s={tk.st} t={t} />
+                        <Badge label={priLabel[tk.pri]} color={priColor[tk.pri] || t.accent} bg={(priColor[tk.pri] || t.accent) + "18"} />
+                        {tk.due && <span style={{ fontSize: 11, fontWeight: 600, color: isOverdue ? t.red : t.muted, padding: "3px 8px", borderRadius: 6, background: isOverdue ? t.red + "20" : t.card }}>{fmtDate(tk.due)}</span>}
+                        <select value={tk.st} onChange={e => setTaskStatus(tk.id, e.target.value)} style={{ padding: "5px 8px", borderRadius: 7, border: "1px solid " + t.border, background: t.card, color: t.muted, fontSize: 11, cursor: "pointer", fontWeight: 600, outline: "none" }}>
+                          <option value="todo">Pendiente</option>
+                          <option value="in_progress">En curso</option>
+                          <option value="waiting_response">Esp. respuesta</option>
+                          <option value="pending_solution">Pend. solución</option>
+                          <option value="done">Listo</option>
+                        </select>
+                        <div onClick={() => { if (editingTaskNote === tk.id) { setEditingTaskNote(null); } else { setEditingTaskNote(tk.id); setTaskNoteText(tk.raw?.notes || ""); } }} style={{ padding: "5px 8px", borderRadius: 7, background: tk.raw?.notes ? t.yellowBg : t.hover, color: tk.raw?.notes ? t.yellow : t.dim, cursor: "pointer" }} title="Notas">
+                          <Edit2 size={13} />
+                        </div>
+                        <div onClick={() => deleteTask(tk.id)} style={{ padding: "5px 8px", borderRadius: 7, background: t.redBg, color: t.red, cursor: "pointer" }} title="Borrar">
+                          <Trash2 size={13} />
+                        </div>
                       </div>
                       {/* Task note inline */}
                       {editingTaskNote === tk.id && (
-                        <div style={{ marginLeft: 32, marginTop: 4, padding: "8px 12px", borderRadius: 8, background: t.hover, border: "1px solid " + t.border }}>
+                        <div style={{ marginLeft: 32, marginTop: 6, padding: "10px 12px", borderRadius: 10, background: t.hover, border: "1px solid " + t.border }}>
                           <textarea value={taskNoteText} onChange={e => setTaskNoteText(e.target.value)} placeholder="Nota de la tarea..." autoFocus
-                            style={{ width: "100%", minHeight: 50, padding: 8, borderRadius: 6, border: "none", background: "transparent", color: t.text, fontSize: 12, resize: "vertical", outline: "none", fontFamily: "inherit" }} />
-                          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                            <button onClick={() => saveTaskNote(tk.id)} style={{ padding: "4px 12px", borderRadius: 6, background: t.accent, color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Guardar</button>
+                            style={{ width: "100%", minHeight: 60, padding: 8, borderRadius: 6, border: "none", background: "transparent", color: t.text, fontSize: 12, resize: "vertical", outline: "none", fontFamily: "inherit" }} />
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            <Btn t={t} variant="primary" size="sm" onClick={() => saveTaskNote(tk.id)}>Guardar</Btn>
                           </div>
                         </div>
                       )}
                       {!editingTaskNote && tk.raw?.notes && (
-                        <div style={{ marginLeft: 42, marginTop: 2, fontSize: 11, color: t.dim, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>{tk.raw.notes}</div>
+                        <div style={{ marginLeft: 42, marginTop: 4, fontSize: 11, color: t.dim, lineHeight: 1.5, whiteSpace: "pre-wrap", padding: "6px 10px", borderRadius: 6, background: t.yellowBg + "60", borderLeft: "2px solid " + t.yellow }}>{tk.raw.notes}</div>
                       )}
                     </div>
                   );
@@ -814,7 +1008,7 @@ function SedeDetail({ sedeId, t, onNav }) {
         <Inp label="Deadline" val={form.deadline} onChange={v => setForm({...form, deadline: v})} t={t} type="date" />
         <Inp label="Costo estimado" val={form.cost} onChange={v => setForm({...form, cost: v})} t={t} type="number" placeholder="$0" />
         <Inp label="Descripción" val={form.description} onChange={v => setForm({...form, description: v})} t={t} placeholder="Notas iniciales..." />
-        <button onClick={saveProject} disabled={!form.name} style={{ width: "100%", padding: "14px", borderRadius: 12, background: t.accent, color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: form.name ? 1 : 0.5 }}>Crear proyecto</button>
+        <Btn t={t} onClick={saveProject} disabled={!form.name} size="lg" style={{ width: "100%", marginTop: 4 }}>Crear proyecto</Btn>
       </Modal>
     </div>
   );
@@ -866,24 +1060,25 @@ function ProjectsPage({ t, onNav }) {
   const typeEmoji = { obra: "🏗️", mejora: "🔧", academico: "📚", mri: "🏥", general: "📋" };
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: t.text }}>Proyectos</div>
-          <div style={{ fontSize: 13, color: t.muted }}>{projects.length} proyectos · {projects.filter(p => p.status === "in_progress").length} en curso</div>
+          <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Workspace</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Proyectos</div>
+          <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}><span style={{ color: t.text, fontWeight: 700 }}>{projects.length}</span> en total · <span style={{ color: t.accent, fontWeight: 700 }}>{projects.filter(p => p.status === "in_progress").length}</span> en curso · <span style={{ color: t.green, fontWeight: 700 }}>{projects.filter(p => p.status === "completed").length}</span> completados</div>
         </div>
-        <button onClick={() => { setEditId(null); setForm({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "planning", progress: "" }); setShowForm(true); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 12, background: t.accent, color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer" }}><Plus size={16} /> Nuevo proyecto</button>
+        <Btn t={t} onClick={() => { setEditId(null); setForm({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "planning", progress: "" }); setShowForm(true); }} icon={Plus} size="lg">Nuevo proyecto</Btn>
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
         {[{ id: "all", label: "Todos" }, ...sedes.map(s => ({ id: s.id, label: s.name })), { id: "obra", label: "🏗️ Obras" }, { id: "mejora", label: "🔧 Mejoras" }].map(f => (
-          <div key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", background: filter === f.id ? t.accent : t.card, color: filter === f.id ? "#fff" : t.muted, border: "1px solid " + (filter === f.id ? t.accent : t.border), transition: "all 0.15s" }}>{f.label}</div>
+          <div key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "7px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", background: filter === f.id ? t.grad : t.hover, color: filter === f.id ? "#fff" : t.muted, border: "1px solid " + (filter === f.id ? "transparent" : t.border), transition: "all 0.15s", boxShadow: filter === f.id ? "0 4px 14px " + t.accentGlow : "none" }}>{f.label}</div>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={FolderKanban} title="Sin proyectos" sub="Creá tu primer proyecto" t={t} action="Crear proyecto" onAction={() => setShowForm(true)} />
+        <EmptyState icon={FolderKanban} title="Sin proyectos" sub="Creá tu primer proyecto para empezar a organizar el trabajo" t={t} action="Crear proyecto" onAction={() => setShowForm(true)} />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           {filtered.map(p => {
@@ -892,55 +1087,59 @@ function ProjectsPage({ t, onNav }) {
             const pendingTasks = pTasks.filter(tk => tk.st !== "done");
             const donePct = pTasks.length > 0 ? pct(pTasks.filter(tk => tk.st === "done").length, pTasks.length) : p.progress;
             const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline) - new Date()) / (1000*60*60*24)) : null;
+            const projColor = statusColors[p.status] || t.muted;
 
             return (
-              <Crd key={p.id} t={t} style={{ padding: 0, overflow: "hidden", borderLeft: "4px solid " + (statusColors[p.status] || t.dim) }}>
+              <Crd key={p.id} t={t} hoverable style={{ padding: 0, overflow: "hidden", position: "relative" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + projColor + ", " + projColor + "60)", boxShadow: "0 0 12px " + projColor + "60" }} />
                 {/* Header */}
-                <div style={{ padding: "20px 22px 0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 22 }}>{typeEmoji[p.type] || "📋"}</span>
-                      <div>
-                        <div style={{ fontSize: 17, fontWeight: 700, color: t.text }}>{p.name}</div>
-                        <div style={{ fontSize: 12, color: t.muted, marginTop: 1 }}>{p.sede?.name || "Sin sede"} · {p.type}</div>
+                <div style={{ padding: "22px 22px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 11, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                        <div style={{ fontSize: 11, color: t.muted, marginTop: 1, fontWeight: 500 }}>{p.sede?.name || "Sin sede"} · <span style={{ textTransform: "capitalize" }}>{p.type}</span></div>
                       </div>
                     </div>
                     <StatusBadge s={p.status} t={t} />
                   </div>
-                  {p.description && <div style={{ fontSize: 12, color: t.dim, marginTop: 6, lineHeight: 1.4 }}>{p.description}</div>}
+                  {p.description && <div style={{ fontSize: 12, color: t.dim, marginTop: 8, lineHeight: 1.5, paddingLeft: 54 }}>{p.description}</div>}
                 </div>
 
-                {/* Progress */}
-                <div style={{ padding: "14px 22px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: t.muted }}>Avance</span>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: donePct >= 100 ? t.green : t.accent }}>{donePct}%</span>
+                {/* Big progress display (no PBar) */}
+                <div style={{ padding: "0 22px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: t.hover, border: "1px solid " + t.border }}>
+                    <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Avance</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <span style={{ fontSize: 28, fontWeight: 800, color: donePct >= 100 ? t.green : t.accent, letterSpacing: -0.8, lineHeight: 1 }}>{donePct}</span>
+                      <span style={{ fontSize: 14, color: t.dim, fontWeight: 700 }}>%</span>
+                    </div>
                   </div>
-                  <PBar v={donePct} t={t} h={8} color={donePct >= 100 ? t.green : t.accent} />
                 </div>
 
                 {/* Stats row */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: "1px solid " + t.border, borderBottom: "1px solid " + t.border }}>
-                  <div style={{ padding: "12px 16px", textAlign: "center", borderRight: "1px solid " + t.border }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: pendingTasks.length > 0 ? t.orange : t.green }}>{pendingTasks.length}</div>
-                    <div style={{ fontSize: 10, color: t.dim, marginTop: 1 }}>Tareas pend.</div>
+                  <div style={{ padding: "14px 16px", textAlign: "center", borderRight: "1px solid " + t.border }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: pendingTasks.length > 0 ? t.orange : t.green, letterSpacing: -0.5 }}>{pendingTasks.length}</div>
+                    <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Pendientes</div>
                   </div>
-                  <div style={{ padding: "12px 16px", textAlign: "center", borderRight: "1px solid " + t.border }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>{pDocs.length}</div>
-                    <div style={{ fontSize: 10, color: t.dim, marginTop: 1 }}>Documentos</div>
+                  <div style={{ padding: "14px 16px", textAlign: "center", borderRight: "1px solid " + t.border }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: -0.5 }}>{pDocs.length}</div>
+                    <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Documentos</div>
                   </div>
-                  <div style={{ padding: "12px 16px", textAlign: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: daysLeft !== null && daysLeft < 0 ? t.red : daysLeft !== null && daysLeft <= 7 ? t.orange : t.text }}>{daysLeft !== null ? (daysLeft < 0 ? "Vencido" : daysLeft + "d") : "—"}</div>
-                    <div style={{ fontSize: 10, color: t.dim, marginTop: 1 }}>Deadline</div>
+                  <div style={{ padding: "14px 16px", textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: daysLeft !== null && daysLeft < 0 ? t.red : daysLeft !== null && daysLeft <= 7 ? t.orange : t.text, letterSpacing: -0.5 }}>{daysLeft !== null ? (daysLeft < 0 ? "Vencido" : daysLeft + "d") : "—"}</div>
+                    <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Deadline</div>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div style={{ padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {p.status !== "in_progress" && p.status !== "completed" && <div onClick={() => quickStatus(p.id, "in_progress")} style={{ padding: "8px 16px", borderRadius: 8, background: t.blueBg, color: t.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1, textAlign: "center" }}>▶ Iniciar</div>}
-                  {p.status === "in_progress" && <div onClick={() => quickStatus(p.id, "completed")} style={{ padding: "8px 16px", borderRadius: 8, background: t.greenBg, color: t.green, fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1, textAlign: "center" }}>✓ Completar</div>}
-                  <div onClick={() => openEdit(p)} style={{ padding: "8px 16px", borderRadius: 8, background: t.accentBg, color: t.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", flex: 1, textAlign: "center" }}>✏️ Editar</div>
-                  <div onClick={() => deleteProject(p.id)} style={{ padding: "8px 14px", borderRadius: 8, background: t.redBg, color: t.red, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🗑️</div>
+                <div style={{ padding: "12px 16px", display: "flex", gap: 8 }}>
+                  {p.status !== "in_progress" && p.status !== "completed" && <Btn t={t} variant="accent" size="sm" onClick={() => quickStatus(p.id, "in_progress")} style={{ flex: 1 }}>Iniciar</Btn>}
+                  {p.status === "in_progress" && <Btn t={t} variant="success" size="sm" icon={CheckCircle2} onClick={() => quickStatus(p.id, "completed")} style={{ flex: 1 }}>Completar</Btn>}
+                  <Btn t={t} variant="secondary" size="sm" icon={Edit2} onClick={() => openEdit(p)} style={{ flex: 1 }}>Editar</Btn>
+                  <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteProject(p.id)} />
                 </div>
               </Crd>
             );
@@ -966,7 +1165,7 @@ function ProjectsPage({ t, onNav }) {
         </div>
         {editId && <Inp label="Avance (%)" val={form.progress} onChange={v => setForm({...form, progress: v})} t={t} type="number" placeholder="0-100" />}
         <Inp label="Descripción / Notas" val={form.description} onChange={v => setForm({...form, description: v})} t={t} placeholder="Notas, observaciones..." />
-        <button onClick={saveProject} disabled={!form.name} style={{ width: "100%", padding: "14px", borderRadius: 12, background: t.accent, color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: form.name ? 1 : 0.5, marginTop: 8 }}>{editId ? "Guardar cambios" : "Crear proyecto"}</button>
+        <Btn t={t} onClick={saveProject} disabled={!form.name} size="lg" style={{ width: "100%", marginTop: 4 }}>{editId ? "Guardar cambios" : "Crear proyecto"}</Btn>
       </Modal>
     </div>
   );
@@ -1006,89 +1205,104 @@ function TasksPage({ t, onNav }) {
 
   const priColors = { high: t.red, medium: t.orange, low: t.green };
   const priLabels = { high: "Alta", medium: "Media", low: "Baja" };
+  // 5 columnas: pendiente, en curso, esperando respuesta, pendiente solución, listo
   const columns = [
-    { id: "todo", label: "📋 Pendiente", color: t.orange, bg: t.orangeBg },
-    { id: "in_progress", label: "⚡ En curso", color: t.blue, bg: t.blueBg },
-    { id: "done", label: "✅ Completado", color: t.green, bg: t.greenBg },
+    { id: "todo", label: "Pendiente", color: t.orange, bg: t.orangeBg },
+    { id: "in_progress", label: "En curso", color: t.blue, bg: t.blueBg },
+    { id: "waiting_response", label: "Esp. respuesta", color: t.pink, bg: t.pinkBg },
+    { id: "pending_solution", label: "Pend. solución", color: t.purple, bg: t.purpleBg },
+    { id: "done", label: "Listo", color: t.green, bg: t.greenBg },
   ];
 
   const TaskCard = ({ tk }) => {
     const isOverdue = tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr);
     const daysLeft = tk.due ? Math.ceil((new Date(tk.due) - new Date()) / (1000*60*60*24)) : null;
+    const stColor = tk.st === "done" ? t.green : tk.st === "waiting_response" ? t.pink : tk.st === "pending_solution" ? t.purple : isOverdue ? t.red : priColors[tk.pri] || t.accent;
     return (
-      <Crd t={t} style={{ padding: 16, marginBottom: 8, borderLeft: "4px solid " + (isOverdue ? t.red : priColors[tk.pri] || t.accent) }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>{tk.title}</div>
-        <div style={{ fontSize: 12, color: t.muted, marginBottom: 10 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: (priColors[tk.pri] || t.accent) + "15", color: priColors[tk.pri] || t.accent }}>{priLabels[tk.pri] || "Media"}</span>
-          {tk.due && <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 6, background: isOverdue ? t.redBg : t.hover, color: isOverdue ? t.red : t.dim }}>
+      <Crd t={t} hoverable style={{ padding: 14, marginBottom: 8, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: stColor, boxShadow: "0 0 8px " + stColor + "60" }} />
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 6, paddingLeft: 6, lineHeight: 1.35 }}>{tk.title}</div>
+        <div style={{ fontSize: 11, color: t.muted, marginBottom: 10, paddingLeft: 6 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
+        <div style={{ display: "flex", gap: 5, marginBottom: 10, paddingLeft: 6, flexWrap: "wrap" }}>
+          <Badge label={priLabels[tk.pri] || "Media"} color={priColors[tk.pri] || t.accent} bg={(priColors[tk.pri] || t.accent) + "18"} dot />
+          {tk.due && <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: isOverdue ? t.redBg : t.hover, color: isOverdue ? t.red : t.dim, border: "1px solid " + (isOverdue ? t.red : t.border) + "40" }}>
             {isOverdue ? "Vencida" : daysLeft === 0 ? "Hoy" : daysLeft === 1 ? "Mañana" : daysLeft + "d"}
           </span>}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {tk.st === "todo" && <div onClick={() => updateStatus(tk.id, "in_progress")} style={{ flex: 1, padding: "7px", borderRadius: 8, background: t.blueBg, color: t.blue, fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>▶ Iniciar</div>}
-          {tk.st === "in_progress" && <div onClick={() => updateStatus(tk.id, "done")} style={{ flex: 1, padding: "7px", borderRadius: 8, background: t.greenBg, color: t.green, fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>✓ Completar</div>}
-          {tk.st === "done" && <div onClick={() => updateStatus(tk.id, "todo")} style={{ flex: 1, padding: "7px", borderRadius: 8, background: t.hover, color: t.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>↩ Reabrir</div>}
-          <div onClick={() => deleteTask(tk.id)} style={{ padding: "7px 12px", borderRadius: 8, background: t.redBg, color: t.red, cursor: "pointer" }}><Trash2 size={14} /></div>
+        <div style={{ display: "flex", gap: 5, paddingLeft: 6 }}>
+          {tk.st === "todo" && <Btn t={t} variant="accent" size="sm" onClick={() => updateStatus(tk.id, "in_progress")} style={{ flex: 1 }}>Iniciar</Btn>}
+          {tk.st === "in_progress" && <Btn t={t} variant="success" size="sm" icon={CheckCircle2} onClick={() => updateStatus(tk.id, "done")} style={{ flex: 1 }}>Completar</Btn>}
+          {(tk.st === "waiting_response" || tk.st === "pending_solution") && <Btn t={t} variant="accent" size="sm" onClick={() => updateStatus(tk.id, "in_progress")} style={{ flex: 1 }}>Reanudar</Btn>}
+          {tk.st === "done" && <Btn t={t} variant="ghost" size="sm" onClick={() => updateStatus(tk.id, "todo")} style={{ flex: 1 }}>Reabrir</Btn>}
+          <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteTask(tk.id)} />
         </div>
       </Crd>
     );
   };
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: t.text }}>Tareas</div>
-          <div style={{ fontSize: 13, color: t.muted }}>{tasks.filter(tk => tk.st !== "done").length} pendientes · {tasks.filter(tk => tk.st === "done").length} completadas</div>
+          <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Workspace</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Tareas</div>
+          <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}><span style={{ color: t.orange, fontWeight: 700 }}>{tasks.filter(tk => tk.st !== "done").length}</span> pendientes · <span style={{ color: t.green, fontWeight: 700 }}>{tasks.filter(tk => tk.st === "done").length}</span> completadas</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid " + t.border }}>
+          <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid " + t.border, background: t.hover, padding: 3 }}>
             {["kanban", "list"].map(v => (
-              <div key={v} onClick={() => setView(v)} style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", background: view === v ? t.accent : "transparent", color: view === v ? "#fff" : t.muted }}>{v === "kanban" ? "Kanban" : "Lista"}</div>
+              <div key={v} onClick={() => setView(v)} style={{ padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", borderRadius: 7, background: view === v ? t.card : "transparent", color: view === v ? t.text : t.muted, transition: "all 140ms", boxShadow: view === v ? t.shadow : "none" }}>{v === "kanban" ? "Kanban" : "Lista"}</div>
             ))}
           </div>
-          <button onClick={() => setShowForm(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, background: t.accent, color: "#fff", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer" }}><Plus size={16} /> Nueva tarea</button>
+          <Btn t={t} onClick={() => setShowForm(true)} icon={Plus} size="lg">Nueva tarea</Btn>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 22, flexWrap: "wrap" }}>
         {[{ id: "all", label: "Todas" }, ...sedes.map(s => ({ id: s.id, label: s.name }))].map(f => (
-          <div key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", background: filter === f.id ? t.accent : t.card, color: filter === f.id ? "#fff" : t.muted, border: "1px solid " + (filter === f.id ? t.accent : t.border) }}>{f.label}</div>
+          <div key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "7px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", background: filter === f.id ? t.grad : t.hover, color: filter === f.id ? "#fff" : t.muted, border: "1px solid " + (filter === f.id ? "transparent" : t.border), boxShadow: filter === f.id ? "0 4px 14px " + t.accentGlow : "none" }}>{f.label}</div>
         ))}
       </div>
 
       {view === "kanban" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, alignItems: "flex-start" }}>
-          {columns.map(col => (
-            <div key={col.id}>
-              <div style={{ padding: "10px 14px", borderRadius: 10, background: col.bg, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: col.color }}>{col.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: col.color, background: col.color + "20", padding: "2px 8px", borderRadius: 6 }}>{filtered.filter(tk => tk.st === col.id).length}</span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(220px, 1fr))", gap: 12, alignItems: "flex-start", overflowX: "auto" }}>
+          {columns.map(col => {
+            const colTasks = filtered.filter(tk => tk.st === col.id);
+            return (
+              <div key={col.id} style={{ minWidth: 0 }}>
+                <div style={{ padding: "10px 14px", borderRadius: 10, background: col.bg, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid " + col.color + "30" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: col.color, boxShadow: "0 0 8px " + col.color + "90" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: col.color, letterSpacing: 0.2 }}>{col.label}</span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: col.color, background: col.color + "20", padding: "2px 8px", borderRadius: 999 }}>{colTasks.length}</span>
+                </div>
+                {colTasks.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: "center", fontSize: 11, color: t.dim, borderRadius: 10, border: "1.5px dashed " + t.border, background: t.hover + "60" }}>Sin tareas</div>
+                ) : colTasks.map(tk => <TaskCard key={tk.id} tk={tk} />)}
               </div>
-              {filtered.filter(tk => tk.st === col.id).length === 0 ? (
-                <div style={{ padding: 24, textAlign: "center", fontSize: 12, color: t.dim, borderRadius: 10, border: "2px dashed " + t.border }}>Sin tareas</div>
-              ) : filtered.filter(tk => tk.st === col.id).map(tk => <TaskCard key={tk.id} tk={tk} />)}
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         filtered.length === 0 ? <EmptyState icon={CheckSquare} title="Sin tareas" sub="Creá tu primera tarea" t={t} action="Nueva tarea" onAction={() => setShowForm(true)} /> :
         filtered.map(tk => {
           const isOverdue = tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr);
+          const stColor = tk.st === "done" ? t.green : tk.st === "waiting_response" ? t.pink : tk.st === "pending_solution" ? t.purple : isOverdue ? t.red : priColors[tk.pri] || t.accent;
           return (
-            <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12, marginBottom: 6, background: t.card, border: "1px solid " + t.border, borderLeft: "4px solid " + (isOverdue ? t.red : tk.st === "done" ? t.green : priColors[tk.pri] || t.accent) }}>
-              <div onClick={() => updateStatus(tk.id, tk.st === "done" ? "todo" : tk.st === "todo" ? "in_progress" : "done")} style={{ cursor: "pointer", padding: 4 }}>
+            <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12, marginBottom: 8, background: t.card, border: "1px solid " + t.border, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: stColor, boxShadow: "0 0 8px " + stColor + "60" }} />
+              <div onClick={() => updateStatus(tk.id, tk.st === "done" ? "todo" : tk.st === "todo" ? "in_progress" : "done")} style={{ cursor: "pointer", padding: 4, marginLeft: 4 }}>
                 {tk.st === "done" ? <CheckCircle2 size={22} color={t.green} /> : <Circle size={22} color={t.dim} />}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: t.text, fontWeight: 500, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</div>
-                <div style={{ fontSize: 12, color: t.dim, marginTop: 2 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, color: t.text, fontWeight: 600, textDecoration: tk.st === "done" ? "line-through" : "none" }}>{tk.title}</div>
+                <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: (priColors[tk.pri] || t.accent) + "15", color: priColors[tk.pri] || t.accent }}>{priLabels[tk.pri]}</span>
+              <Badge label={priLabels[tk.pri]} color={priColors[tk.pri] || t.accent} bg={(priColors[tk.pri] || t.accent) + "18"} dot />
               <StatusBadge s={tk.st} t={t} />
-              {tk.due && <span style={{ fontSize: 12, fontWeight: 500, color: isOverdue ? t.red : t.dim }}>{fmtDate(tk.due)}</span>}
-              <div onClick={() => deleteTask(tk.id)} style={{ padding: "6px 10px", borderRadius: 8, background: t.redBg, color: t.red, cursor: "pointer" }}><Trash2 size={16} /></div>
+              {tk.due && <span style={{ fontSize: 11, fontWeight: 600, color: isOverdue ? t.red : t.muted, padding: "3px 8px", borderRadius: 6, background: isOverdue ? t.red + "20" : t.hover }}>{fmtDate(tk.due)}</span>}
+              <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteTask(tk.id)} />
             </div>
           );
         })
@@ -1102,7 +1316,7 @@ function TasksPage({ t, onNav }) {
           <Select label="Prioridad" val={form.priority} onChange={v => setForm({...form, priority: v})} t={t} options={[{ value: "high", label: "🔴 Alta" }, { value: "medium", label: "🟡 Media" }, { value: "low", label: "🟢 Baja" }]} />
         </div>
         <Inp label="Fecha límite" val={form.due_date} onChange={v => setForm({...form, due_date: v})} t={t} type="date" />
-        <button onClick={saveTask} disabled={!form.title} style={{ width: "100%", padding: "14px", borderRadius: 12, background: t.accent, color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: form.title ? 1 : 0.5, marginTop: 8 }}>Crear tarea</button>
+        <Btn t={t} onClick={saveTask} disabled={!form.title} size="lg" style={{ width: "100%", marginTop: 4 }}>Crear tarea</Btn>
       </Modal>
     </div>
   );
@@ -1115,47 +1329,90 @@ function BudgetPage({ t }) {
   const totalAllocated = projects.reduce((s, p) => s + (p.cost || 0), 0);
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 20 }}>Presupuestos</div>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Finanzas</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Presupuestos</div>
+        <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Control de gasto por sede y proyecto</div>
+      </div>
 
       {/* Global KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-        <Crd t={t} style={{ padding: 16 }}><div style={{ fontSize: 10, color: t.dim }}>Budget total sedes</div><div style={{ fontSize: 22, fontWeight: 800, color: t.text }}>{fmt(totalBudget)}</div></Crd>
-        <Crd t={t} style={{ padding: 16 }}><div style={{ fontSize: 10, color: t.dim }}>Asignado a proyectos</div><div style={{ fontSize: 22, fontWeight: 800, color: t.blue }}>{fmt(totalAllocated)}</div></Crd>
-        <Crd t={t} style={{ padding: 16 }}><div style={{ fontSize: 10, color: t.dim }}>Gastado</div><div style={{ fontSize: 22, fontWeight: 800, color: t.orange }}>{fmt(totalSpent)}</div></Crd>
-        <Crd t={t} style={{ padding: 16 }}><div style={{ fontSize: 10, color: t.dim }}>Disponible</div><div style={{ fontSize: 22, fontWeight: 800, color: totalBudget - totalSpent >= 0 ? t.green : t.red }}>{fmt(totalBudget - totalSpent)}</div></Crd>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
+        {[
+          { label: "Budget total", val: fmt(totalBudget), color: t.text, icon: Wallet },
+          { label: "Asignado", val: fmt(totalAllocated), color: t.blue, icon: Target },
+          { label: "Gastado", val: fmt(totalSpent), color: t.orange, icon: TrendingUp },
+          { label: "Disponible", val: fmt(totalBudget - totalSpent), color: totalBudget - totalSpent >= 0 ? t.green : t.red, icon: DollarSign },
+        ].map((k, i) => (
+          <Crd key={i} t={t} style={{ padding: 20, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, borderRadius: "50%", background: k.color + "15", filter: "blur(28px)" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: t.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>{k.label}</span>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: k.color + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <k.icon size={14} color={k.color} strokeWidth={2.4} />
+                </div>
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: k.color, letterSpacing: -0.7, lineHeight: 1 }}>{k.val}</div>
+            </div>
+          </Crd>
+        ))}
       </div>
 
       {/* By sede */}
-      <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>Por sede</div>
+      <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 14, letterSpacing: -0.3 }}>Por sede</div>
       {sedes.map(s => {
         const sedeProjects = projects.filter(p => p.sede_id === s.id);
         const sedeBudget = Number(s.budget || 0);
         const sedeSpent = sedeProjects.reduce((sum, p) => sum + (p.cost_spent || 0), 0);
+        const usedPct = sedeBudget > 0 ? pct(sedeSpent, sedeBudget) : 0;
+        const usageColor = usedPct > 90 ? t.red : usedPct > 70 ? t.orange : t.green;
         return (
-          <Crd key={s.id} t={t} style={{ padding: 18, marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.color || t.accent }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{s.name}</span>
+          <Crd key={s.id} t={t} style={{ padding: 22, marginBottom: 14, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color || t.accent, boxShadow: "0 0 12px " + (s.color || t.accent) + "60" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 22 }}>{s.icon || "🏢"}</span>
+                <span style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>{s.name}</span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{sedeBudget > 0 ? pct(sedeSpent, sedeBudget) + "%" : "—"}</span>
+              {sedeBudget > 0 && (
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                  <span style={{ fontSize: 32, fontWeight: 800, color: usageColor, letterSpacing: -1, lineHeight: 1 }}>{usedPct}</span>
+                  <span style={{ fontSize: 16, color: t.dim, fontWeight: 700 }}>%</span>
+                </div>
+              )}
             </div>
-            {sedeBudget > 0 && <PBar v={pct(sedeSpent, sedeBudget)} t={t} color={pct(sedeSpent, sedeBudget) > 90 ? t.red : pct(sedeSpent, sedeBudget) > 70 ? t.orange : t.accent} h={6} />}
-            <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11, color: t.muted }}>
-              <span>Budget: {fmt(sedeBudget)}</span><span>Gastado: {fmt(sedeSpent)}</span><span>Disponible: {fmt(sedeBudget - sedeSpent)}</span>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: sedeProjects.length > 0 ? 16 : 0 }}>
+              <div style={{ padding: "10px 12px", borderRadius: 10, background: t.hover }}>
+                <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 4 }}>Budget</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{fmt(sedeBudget)}</div>
+              </div>
+              <div style={{ padding: "10px 12px", borderRadius: 10, background: t.orangeBg }}>
+                <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 4 }}>Gastado</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: t.orange }}>{fmt(sedeSpent)}</div>
+              </div>
+              <div style={{ padding: "10px 12px", borderRadius: 10, background: (sedeBudget - sedeSpent >= 0 ? t.greenBg : t.redBg) }}>
+                <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 4 }}>Disponible</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: sedeBudget - sedeSpent >= 0 ? t.green : t.red }}>{fmt(sedeBudget - sedeSpent)}</div>
+              </div>
             </div>
+
             {sedeProjects.length > 0 && (
-              <div style={{ marginTop: 12, borderTop: "1px solid " + t.border, paddingTop: 10 }}>
-                {sedeProjects.map(p => (
-                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", fontSize: 12 }}>
-                    <span style={{ color: t.text }}>{p.name}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ color: t.muted, fontSize: 11 }}>{fmt(p.cost_spent)} / {fmt(p.cost)}</span>
-                      <div style={{ width: 60 }}><PBar v={p.cost > 0 ? pct(p.cost_spent, p.cost) : 0} t={t} h={3} /></div>
+              <div style={{ borderTop: "1px solid " + t.border, paddingTop: 12 }}>
+                <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 8 }}>Detalle por proyecto</div>
+                {sedeProjects.map(p => {
+                  const pUsed = p.cost > 0 ? pct(p.cost_spent, p.cost) : 0;
+                  return (
+                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: t.hover, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{p.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ color: t.muted, fontSize: 12 }}>{fmt(p.cost_spent)} <span style={{ color: t.dim }}>/</span> {fmt(p.cost)}</span>
+                        {p.cost > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: pUsed > 90 ? t.red : pUsed > 70 ? t.orange : t.green, minWidth: 38, textAlign: "right" }}>{pUsed}%</span>}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Crd>
@@ -1164,12 +1421,12 @@ function BudgetPage({ t }) {
 
       {/* Unassigned projects */}
       {projects.filter(p => !p.sede_id && p.cost > 0).length > 0 && (
-        <Crd t={t} style={{ padding: 18, marginTop: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 10 }}>Proyectos sin sede</div>
+        <Crd t={t} style={{ padding: 22, marginTop: 14 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 12, letterSpacing: -0.3 }}>Proyectos sin sede</div>
           {projects.filter(p => !p.sede_id && p.cost > 0).map(p => (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12 }}>
-              <span style={{ color: t.text }}>{p.name}</span>
-              <span style={{ color: t.muted }}>{fmt(p.cost_spent)} / {fmt(p.cost)}</span>
+            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, background: t.hover, marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{p.name}</span>
+              <span style={{ color: t.muted, fontSize: 12 }}>{fmt(p.cost_spent)} <span style={{ color: t.dim }}>/</span> {fmt(p.cost)}</span>
             </div>
           ))}
         </Crd>
@@ -1221,43 +1478,46 @@ function DocumentsPage({ t }) {
   };
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: t.text }}>Documentos</div>
-          <div style={{ fontSize: 12, color: t.muted }}>{documents.length} archivos</div>
+          <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Repositorio</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Documentos</div>
+          <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}><span style={{ color: t.text, fontWeight: 700 }}>{documents.length}</span> archivos en total</div>
         </div>
-        <div>
-          <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={e => { handleUpload(e.target.files); e.target.value = ""; }} />
-          <button onClick={() => fileRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, background: t.accent, color: "#fff", border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer" }}><Upload size={16} /> Subir archivo</button>
-        </div>
+        <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={e => { handleUpload(e.target.files); e.target.value = ""; }} />
+        <Btn t={t} onClick={() => fileRef.current?.click()} icon={Upload} size="lg">Subir archivo</Btn>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 22, flexWrap: "wrap" }}>
         {[{ id: "all", label: "Todos (" + documents.length + ")" }, { id: "unlinked", label: "Sin vincular" }, ...sedes.map(s => ({ id: s.id, label: s.name }))].map(f => (
-          <div key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", background: filter === f.id ? t.accent : t.hover, color: filter === f.id ? "#fff" : t.muted, fontWeight: 500 }}>{f.label}</div>
+          <div key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "7px 14px", borderRadius: 999, fontSize: 12, cursor: "pointer", background: filter === f.id ? t.grad : t.hover, color: filter === f.id ? "#fff" : t.muted, fontWeight: 600, border: "1px solid " + (filter === f.id ? "transparent" : t.border), boxShadow: filter === f.id ? "0 4px 14px " + t.accentGlow : "none" }}>{f.label}</div>
         ))}
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState icon={FileText} title="Sin documentos" sub="Subí archivos para organizarlos por proyecto o sede" t={t} action="Subir archivo" onAction={() => fileRef.current?.click()} />
-      ) : filtered.map(d => (
-        <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, background: t.hover, marginBottom: 6 }}>
-          <FileText size={20} color={d.name?.endsWith(".xlsx") || d.name?.endsWith(".csv") ? t.green : d.name?.endsWith(".pdf") ? t.red : t.accent} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{d.name}</div>
-            <div style={{ fontSize: 11, color: t.dim }}>{d.date}{d.raw?.size ? " · " + d.raw.size : ""}</div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {d.file_url && (
-              <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: t.accent, textDecoration: "none", padding: "6px 14px", background: t.accentBg, borderRadius: 8, fontWeight: 600 }}>Ver</a>
-            )}
-            <button onClick={() => deleteDoc(d.id)} disabled={deleting === d.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, background: t.redBg, color: t.red, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              <Trash2 size={14} /> Borrar
-            </button>
-          </div>
-        </div>
-      ))}
+      ) : filtered.map(d => {
+        const ext = d.name?.split(".").pop()?.toLowerCase() || "";
+        const fileColor = ["xlsx","csv","xls","tsv"].includes(ext) ? t.green : ["pdf"].includes(ext) ? t.red : ["doc","docx"].includes(ext) ? t.blue : t.accent;
+        return (
+          <Crd key={d.id} t={t} hoverable style={{ padding: "12px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: fileColor + "18", border: "1px solid " + fileColor + "30", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <FileText size={18} color={fileColor} strokeWidth={2.2} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>{d.date}{d.raw?.size ? " · " + d.raw.size : ""} · <span style={{ textTransform: "uppercase", fontWeight: 600, color: fileColor }}>{ext}</span></div>
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {d.file_url && (
+                <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: t.accent, textDecoration: "none", padding: "8px 14px", background: t.accentBg, borderRadius: 8, fontWeight: 600, border: "1px solid " + t.accent + "40", display: "inline-flex", alignItems: "center", gap: 6 }}><Eye size={13} /> Ver</a>
+              )}
+              <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteDoc(d.id)} disabled={deleting === d.id}>Borrar</Btn>
+            </div>
+          </Crd>
+        );
+      })}
     </div>
   );
 }
@@ -1346,9 +1606,17 @@ function AIReportsPage({ t }) {
   const currentResult = activeReport ? activeReport.result : result;
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 4 }}>Informes IA</div>
-      <div style={{ fontSize: 13, color: t.muted, marginBottom: 24 }}>Subí un archivo y obtené un análisis automático con inteligencia artificial</div>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px " + t.accentGlow }}>
+          <Sparkles size={20} color="#fff" />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 2 }}>Inteligencia artificial</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Informes IA</div>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Subí un archivo y obtené un análisis automático</div>
+        </div>
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: currentResult ? "1fr 1fr" : "1fr", gap: 16 }}>
         {/* Left: controls */}
@@ -1473,14 +1741,21 @@ function CalendarPage({ t, onNav }) {
   };
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: t.text }}>Calendario</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div onClick={() => setMonth(new Date())} style={{ padding: "6px 14px", borderRadius: 8, background: t.hover, color: t.muted, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Hoy</div>
-          <ChevronLeft size={20} color={t.muted} style={{ cursor: "pointer", padding: 4 }} onClick={() => setMonth(new Date(year, mo - 1))} />
-          <span style={{ fontSize: 15, fontWeight: 700, color: t.text, textTransform: "capitalize", minWidth: 160, textAlign: "center" }}>{monthName}</span>
-          <ChevronRight size={20} color={t.muted} style={{ cursor: "pointer", padding: 4 }} onClick={() => setMonth(new Date(year, mo + 1))} />
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Timeline</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Calendario</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 4, background: t.hover, borderRadius: 10, border: "1px solid " + t.border }}>
+          <Btn t={t} variant="ghost" size="sm" onClick={() => setMonth(new Date())}>Hoy</Btn>
+          <div onClick={() => setMonth(new Date(year, mo - 1))} style={{ padding: 7, borderRadius: 7, cursor: "pointer", display: "flex", background: t.card, border: "1px solid " + t.border }}>
+            <ChevronLeft size={15} color={t.muted} />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: t.text, textTransform: "capitalize", minWidth: 160, textAlign: "center", letterSpacing: -0.2 }}>{monthName}</span>
+          <div onClick={() => setMonth(new Date(year, mo + 1))} style={{ padding: 7, borderRadius: 7, cursor: "pointer", display: "flex", background: t.card, border: "1px solid " + t.border }}>
+            <ChevronRight size={15} color={t.muted} />
+          </div>
         </div>
       </div>
 
@@ -1551,7 +1826,7 @@ function CalendarPage({ t, onNav }) {
 function SettingsPage({ t, user }) {
   const { sedes, reload, userId } = useData();
   const [showSedeForm, setShowSedeForm] = useState(false);
-  const [sedeForm, setSedeForm] = useState({ name: "", address: "", budget: "", color: "#0A84FF", icon: "🏢" });
+  const [sedeForm, setSedeForm] = useState({ name: "", address: "", budget: "", color: "#7C5CFF", icon: "🏢" });
   const [editId, setEditId] = useState(null);
 
   const saveSede = async () => {
@@ -1563,7 +1838,7 @@ function SettingsPage({ t, user }) {
     }
     setShowSedeForm(false);
     setEditId(null);
-    setSedeForm({ name: "", address: "", budget: "", color: "#0A84FF", icon: "🏢" });
+    setSedeForm({ name: "", address: "", budget: "", color: "#7C5CFF", icon: "🏢" });
     reload();
   };
 
@@ -1574,48 +1849,55 @@ function SettingsPage({ t, user }) {
   };
 
   const editSede = (s) => {
-    setSedeForm({ name: s.name, address: s.address || "", budget: String(s.budget || ""), color: s.color || "#0A84FF", icon: s.icon || "🏢" });
+    setSedeForm({ name: s.name, address: s.address || "", budget: String(s.budget || ""), color: s.color || "#7C5CFF", icon: s.icon || "🏢" });
     setEditId(s.id);
     setShowSedeForm(true);
   };
 
   const icons = ["🏢", "🏛️", "🏖️", "🏠", "🏗️", "📍", "🎓", "💼", "🏥", "🏭"];
-  const colors = ["#0A84FF", "#30D158", "#FF9F0A", "#FF453A", "#BF5AF2", "#5AC8FA", "#FFD60A", "#AC8E68"];
+  const colors = ["#7C5CFF", "#3DDC84", "#FFA34D", "#FF4D6D", "#FF6FB5", "#4DA8FF", "#FFD93D", "#B86BFF"];
 
   return (
-    <div style={{ padding: 28, overflowY: "auto", height: "calc(100vh - 52px)" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 20 }}>Configuración</div>
+    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Sistema</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Configuración</div>
+      </div>
 
       {/* Profile */}
-      <Crd t={t} style={{ padding: 20, marginBottom: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>Perfil</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 700 }}>
+      <Crd t={t} style={{ padding: 22, marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 14 }}>Perfil</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#fff", fontWeight: 800, boxShadow: "0 6px 20px " + t.accentGlow }}>
             {(user?.user_metadata?.full_name || user?.email || "L")[0].toUpperCase()}
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{user?.user_metadata?.full_name || "Lucho"}</div>
-            <div style={{ fontSize: 12, color: t.muted }}>{user?.email}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>{user?.user_metadata?.full_name || "Lucho"}</div>
+            <div style={{ fontSize: 13, color: t.muted }}>{user?.email}</div>
           </div>
         </div>
       </Crd>
 
       {/* Sedes management */}
-      <Crd t={t} style={{ padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Sedes</div>
-          <button onClick={() => { setShowSedeForm(true); setEditId(null); setSedeForm({ name: "", address: "", budget: "", color: "#0A84FF", icon: "🏢" }); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 6, background: t.accent, color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer" }}><Plus size={12} /> Nueva sede</button>
+      <Crd t={t} style={{ padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Tus sedes</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Gestión de sedes</div>
+          </div>
+          <Btn t={t} icon={Plus} onClick={() => { setShowSedeForm(true); setEditId(null); setSedeForm({ name: "", address: "", budget: "", color: "#7C5CFF", icon: "🏢" }); }}>Nueva sede</Btn>
         </div>
-        {sedes.map(s => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: t.hover, marginBottom: 6 }}>
-            <span style={{ fontSize: 20 }}>{s.icon}</span>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.color }} />
+        {sedes.length === 0 ? (
+          <div style={{ padding: 20, textAlign: "center", fontSize: 13, color: t.dim }}>No hay sedes todavía</div>
+        ) : sedes.map(s => (
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, background: t.hover, marginBottom: 8, border: "1px solid " + t.border }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: (s.color || t.accent) + "20", border: "1px solid " + (s.color || t.accent) + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{s.name}</div>
-              <div style={{ fontSize: 10, color: t.dim }}>{s.address || "Sin dirección"} · Budget: {fmt(Number(s.budget || 0))}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>{s.name}</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>{s.address || "Sin dirección"} · Budget: <span style={{ color: t.text, fontWeight: 600 }}>{fmt(Number(s.budget || 0))}</span></div>
             </div>
-            <div onClick={() => editSede(s)} style={{ padding: "5px 12px", borderRadius: 6, background: t.accentBg, color: t.accent, fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><Edit2 size={13} /> Editar</div>
-            <div onClick={() => deleteSede(s.id)} style={{ padding: "5px 12px", borderRadius: 6, background: t.redBg, color: t.red, fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><Trash2 size={13} /> Borrar</div>
+            <Btn t={t} variant="accent" size="sm" icon={Edit2} onClick={() => editSede(s)}>Editar</Btn>
+            <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteSede(s.id)} />
           </div>
         ))}
       </Crd>
@@ -1624,19 +1906,19 @@ function SettingsPage({ t, user }) {
         <Inp label="Nombre" val={sedeForm.name} onChange={v => setSedeForm({...sedeForm, name: v})} t={t} placeholder="Ej: Belgrano" />
         <Inp label="Dirección" val={sedeForm.address} onChange={v => setSedeForm({...sedeForm, address: v})} t={t} placeholder="Opcional" />
         <Inp label="Presupuesto anual" val={sedeForm.budget} onChange={v => setSedeForm({...sedeForm, budget: v})} t={t} type="number" placeholder="0" />
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 4 }}>Icono</div>
-          <div style={{ display: "flex", gap: 6 }}>{icons.map(ic => (
-            <div key={ic} onClick={() => setSedeForm({...sedeForm, icon: ic})} style={{ width: 32, height: 32, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", background: sedeForm.icon === ic ? t.accentBg : t.hover, border: sedeForm.icon === ic ? "2px solid " + t.accent : "1px solid " + t.border }}>{ic}</div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 6, letterSpacing: 0.2, textTransform: "uppercase" }}>Icono</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{icons.map(ic => (
+            <div key={ic} onClick={() => setSedeForm({...sedeForm, icon: ic})} style={{ width: 36, height: 36, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, cursor: "pointer", background: sedeForm.icon === ic ? t.accentBg : t.hover, border: sedeForm.icon === ic ? "2px solid " + t.accent : "1px solid " + t.border, transition: "all 140ms" }}>{ic}</div>
           ))}</div>
         </div>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 4 }}>Color</div>
-          <div style={{ display: "flex", gap: 6 }}>{colors.map(c => (
-            <div key={c} onClick={() => setSedeForm({...sedeForm, color: c})} style={{ width: 24, height: 24, borderRadius: 6, background: c, cursor: "pointer", border: sedeForm.color === c ? "2px solid " + t.text : "2px solid transparent" }} />
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 6, letterSpacing: 0.2, textTransform: "uppercase" }}>Color</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{colors.map(c => (
+            <div key={c} onClick={() => setSedeForm({...sedeForm, color: c})} style={{ width: 30, height: 30, borderRadius: 9, background: c, cursor: "pointer", border: sedeForm.color === c ? "2px solid " + t.text : "2px solid transparent", boxShadow: sedeForm.color === c ? "0 0 0 3px " + c + "40, 0 4px 14px " + c + "60" : "0 2px 8px " + c + "30", transition: "all 140ms" }} />
           ))}</div>
         </div>
-        <button onClick={saveSede} disabled={!sedeForm.name} style={{ width: "100%", padding: "10px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: sedeForm.name ? 1 : 0.5 }}>{editId ? "Guardar" : "Crear sede"}</button>
+        <Btn t={t} onClick={saveSede} disabled={!sedeForm.name} size="lg" style={{ width: "100%" }}>{editId ? "Guardar cambios" : "Crear sede"}</Btn>
       </Modal>
     </div>
   );
@@ -1659,22 +1941,32 @@ function LoginPage({ onLogin, t }) {
   };
 
   return (
-    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bg }}>
-      <div style={{ width: 360, padding: 32, background: t.card, borderRadius: 16, border: "1px solid " + t.border }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: t.text, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-            <Zap size={22} color={t.bg} />
+    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bg, position: "relative", overflow: "hidden" }}>
+      {/* Animated background gradient */}
+      <div style={{ position: "absolute", top: "20%", left: "20%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, " + t.accent + "30 0%, transparent 60%)", filter: "blur(80px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "10%", right: "15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, " + t.purple + "25 0%, transparent 60%)", filter: "blur(80px)", pointerEvents: "none" }} />
+
+      <div onSubmit={e => { e.preventDefault(); handleLogin(); }} style={{ width: 400, padding: 36, background: t.cardElev, borderRadius: 20, border: "1px solid " + t.borderStrong, boxShadow: t.shadowLg, position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 12px 32px " + t.accentGlow }}>
+            <Zap size={26} color="#fff" strokeWidth={2.5} fill="#fff" />
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: t.text }}>LuchoNeitor</div>
-          <div style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>Gestor de proyectos</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: -0.6 }}>LuchoNeitor</div>
+          <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Gestor de proyectos multi-sede</div>
         </div>
         <Inp label="Email" val={email} onChange={setEmail} t={t} placeholder="tu@email.com" />
         <Inp label="Contraseña" val={pass} onChange={setPass} t={t} type="password" placeholder="••••••••" />
-        {error && <div style={{ fontSize: 11, color: t.red, marginBottom: 10, padding: "6px 10px", background: t.redBg, borderRadius: 6 }}>{error}</div>}
-        <button onClick={handleLogin} disabled={loading || !email || !pass} style={{
-          width: "100%", padding: "12px", borderRadius: 10, background: t.accent, color: "#fff", border: "none",
-          fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: loading || !email || !pass ? 0.5 : 1,
-        }}>{loading ? "Ingresando..." : "Ingresar"}</button>
+        {error && (
+          <div style={{ fontSize: 12, color: t.red, marginBottom: 14, padding: "10px 12px", background: t.redBg, borderRadius: 9, border: "1px solid " + t.red + "40", display: "flex", alignItems: "center", gap: 8 }}>
+            <AlertCircle size={14} /> {error}
+          </div>
+        )}
+        <Btn t={t} onClick={handleLogin} disabled={loading || !email || !pass} size="lg" style={{ width: "100%", marginTop: 4 }}>
+          {loading ? "Ingresando..." : "Ingresar"}
+        </Btn>
+        <div style={{ textAlign: "center", marginTop: 18, fontSize: 11, color: t.dim }}>
+          Hecho con <span style={{ color: t.accent, fontWeight: 700 }}>♥</span> para gestionar sedes
+        </div>
       </div>
     </div>
   );
@@ -1706,10 +1998,12 @@ export default function App() {
   };
 
   if (!authReady) return (
-    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#111113" }}>
-      <div style={{ width: 40, height: 40, borderRadius: 10, background: "#0A84FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Zap size={20} color="#fff" />
+    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0A0A0F", flexDirection: "column", gap: 16 }}>
+      <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #7C5CFF 0%, #A78BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 32px rgba(124,92,255,0.5)", animation: "pulse 1.6s ease-in-out infinite" }}>
+        <Zap size={26} color="#fff" strokeWidth={2.5} fill="#fff" />
       </div>
+      <div style={{ fontSize: 13, color: "#A0A0AE", fontFamily: "'Inter', sans-serif" }}>Cargando LuchoNeitor...</div>
+      <style>{"@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(0.95);opacity:0.85}}"}</style>
     </div>
   );
 
@@ -1748,12 +2042,21 @@ export default function App() {
 
   return (
     <DataProvider userId={user.id}>
-      <div style={{ display: "flex", height: "100vh", background: t.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", color: t.text }}>
+      <div style={{ display: "flex", height: "100vh", background: t.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: t.text, fontFeatureSettings: "'cv02', 'cv03', 'cv04', 'cv11'" }}>
         <style>{
           "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');" +
           "*{box-sizing:border-box;margin:0;padding:0}" +
+          "html,body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}" +
+          "button{font-family:inherit}" +
           "@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}" +
-          "::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:" + t.border + ";border-radius:3px}"
+          "@keyframes fadeIn{from{opacity:0}to{opacity:1}}" +
+          "@keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}" +
+          "@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(0.95);opacity:0.85}}" +
+          "::-webkit-scrollbar{width:8px;height:8px}" +
+          "::-webkit-scrollbar-track{background:transparent}" +
+          "::-webkit-scrollbar-thumb{background:" + t.border + ";border-radius:4px}" +
+          "::-webkit-scrollbar-thumb:hover{background:" + t.borderStrong + "}" +
+          "::selection{background:" + t.accentBg + ";color:" + t.text + "}"
         }</style>
         <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
