@@ -10,7 +10,8 @@ import {
   ChevronLeft, Sparkles, Menu, Sun, Moon, LogOut, Home
 } from "lucide-react";
 
-// ─── Theme: Linear/Notion dark, vivid accents ───
+// ─── Theme: Linear/Notion dark, paleta coherente con 5 estados ───
+// Estados (orden de flujo): orange → blue → amber → rose → emerald
 const themes = {
   dark: {
     bg:"#0A0A0F", card:"#15151D", cardElev:"#1A1A24", hover:"#1F1F2A",
@@ -19,17 +20,20 @@ const themes = {
     text:"#F4F4F7", muted:"#A0A0AE", dim:"#6B6B78",
     accent:"#7C5CFF", accentL:"#A78BFF", accentD:"#5B3FE3",
     accentBg:"rgba(124,92,255,0.14)", accentGlow:"rgba(124,92,255,0.45)",
-    green:"#3DDC84", greenBg:"rgba(61,220,132,0.13)",
-    red:"#FF4D6D", redBg:"rgba(255,77,109,0.13)",
-    orange:"#FFA34D", orangeBg:"rgba(255,163,77,0.13)",
-    blue:"#4DA8FF", blueBg:"rgba(77,168,255,0.13)",
-    yellow:"#FFD93D", yellowBg:"rgba(255,217,61,0.13)",
-    pink:"#FF6FB5", pinkBg:"rgba(255,111,181,0.13)",
-    purple:"#B86BFF", purpleBg:"rgba(184,107,255,0.13)",
+    // Estados de tarea / proyecto:
+    orange:"#FB923C", orangeBg:"rgba(251,146,60,0.13)",   // Pendiente
+    blue:"#38BDF8", blueBg:"rgba(56,189,248,0.13)",       // En curso
+    yellow:"#FBBF24", yellowBg:"rgba(251,191,36,0.13)",   // Esperando respuesta
+    red:"#F43F5E", redBg:"rgba(244,63,94,0.13)",          // Pendiente solución / vencido
+    green:"#10B981", greenBg:"rgba(16,185,129,0.13)",     // Listo
+    // Tipos calendario:
+    cyan:"#06B6D4", cyanBg:"rgba(6,182,212,0.13)",        // Reunión
+    pink:"#EC4899", pinkBg:"rgba(236,72,153,0.13)",       // Evento
+    purple:"#A855F7", purpleBg:"rgba(168,85,247,0.13)",   // Auxiliar
     shadow:"0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
     shadowLg:"0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05)",
     grad:"linear-gradient(135deg, #7C5CFF 0%, #A78BFF 100%)",
-    gradGlow:"linear-gradient(135deg, rgba(124,92,255,0.18) 0%, rgba(184,107,255,0.10) 100%)",
+    gradGlow:"linear-gradient(135deg, rgba(124,92,255,0.18) 0%, rgba(168,85,247,0.10) 100%)",
   },
   light: {
     bg:"#F6F6FA", card:"#FFFFFF", cardElev:"#FFFFFF", hover:"#F0F0F5",
@@ -38,11 +42,12 @@ const themes = {
     text:"#0F0F18", muted:"#5F5F70", dim:"#9494A4",
     accent:"#5B3FE3", accentL:"#7C5CFF", accentD:"#4730B5",
     accentBg:"rgba(91,63,227,0.10)", accentGlow:"rgba(91,63,227,0.30)",
-    green:"#15A569", greenBg:"rgba(21,165,105,0.10)",
+    orange:"#EA580C", orangeBg:"rgba(234,88,12,0.10)",
+    blue:"#0284C7", blueBg:"rgba(2,132,199,0.10)",
+    yellow:"#CA8A04", yellowBg:"rgba(202,138,4,0.10)",
     red:"#E11048", redBg:"rgba(225,16,72,0.10)",
-    orange:"#D97706", orangeBg:"rgba(217,119,6,0.10)",
-    blue:"#2563EB", blueBg:"rgba(37,99,235,0.10)",
-    yellow:"#B8860B", yellowBg:"rgba(184,134,11,0.10)",
+    green:"#059669", greenBg:"rgba(5,150,105,0.10)",
+    cyan:"#0891B2", cyanBg:"rgba(8,145,178,0.10)",
     pink:"#DB2777", pinkBg:"rgba(219,39,119,0.10)",
     purple:"#9333EA", purpleBg:"rgba(147,51,234,0.10)",
     shadow:"0 1px 3px rgba(15,15,24,0.06), 0 0 0 1px rgba(15,15,24,0.05)",
@@ -165,25 +170,57 @@ function Badge({ label, color, bg, dot }) {
   );
 }
 
+// Estados unificados para tareas y proyectos
+const STATUS_OPTIONS = [
+  { value: "todo", label: "Pendiente" },
+  { value: "in_progress", label: "En curso" },
+  { value: "waiting_response", label: "Esperando respuesta" },
+  { value: "pending_solution", label: "Pendiente solución" },
+  { value: "done", label: "Listo" },
+];
+
+// Mapeo de project.status legacy (planning/in_progress/completed) a las labels nuevas
+const PROJECT_STATUS_MAP = {
+  planning: "todo",
+  in_progress: "in_progress",
+  completed: "done",
+};
+
+const normalizeProjectStatus = (s) => PROJECT_STATUS_MAP[s] || s;
+
 function StatusBadge({ s, t }) {
   const m = {
     todo: { l: "Pendiente", c: t.orange, b: t.orangeBg },
     in_progress: { l: "En curso", c: t.blue, b: t.blueBg },
-    waiting_response: { l: "Esperando respuesta", c: t.pink, b: t.pinkBg },
-    pending_solution: { l: "Pendiente solución", c: t.purple, b: t.purpleBg },
+    waiting_response: { l: "Esperando respuesta", c: t.yellow, b: t.yellowBg },
+    pending_solution: { l: "Pendiente solución", c: t.red, b: t.redBg },
     done: { l: "Listo", c: t.green, b: t.greenBg },
-    active: { l: "Activo", c: t.green, b: t.greenBg },
-    planning: { l: "Planificación", c: t.muted, b: t.hover },
-    completed: { l: "Completado", c: t.green, b: t.greenBg },
-    cancelled: { l: "Cancelado", c: t.red, b: t.redBg },
-    planned: { l: "Planificado", c: t.muted, b: t.hover },
+    // legacy projects
+    planning: { l: "Pendiente", c: t.orange, b: t.orangeBg },
+    completed: { l: "Listo", c: t.green, b: t.greenBg },
+    active: { l: "En curso", c: t.blue, b: t.blueBg },
+    // legacy/transactions
+    cancelled: { l: "Cancelado", c: t.muted, b: t.hover },
+    planned: { l: "Pendiente", c: t.orange, b: t.orangeBg },
     pending: { l: "Pendiente", c: t.orange, b: t.orangeBg },
     paid: { l: "Pagado", c: t.green, b: t.greenBg },
-    partial: { l: "Parcial", c: t.orange, b: t.orangeBg },
+    partial: { l: "Parcial", c: t.yellow, b: t.yellowBg },
     overdue: { l: "Vencido", c: t.red, b: t.redBg },
   };
   const v = m[s] || { l: s || "—", c: t.dim, b: t.hover };
   return <Badge label={v.l} color={v.c} bg={v.b} dot />;
+}
+
+// Color helper para un estado (tareas o proyectos)
+function statusColor(s, t) {
+  const map = {
+    todo: t.orange, planning: t.orange,
+    in_progress: t.blue, active: t.blue,
+    waiting_response: t.yellow,
+    pending_solution: t.red,
+    done: t.green, completed: t.green,
+  };
+  return map[s] || t.muted;
 }
 
 function PBar({ v, h = 5, color, t, bg }) {
@@ -584,12 +621,9 @@ function Dashboard({ t, onNav }) {
                 {sedeProjects.length > 0 && (
                   <div style={{ borderTop: "1px solid " + t.border, paddingTop: 10 }}>
                     {sedeProjects.slice(0, 3).map(p => (
-                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0" }}>
-                        <span style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8 }}>{p.name}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: p.status === "completed" ? t.green : t.accent }}>{p.progress}%</span>
-                          <StatusBadge s={p.status} t={t} />
-                        </div>
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", gap: 8 }}>
+                        <span style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</span>
+                        <StatusBadge s={p.status} t={t} />
                       </div>
                     ))}
                     {sedeProjects.length > 3 && <div style={{ fontSize: 11, color: t.accent, marginTop: 4, fontWeight: 600 }}>+{sedeProjects.length - 3} más →</div>}
@@ -642,9 +676,9 @@ function Dashboard({ t, onNav }) {
             <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 18 }}>Sin proyectos activos</div>
           ) : activeProjects.slice(0, 6).map(p => (
             <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid " + t.border }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8 }}>{p.name}</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: t.accent }}>{p.progress}%</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</span>
+                <StatusBadge s={p.status} t={t} />
               </div>
               <div style={{ fontSize: 10, color: t.dim }}>{p.sede?.name || "Sin sede"}{p.deadline ? " · " + fmtDate(p.deadline) : ""}</div>
             </div>
@@ -669,6 +703,7 @@ function SedeDetail({ sedeId, t, onNav }) {
   const [taskNoteText, setTaskNoteText] = useState("");
   const fileRef = useRef(null);
   const [uploadTarget, setUploadTarget] = useState(null);
+  const [expandedProjects, setExpandedProjects] = useState({});
 
   if (!sede) return <div style={{ padding: 40, textAlign: "center", color: t.dim }}>Sede no encontrada</div>;
 
@@ -680,29 +715,29 @@ function SedeDetail({ sedeId, t, onNav }) {
   const overdueTasks = allSedeTasks.filter(tk => tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr));
   const pendingTasks = allSedeTasks.filter(tk => tk.st !== "done");
   const doneTasks = allSedeTasks.filter(tk => tk.st === "done");
-  const activeProjects = sedeProjects.filter(p => p.status === "in_progress");
-  const avgProgress = sedeProjects.length > 0 ? Math.round(sedeProjects.reduce((s, p) => s + (p.progress || 0), 0) / sedeProjects.length) : 0;
+  const activeProjects = sedeProjects.filter(p => p.status === "in_progress" || p.status === "active");
+  const doneProjects = sedeProjects.filter(p => p.status === "completed" || p.status === "done");
+  const toggleExpand = (id) => setExpandedProjects(s => ({ ...s, [id]: !s[id] }));
 
   // CRUD functions
   const saveProject = async () => {
     const { error } = await supabase.from("projects").insert({
       company_id: companyId, sede_id: sedeId, name: form.name, type: form.type,
       deadline: form.deadline || null, cost: Number(form.cost) || 0, description: form.description || null,
-      status: "planning", progress: 0,
+      status: "todo",
     });
-    if (error) { alert("Error: " + error.message); return; }
+    if (error) {
+      alert("Error: " + error.message + (error.code === "23514" ? "\n\nLa DB no soporta este estado. Aplicá la migración SQL." : ""));
+      return;
+    }
     setShowForm(false);
     setForm({ name: "", type: "general", deadline: "", cost: "", description: "" });
     reload();
   };
 
   const quickStatus = async (id, status) => {
-    await supabase.from("projects").update({ status }).eq("id", id);
-    reload();
-  };
-
-  const quickProgress = async (id, val) => {
-    await supabase.from("projects").update({ progress: Number(val) }).eq("id", id);
+    const { error } = await supabase.from("projects").update({ status }).eq("id", id);
+    if (error && error.code === "23514") alert("La DB no soporta este estado todavía. Aplicá la migración SQL en migrations/extend-project-status.sql.");
     reload();
   };
 
@@ -802,10 +837,10 @@ function SedeDetail({ sedeId, t, onNav }) {
       {/* Dashboard KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 28 }}>
         {[
-          { label: "Proyectos", val: sedeProjects.length, sub: activeProjects.length + " activos", color: t.accent, icon: FolderKanban },
+          { label: "Proyectos", val: sedeProjects.length, sub: activeProjects.length + " en curso", color: t.accent, icon: FolderKanban },
+          { label: "Listos", val: doneProjects.length, sub: "Proyectos completados", color: t.green, icon: CheckCircle2 },
           { label: "Tareas pend.", val: pendingTasks.length, sub: doneTasks.length + " completadas", color: t.orange, icon: CheckSquare },
           { label: "Vencidas", val: overdueTasks.length, sub: overdueTasks.length > 0 ? "Atención" : "Todo al día", color: overdueTasks.length > 0 ? t.red : t.green, icon: AlertCircle },
-          { label: "Avance prom.", val: avgProgress + "%", sub: "Proyectos", color: t.blue, icon: Target },
           { label: "Presupuesto", val: budget > 0 ? pct(spent, budget) + "%" : "—", sub: budget > 0 ? fmt(spent) + " / " + fmt(budget) : "Sin asignar", color: budget > 0 && pct(spent, budget) > 90 ? t.red : t.green, icon: Wallet },
         ].map((k, i) => (
           <Crd key={i} t={t} style={{ padding: 18, position: "relative", overflow: "hidden" }}>
@@ -832,58 +867,48 @@ function SedeDetail({ sedeId, t, onNav }) {
         const pDocs = documents.filter(d => d.project_id === p.id);
         const pending = pTasks.filter(tk => tk.st !== "done");
         const done = pTasks.filter(tk => tk.st === "done");
-        const donePct = pTasks.length > 0 ? pct(done.length, pTasks.length) : p.progress;
         const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline) - new Date()) / (1000*60*60*24)) : null;
         const typeEmoji = { obra: "🏗️", mejora: "🔧", academico: "📚", mri: "🏥", general: "📋" };
-
-        const projColor = p.status === "completed" ? t.green : p.status === "in_progress" ? t.accent : t.muted;
+        const projColor = statusColor(p.status, t);
+        const isExpanded = expandedProjects[p.id] !== false; // default expanded
         return (
-          <Crd key={p.id} t={t} style={{ marginBottom: 16, overflow: "hidden", padding: 0, position: "relative" }}>
+          <Crd key={p.id} t={t} style={{ marginBottom: 14, overflow: "hidden", padding: 0, position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + projColor + ", " + projColor + "60)", boxShadow: "0 0 14px " + projColor + "60" }} />
-            {/* Project header with status and progress */}
-            <div style={{ padding: "20px 24px", background: t.gradGlow, borderBottom: "1px solid " + t.border }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
+            {/* Project header */}
+            <div style={{ padding: "18px 22px", background: t.gradGlow, borderBottom: isExpanded ? "1px solid " + t.border : "none" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <div onClick={() => toggleExpand(p.id)} style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, cursor: "pointer" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "transform 200ms ease" }}>
+                    <ChevronDown size={16} color={t.muted} style={{ transform: isExpanded ? "rotate(0)" : "rotate(-90deg)", transition: "transform 200ms" }} />
+                  </div>
+                  <div style={{ width: 44, height: 44, borderRadius: 11, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: -0.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: -0.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: t.muted, marginTop: 2, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <span style={{ textTransform: "capitalize", fontWeight: 600 }}>{p.type}</span>
-                      {p.deadline && <><span style={{ color: t.dim }}>•</span><span>Deadline {fmtDate(p.deadline)}</span></>}
+                      {p.deadline && <><span style={{ color: t.dim }}>•</span><span>{fmtDate(p.deadline)}</span></>}
                       {daysLeft !== null && (
                         <><span style={{ color: t.dim }}>•</span>
                         <span style={{ color: daysLeft < 0 ? t.red : daysLeft <= 7 ? t.orange : t.muted, fontWeight: 600 }}>
-                          {daysLeft < 0 ? "Vencido hace " + Math.abs(daysLeft) + "d" : daysLeft + "d restantes"}
+                          {daysLeft < 0 ? "Vencido hace " + Math.abs(daysLeft) + "d" : daysLeft + "d"}
                         </span></>
                       )}
+                      <span style={{ color: t.dim }}>•</span>
+                      <span><b style={{ color: pending.length > 0 ? t.orange : t.green }}>{pending.length}</b> pend · <b style={{ color: t.green }}>{done.length}</b> listas · <b style={{ color: t.text }}>{pDocs.length}</b> docs</span>
                     </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                  <StatusBadge s={p.status} t={t} />
-                  {p.status !== "in_progress" && p.status !== "completed" && <Btn t={t} variant="accent" size="sm" onClick={() => quickStatus(p.id, "in_progress")}>Iniciar</Btn>}
-                  {p.status === "in_progress" && <Btn t={t} variant="success" size="sm" icon={CheckCircle2} onClick={() => quickStatus(p.id, "completed")}>Completar</Btn>}
+                  <select value={p.status} onChange={e => quickStatus(p.id, e.target.value)} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid " + projColor + "50", background: projColor + "15", color: projColor, fontSize: 12, cursor: "pointer", fontWeight: 700, outline: "none" }}>
+                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: t.card, color: t.text }}>{o.label}</option>)}
+                  </select>
                   <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteProject(p.id)} />
                 </div>
               </div>
-
-              {/* Progress */}
-              <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 10, background: t.card, border: "1px solid " + t.border }}>
-                <span style={{ fontSize: 11, color: t.muted, flexShrink: 0, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Avance</span>
-                <input type="range" min="0" max="100" value={p.progress || 0} onChange={e => quickProgress(p.id, e.target.value)} style={{ flex: 1, accentColor: t.accent, height: 6, cursor: "pointer" }} />
-                <span style={{ fontSize: 22, fontWeight: 800, color: donePct >= 100 ? t.green : t.accent, minWidth: 56, textAlign: "right", letterSpacing: -0.5 }}>{p.progress || 0}<span style={{ fontSize: 14, color: t.dim, fontWeight: 600 }}>%</span></span>
-              </div>
-
-              {/* Mini stats */}
-              <div style={{ display: "flex", gap: 18, marginTop: 12, fontSize: 12, color: t.muted, fontWeight: 500, flexWrap: "wrap" }}>
-                <span><span style={{ color: pending.length > 0 ? t.orange : t.text, fontWeight: 700 }}>{pending.length}</span> pendientes</span>
-                <span><span style={{ color: t.green, fontWeight: 700 }}>{done.length}</span> completadas</span>
-                <span><span style={{ color: t.text, fontWeight: 700 }}>{pDocs.length}</span> documentos</span>
-                {p.cost > 0 && <span>Costo: <span style={{ color: t.text, fontWeight: 700 }}>{fmt(p.cost_spent)}</span> / {fmt(p.cost)}</span>}
-              </div>
             </div>
 
-            {/* Project content area */}
+            {/* Project content area — sólo cuando está expandido */}
+            {isExpanded && (
             <div style={{ padding: "16px 24px" }}>
               {/* NOTES section */}
               <div style={{ marginBottom: 16 }}>
@@ -928,7 +953,7 @@ function SedeDetail({ sedeId, t, onNav }) {
                 {/* Task list */}
                 {pTasks.map(tk => {
                   const isOverdue = tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr);
-                  const stColor = tk.st === "done" ? t.green : tk.st === "waiting_response" ? t.pink : tk.st === "pending_solution" ? t.purple : isOverdue ? t.red : priColor[tk.pri] || t.accent;
+                  const stColor = isOverdue && tk.st !== "done" ? t.red : statusColor(tk.st, t);
                   return (
                     <div key={tk.id} style={{ marginBottom: 8 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, background: isOverdue ? t.redBg : t.hover, borderLeft: "3px solid " + stColor }}>
@@ -941,12 +966,8 @@ function SedeDetail({ sedeId, t, onNav }) {
                         <StatusBadge s={tk.st} t={t} />
                         <Badge label={priLabel[tk.pri]} color={priColor[tk.pri] || t.accent} bg={(priColor[tk.pri] || t.accent) + "18"} />
                         {tk.due && <span style={{ fontSize: 11, fontWeight: 600, color: isOverdue ? t.red : t.muted, padding: "3px 8px", borderRadius: 6, background: isOverdue ? t.red + "20" : t.card }}>{fmtDate(tk.due)}</span>}
-                        <select value={tk.st} onChange={e => setTaskStatus(tk.id, e.target.value)} style={{ padding: "5px 8px", borderRadius: 7, border: "1px solid " + t.border, background: t.card, color: t.muted, fontSize: 11, cursor: "pointer", fontWeight: 600, outline: "none" }}>
-                          <option value="todo">Pendiente</option>
-                          <option value="in_progress">En curso</option>
-                          <option value="waiting_response">Esp. respuesta</option>
-                          <option value="pending_solution">Pend. solución</option>
-                          <option value="done">Listo</option>
+                        <select value={tk.st} onChange={e => setTaskStatus(tk.id, e.target.value)} style={{ padding: "5px 8px", borderRadius: 7, border: "1px solid " + statusColor(tk.st, t) + "60", background: statusColor(tk.st, t) + "15", color: statusColor(tk.st, t), fontSize: 11, cursor: "pointer", fontWeight: 700, outline: "none" }}>
+                          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: t.card, color: t.text }}>{o.label}</option>)}
                         </select>
                         <div onClick={() => { if (editingTaskNote === tk.id) { setEditingTaskNote(null); } else { setEditingTaskNote(tk.id); setTaskNoteText(tk.raw?.notes || ""); } }} style={{ padding: "5px 8px", borderRadius: 7, background: tk.raw?.notes ? t.yellowBg : t.hover, color: tk.raw?.notes ? t.yellow : t.dim, cursor: "pointer" }} title="Notas">
                           <Edit2 size={13} />
@@ -994,9 +1015,17 @@ function SedeDetail({ sedeId, t, onNav }) {
                 {pDocs.length === 0 && <div style={{ padding: 12, textAlign: "center", fontSize: 12, color: t.dim }}>Sin documentos — usá "+ Subir" para agregar archivos</div>}
               </div>
             </div>
+            )}
           </Crd>
         );
       })}
+
+      {sedeProjects.length > 1 && (
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 8, marginBottom: 16 }}>
+          <Btn t={t} variant="ghost" size="sm" onClick={() => { const all = {}; sedeProjects.forEach(p => { all[p.id] = false; }); setExpandedProjects(all); }}>Colapsar todos</Btn>
+          <Btn t={t} variant="ghost" size="sm" onClick={() => setExpandedProjects({})}>Expandir todos</Btn>
+        </div>
+      )}
 
       {/* New project modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Nuevo proyecto" t={t}>
@@ -1019,28 +1048,30 @@ function ProjectsPage({ t, onNav }) {
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "planning", progress: "" });
+  const [form, setForm] = useState({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "todo", progress: "" });
+  const [collapsedProjects, setCollapsedProjects] = useState({});
+  const toggleCollapsed = (id) => setCollapsedProjects(s => ({ ...s, [id]: !s[id] }));
 
   const filtered = filter === "all" ? projects : projects.filter(p => p.sede_id === filter || p.type === filter || p.status === filter);
 
   const openEdit = (p) => {
-    setForm({ name: p.name, type: p.type || "general", sede_id: p.sede_id || "", deadline: p.deadline || "", cost: String(p.cost || ""), description: p.description || "", status: p.status || "planning", progress: String(p.progress || 0) });
+    setForm({ name: p.name, type: p.type || "general", sede_id: p.sede_id || "", deadline: p.deadline || "", cost: String(p.cost || ""), description: p.description || "", status: normalizeProjectStatus(p.status) || "todo" });
     setEditId(p.id);
     setShowForm(true);
   };
 
   const saveProject = async () => {
-    const data = { name: form.name, type: form.type, sede_id: form.sede_id || null, deadline: form.deadline || null, cost: Number(form.cost) || 0, description: form.description || null, status: form.status, progress: Number(form.progress) || 0 };
+    const data = { name: form.name, type: form.type, sede_id: form.sede_id || null, deadline: form.deadline || null, cost: Number(form.cost) || 0, description: form.description || null, status: form.status };
     if (editId) {
       const { error } = await supabase.from("projects").update(data).eq("id", editId);
-      if (error) { alert("Error: " + error.message); return; }
+      if (error) { alert("Error: " + error.message + (error.code === "23514" ? "\n\nLa DB no soporta este estado todavía. Aplicá la migración SQL en migrations/extend-project-status.sql." : "")); return; }
     } else {
       data.company_id = companyId;
       const { error } = await supabase.from("projects").insert(data);
-      if (error) { alert("Error al crear: " + error.message); return; }
+      if (error) { alert("Error al crear: " + error.message + (error.code === "23514" ? "\n\nLa DB no soporta este estado todavía. Aplicá la migración SQL en migrations/extend-project-status.sql." : "")); return; }
     }
     setShowForm(false); setEditId(null);
-    setForm({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "planning", progress: "" });
+    setForm({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "todo" });
     reload();
   };
 
@@ -1056,7 +1087,6 @@ function ProjectsPage({ t, onNav }) {
     reload();
   };
 
-  const statusColors = { planning: t.dim, in_progress: t.accent, completed: t.green };
   const typeEmoji = { obra: "🏗️", mejora: "🔧", academico: "📚", mri: "🏥", general: "📋" };
 
   return (
@@ -1067,7 +1097,7 @@ function ProjectsPage({ t, onNav }) {
           <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Proyectos</div>
           <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}><span style={{ color: t.text, fontWeight: 700 }}>{projects.length}</span> en total · <span style={{ color: t.accent, fontWeight: 700 }}>{projects.filter(p => p.status === "in_progress").length}</span> en curso · <span style={{ color: t.green, fontWeight: 700 }}>{projects.filter(p => p.status === "completed").length}</span> completados</div>
         </div>
-        <Btn t={t} onClick={() => { setEditId(null); setForm({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "planning", progress: "" }); setShowForm(true); }} icon={Plus} size="lg">Nuevo proyecto</Btn>
+        <Btn t={t} onClick={() => { setEditId(null); setForm({ name: "", type: "general", sede_id: "", deadline: "", cost: "", description: "", status: "todo" }); setShowForm(true); }} icon={Plus} size="lg">Nuevo proyecto</Btn>
       </div>
 
       {/* Filters */}
@@ -1085,62 +1115,61 @@ function ProjectsPage({ t, onNav }) {
             const pTasks = tasks.filter(tk => tk.project_id === p.id);
             const pDocs = documents.filter(d => d.project_id === p.id);
             const pendingTasks = pTasks.filter(tk => tk.st !== "done");
-            const donePct = pTasks.length > 0 ? pct(pTasks.filter(tk => tk.st === "done").length, pTasks.length) : p.progress;
+            const doneTasks = pTasks.filter(tk => tk.st === "done");
             const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline) - new Date()) / (1000*60*60*24)) : null;
-            const projColor = statusColors[p.status] || t.muted;
+            const projColor = statusColor(p.status, t);
+            const isCollapsed = !!collapsedProjects[p.id];
 
             return (
               <Crd key={p.id} t={t} hoverable style={{ padding: 0, overflow: "hidden", position: "relative" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + projColor + ", " + projColor + "60)", boxShadow: "0 0 12px " + projColor + "60" }} />
                 {/* Header */}
-                <div style={{ padding: "22px 22px 14px" }}>
+                <div style={{ padding: "20px 22px 14px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: 11, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
+                    <div onClick={() => toggleCollapsed(p.id)} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1, cursor: "pointer" }}>
+                      <ChevronDown size={16} color={t.muted} style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)", transition: "transform 200ms", flexShrink: 0 }} />
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                         <div style={{ fontSize: 11, color: t.muted, marginTop: 1, fontWeight: 500 }}>{p.sede?.name || "Sin sede"} · <span style={{ textTransform: "capitalize" }}>{p.type}</span></div>
                       </div>
                     </div>
-                    <StatusBadge s={p.status} t={t} />
+                    <select value={p.status} onChange={e => quickStatus(p.id, e.target.value)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + projColor + "50", background: projColor + "15", color: projColor, fontSize: 12, cursor: "pointer", fontWeight: 700, outline: "none", flexShrink: 0 }}>
+                      {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: t.card, color: t.text }}>{o.label}</option>)}
+                    </select>
                   </div>
-                  {p.description && <div style={{ fontSize: 12, color: t.dim, marginTop: 8, lineHeight: 1.5, paddingLeft: 54 }}>{p.description}</div>}
+                  {p.description && !isCollapsed && <div style={{ fontSize: 12, color: t.dim, marginTop: 8, lineHeight: 1.5, paddingLeft: 26 }}>{p.description}</div>}
                 </div>
 
-                {/* Big progress display (no PBar) */}
-                <div style={{ padding: "0 22px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ flex: 1, padding: "12px 14px", borderRadius: 10, background: t.hover, border: "1px solid " + t.border }}>
-                    <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Avance</div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                      <span style={{ fontSize: 28, fontWeight: 800, color: donePct >= 100 ? t.green : t.accent, letterSpacing: -0.8, lineHeight: 1 }}>{donePct}</span>
-                      <span style={{ fontSize: 14, color: t.dim, fontWeight: 700 }}>%</span>
+                {!isCollapsed && (
+                  <>
+                    {/* Stats row */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", borderTop: "1px solid " + t.border, borderBottom: "1px solid " + t.border }}>
+                      <div style={{ padding: "14px 12px", textAlign: "center", borderRight: "1px solid " + t.border }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: pendingTasks.length > 0 ? t.orange : t.green, letterSpacing: -0.5 }}>{pendingTasks.length}</div>
+                        <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Pendientes</div>
+                      </div>
+                      <div style={{ padding: "14px 12px", textAlign: "center", borderRight: "1px solid " + t.border }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: t.green, letterSpacing: -0.5 }}>{doneTasks.length}</div>
+                        <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Listas</div>
+                      </div>
+                      <div style={{ padding: "14px 12px", textAlign: "center", borderRight: "1px solid " + t.border }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: -0.5 }}>{pDocs.length}</div>
+                        <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Docs</div>
+                      </div>
+                      <div style={{ padding: "14px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: daysLeft !== null && daysLeft < 0 ? t.red : daysLeft !== null && daysLeft <= 7 ? t.orange : t.text, letterSpacing: -0.5 }}>{daysLeft !== null ? (daysLeft < 0 ? "Vencido" : daysLeft + "d") : "—"}</div>
+                        <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Deadline</div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Stats row */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: "1px solid " + t.border, borderBottom: "1px solid " + t.border }}>
-                  <div style={{ padding: "14px 16px", textAlign: "center", borderRight: "1px solid " + t.border }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: pendingTasks.length > 0 ? t.orange : t.green, letterSpacing: -0.5 }}>{pendingTasks.length}</div>
-                    <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Pendientes</div>
-                  </div>
-                  <div style={{ padding: "14px 16px", textAlign: "center", borderRight: "1px solid " + t.border }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: -0.5 }}>{pDocs.length}</div>
-                    <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Documentos</div>
-                  </div>
-                  <div style={{ padding: "14px 16px", textAlign: "center" }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: daysLeft !== null && daysLeft < 0 ? t.red : daysLeft !== null && daysLeft <= 7 ? t.orange : t.text, letterSpacing: -0.5 }}>{daysLeft !== null ? (daysLeft < 0 ? "Vencido" : daysLeft + "d") : "—"}</div>
-                    <div style={{ fontSize: 10, color: t.dim, marginTop: 2, fontWeight: 600, letterSpacing: 0.3 }}>Deadline</div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{ padding: "12px 16px", display: "flex", gap: 8 }}>
-                  {p.status !== "in_progress" && p.status !== "completed" && <Btn t={t} variant="accent" size="sm" onClick={() => quickStatus(p.id, "in_progress")} style={{ flex: 1 }}>Iniciar</Btn>}
-                  {p.status === "in_progress" && <Btn t={t} variant="success" size="sm" icon={CheckCircle2} onClick={() => quickStatus(p.id, "completed")} style={{ flex: 1 }}>Completar</Btn>}
-                  <Btn t={t} variant="secondary" size="sm" icon={Edit2} onClick={() => openEdit(p)} style={{ flex: 1 }}>Editar</Btn>
-                  <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteProject(p.id)} />
-                </div>
+                    {/* Actions */}
+                    <div style={{ padding: "12px 16px", display: "flex", gap: 8 }}>
+                      <Btn t={t} variant="secondary" size="sm" icon={Edit2} onClick={() => openEdit(p)} style={{ flex: 1 }}>Editar</Btn>
+                      <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteProject(p.id)} />
+                    </div>
+                  </>
+                )}
               </Crd>
             );
           })}
@@ -1155,15 +1184,12 @@ function ProjectsPage({ t, onNav }) {
             { value: "general", label: "📋 General" }, { value: "obra", label: "🏗️ Obra" }, { value: "mejora", label: "🔧 Mejora" },
             { value: "academico", label: "📚 Académico" }, { value: "mri", label: "🏥 MRI" },
           ]} />
-          <Select label="Estado" val={form.status} onChange={v => setForm({...form, status: v})} t={t} options={[
-            { value: "planning", label: "Planificación" }, { value: "in_progress", label: "En curso" }, { value: "completed", label: "Completado" },
-          ]} />
+          <Select label="Estado" val={form.status} onChange={v => setForm({...form, status: v})} t={t} options={STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Inp label="Deadline" val={form.deadline} onChange={v => setForm({...form, deadline: v})} t={t} type="date" />
           <Inp label="Costo estimado" val={form.cost} onChange={v => setForm({...form, cost: v})} t={t} type="number" placeholder="$0" />
         </div>
-        {editId && <Inp label="Avance (%)" val={form.progress} onChange={v => setForm({...form, progress: v})} t={t} type="number" placeholder="0-100" />}
         <Inp label="Descripción / Notas" val={form.description} onChange={v => setForm({...form, description: v})} t={t} placeholder="Notas, observaciones..." />
         <Btn t={t} onClick={saveProject} disabled={!form.name} size="lg" style={{ width: "100%", marginTop: 4 }}>{editId ? "Guardar cambios" : "Crear proyecto"}</Btn>
       </Modal>
@@ -1206,18 +1232,12 @@ function TasksPage({ t, onNav }) {
   const priColors = { high: t.red, medium: t.orange, low: t.green };
   const priLabels = { high: "Alta", medium: "Media", low: "Baja" };
   // 5 columnas: pendiente, en curso, esperando respuesta, pendiente solución, listo
-  const columns = [
-    { id: "todo", label: "Pendiente", color: t.orange, bg: t.orangeBg },
-    { id: "in_progress", label: "En curso", color: t.blue, bg: t.blueBg },
-    { id: "waiting_response", label: "Esp. respuesta", color: t.pink, bg: t.pinkBg },
-    { id: "pending_solution", label: "Pend. solución", color: t.purple, bg: t.purpleBg },
-    { id: "done", label: "Listo", color: t.green, bg: t.greenBg },
-  ];
+  const columns = STATUS_OPTIONS.map(o => ({ id: o.value, label: o.label, color: statusColor(o.value, t), bg: statusColor(o.value, t) + "1F" }));
 
   const TaskCard = ({ tk }) => {
     const isOverdue = tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr);
     const daysLeft = tk.due ? Math.ceil((new Date(tk.due) - new Date()) / (1000*60*60*24)) : null;
-    const stColor = tk.st === "done" ? t.green : tk.st === "waiting_response" ? t.pink : tk.st === "pending_solution" ? t.purple : isOverdue ? t.red : priColors[tk.pri] || t.accent;
+    const stColor = isOverdue && tk.st !== "done" ? t.red : statusColor(tk.st, t);
     return (
       <Crd t={t} hoverable style={{ padding: 14, marginBottom: 8, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: stColor, boxShadow: "0 0 8px " + stColor + "60" }} />
@@ -1288,7 +1308,7 @@ function TasksPage({ t, onNav }) {
         filtered.length === 0 ? <EmptyState icon={CheckSquare} title="Sin tareas" sub="Creá tu primera tarea" t={t} action="Nueva tarea" onAction={() => setShowForm(true)} /> :
         filtered.map(tk => {
           const isOverdue = tk.due && tk.st !== "done" && new Date(tk.due) < new Date(todayStr);
-          const stColor = tk.st === "done" ? t.green : tk.st === "waiting_response" ? t.pink : tk.st === "pending_solution" ? t.purple : isOverdue ? t.red : priColors[tk.pri] || t.accent;
+          const stColor = isOverdue && tk.st !== "done" ? t.red : statusColor(tk.st, t);
           return (
             <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12, marginBottom: 8, background: t.card, border: "1px solid " + t.border, position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: stColor, boxShadow: "0 0 8px " + stColor + "60" }} />
@@ -1702,41 +1722,75 @@ function AIReportsPage({ t }) {
 }
 
 // ─── CALENDAR PAGE ───
+// Tipos de entrada en el calendario:
+//   - tarea (default)        — tasks normales
+//   - reunion                — tasks con tag "reunion"
+//   - evento                 — tasks con tag "evento"
+//   - deadline (de proyecto) — derivado de projects.deadline
+const CAL_TYPES = {
+  tarea:    { label: "Tarea",    icon: CheckSquare, key: "task" },
+  reunion:  { label: "Reunión",  icon: Users,       key: "meeting" },
+  evento:   { label: "Evento",   icon: Sparkles,    key: "event" },
+};
+
+const tagsHas = (tags, v) => Array.isArray(tags) && tags.some(x => String(x).toLowerCase() === v);
+
 function CalendarPage({ t, onNav }) {
-  const { tasks, projects, sedes, reload, userId, companyId } = useData();
+  const { tasks, projects, reload, companyId } = useData();
   const [month, setMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", project_id: "", priority: "medium" });
+  const [form, setForm] = useState({ title: "", type: "tarea", project_id: "", priority: "medium" });
+  const [filter, setFilter] = useState("all"); // all | tarea | reunion | evento | deadline
   const year = month.getFullYear();
   const mo = month.getMonth();
   const firstDay = new Date(year, mo, 1).getDay();
   const daysInMonth = new Date(year, mo + 1, 0).getDate();
   const todayStr = new Date().toISOString().split("T")[0];
 
+  const colorFor = (kind, st) => {
+    if (kind === "reunion") return t.cyan;
+    if (kind === "evento") return t.pink;
+    if (kind === "deadline") return t.purple;
+    // tarea: usar color del estado
+    return statusColor(st, t);
+  };
+
   const events = useMemo(() => {
     const ev = [];
-    tasks.forEach(tk => { if (tk.due) ev.push({ date: tk.due, label: tk.title, type: "task", color: tk.st === "done" ? t.green : tk.pri === "high" ? t.red : t.accent, id: tk.id, status: tk.st }); });
-    projects.forEach(p => { if (p.deadline) ev.push({ date: p.deadline, label: p.name, type: "deadline", color: t.orange, id: p.id }); });
+    tasks.forEach(tk => {
+      if (!tk.due) return;
+      const tags = tk.tags || tk.raw?.tags || [];
+      const kind = tagsHas(tags, "reunion") ? "reunion" : tagsHas(tags, "evento") ? "evento" : "tarea";
+      ev.push({ date: tk.due, label: tk.title, kind, color: colorFor(kind, tk.st), id: tk.id, status: tk.st });
+    });
+    projects.forEach(p => {
+      if (!p.deadline) return;
+      ev.push({ date: p.deadline, label: p.name, kind: "deadline", color: colorFor("deadline"), id: p.id });
+    });
     return ev;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, projects, t]);
+
+  const filteredEvents = filter === "all" ? events : events.filter(e => e.kind === filter);
 
   const days = [];
   for (let i = 0; i < firstDay; i++) days.push(null);
   for (let d = 1; d <= daysInMonth; d++) days.push(d);
 
   const monthName = month.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
-  const selectedEvents = selectedDate ? events.filter(e => e.date === selectedDate) : [];
+  const selectedEvents = selectedDate ? filteredEvents.filter(e => e.date === selectedDate) : [];
 
-  const addTask = async () => {
+  const addEntry = async () => {
     if (!form.title || !selectedDate) return;
+    const tags = form.type === "reunion" ? ["reunion"] : form.type === "evento" ? ["evento"] : [];
     const { error } = await supabase.from("tasks").insert({
       company_id: companyId, title: form.title, due_date: selectedDate,
-      project_id: form.project_id || null, priority: form.priority, status: "todo",
+      project_id: form.project_id || null, priority: form.priority, status: "todo", tags,
     });
     if (error) { alert("Error: " + error.message); return; }
     setShowForm(false);
-    setForm({ title: "", project_id: "", priority: "medium" });
+    setForm({ title: "", type: "tarea", project_id: "", priority: "medium" });
     reload();
   };
 
@@ -1759,25 +1813,44 @@ function CalendarPage({ t, onNav }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selectedDate ? "1fr 300px" : "1fr", gap: 16 }}>
+      {/* Filtros por tipo */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
+        {[
+          { id: "all", label: "Todos", color: t.muted },
+          { id: "tarea", label: "Tareas", color: t.blue },
+          { id: "reunion", label: "Reuniones", color: t.cyan },
+          { id: "evento", label: "Eventos", color: t.pink },
+          { id: "deadline", label: "Deadlines", color: t.purple },
+        ].map(f => (
+          <div key={f.id} onClick={() => setFilter(f.id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", background: filter === f.id ? f.color + "20" : t.hover, color: filter === f.id ? f.color : t.muted, border: "1px solid " + (filter === f.id ? f.color + "60" : t.border), transition: "all 140ms" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: f.color, boxShadow: filter === f.id ? "0 0 8px " + f.color + "90" : "none" }} />
+            {f.label}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: selectedDate ? "1fr 320px" : "1fr", gap: 16 }}>
         <Crd t={t} style={{ padding: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
             {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map(d => (
-              <div key={d} style={{ padding: 8, textAlign: "center", fontSize: 11, fontWeight: 600, color: t.dim }}>{d}</div>
+              <div key={d} style={{ padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, color: t.dim, letterSpacing: 0.4, textTransform: "uppercase" }}>{d}</div>
             ))}
             {days.map((d, i) => {
               if (!d) return <div key={i} />;
               const dateStr = `${year}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-              const dayEvents = events.filter(e => e.date === dateStr);
+              const dayEvents = filteredEvents.filter(e => e.date === dateStr);
               const isToday = dateStr === todayStr;
               const isSelected = dateStr === selectedDate;
               return (
-                <div key={i} onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)} style={{ minHeight: 76, padding: 6, border: isSelected ? "2px solid " + t.accent : "1px solid " + t.border + "30", borderRadius: 8, background: isToday ? t.accentBg : isSelected ? t.accent + "08" : "transparent", cursor: "pointer", transition: "all 0.1s" }}>
-                  <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 400, color: isToday ? t.accent : t.text, marginBottom: 4 }}>{d}</div>
+                <div key={i} onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)} style={{ minHeight: 84, padding: 6, border: "1px solid " + (isSelected ? t.accent : isToday ? t.accent + "60" : t.border), borderRadius: 9, background: isToday ? t.accentBg : isSelected ? t.gradGlow : t.hover + "40", cursor: "pointer", transition: "all 140ms", boxShadow: isSelected ? "0 0 0 2px " + t.accentBg : "none" }}>
+                  <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 600, color: isToday ? t.accent : t.text, marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>{d}</span>
+                    {isToday && <span style={{ fontSize: 8, fontWeight: 800, color: t.accent, letterSpacing: 0.4, textTransform: "uppercase" }}>Hoy</span>}
+                  </div>
                   {dayEvents.slice(0, 3).map((e, j) => (
-                    <div key={j} style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: e.color + "20", color: e.color, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{e.label}</div>
+                    <div key={j} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, background: e.color + "22", color: e.color, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, borderLeft: "2px solid " + e.color }}>{e.label}</div>
                   ))}
-                  {dayEvents.length > 3 && <div style={{ fontSize: 9, color: t.dim }}>+{dayEvents.length - 3}</div>}
+                  {dayEvents.length > 3 && <div style={{ fontSize: 9, color: t.dim, fontWeight: 600 }}>+{dayEvents.length - 3} más</div>}
                 </div>
               );
             })}
@@ -1786,31 +1859,49 @@ function CalendarPage({ t, onNav }) {
 
         {/* Day detail panel */}
         {selectedDate && (
-          <Crd t={t} style={{ padding: 16, alignSelf: "flex-start" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{new Date(selectedDate + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</div>
-              <X size={16} color={t.dim} style={{ cursor: "pointer" }} onClick={() => setSelectedDate(null)} />
+          <Crd t={t} style={{ padding: 18, alignSelf: "flex-start" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, textTransform: "capitalize", letterSpacing: -0.3 }}>{new Date(selectedDate + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</div>
+              <div onClick={() => setSelectedDate(null)} style={{ width: 26, height: 26, borderRadius: 7, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={14} color={t.muted} /></div>
             </div>
 
             {selectedEvents.length === 0 ? (
-              <div style={{ padding: 12, textAlign: "center", fontSize: 12, color: t.dim }}>Sin eventos este día</div>
-            ) : selectedEvents.map((e, i) => (
-              <div key={i} style={{ padding: "8px 10px", borderRadius: 8, background: t.hover, marginBottom: 4, borderLeft: "3px solid " + e.color }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{e.label}</div>
-                <div style={{ fontSize: 10, color: t.dim }}>{e.type === "deadline" ? "Deadline de proyecto" : "Tarea"}{e.status ? " · " + e.status : ""}</div>
-              </div>
-            ))}
+              <div style={{ padding: 18, textAlign: "center", fontSize: 12, color: t.dim }}>Sin entradas este día</div>
+            ) : selectedEvents.map((e, i) => {
+              const meta = e.kind === "deadline" ? "Deadline de proyecto" : (CAL_TYPES[e.kind]?.label || "Tarea");
+              return (
+                <div key={i} style={{ padding: "10px 12px", borderRadius: 9, background: t.hover, marginBottom: 6, borderLeft: "3px solid " + e.color, display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: e.color + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {e.kind === "reunion" ? <Users size={13} color={e.color} /> : e.kind === "evento" ? <Sparkles size={13} color={e.color} /> : e.kind === "deadline" ? <Target size={13} color={e.color} /> : <CheckSquare size={13} color={e.color} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{e.label}</div>
+                    <div style={{ fontSize: 10, color: t.dim }}>{meta}{e.status ? " · " + (STATUS_OPTIONS.find(o => o.value === e.status)?.label || e.status) : ""}</div>
+                  </div>
+                </div>
+              );
+            })}
 
-            <div style={{ marginTop: 12, borderTop: "1px solid " + t.border, paddingTop: 12 }}>
+            <div style={{ marginTop: 14, borderTop: "1px solid " + t.border, paddingTop: 14 }}>
               {!showForm ? (
-                <button onClick={() => setShowForm(true)} style={{ width: "100%", padding: "10px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Plus size={14} /> Agregar tarea</button>
+                <Btn t={t} onClick={() => setShowForm(true)} icon={Plus} size="md" style={{ width: "100%" }}>Agregar al día</Btn>
               ) : (
                 <div>
-                  <Inp label="Tarea" val={form.title} onChange={v => setForm({...form, title: v})} t={t} placeholder="Nombre de la tarea" />
+                  <Select label="Tipo" val={form.type} onChange={v => setForm({...form, type: v})} t={t} options={[
+                    { value: "tarea", label: "✅ Tarea" },
+                    { value: "reunion", label: "👥 Reunión" },
+                    { value: "evento", label: "✨ Evento" },
+                  ]} />
+                  <Inp label="Título" val={form.title} onChange={v => setForm({...form, title: v})} t={t} placeholder={form.type === "reunion" ? "Reunión con..." : form.type === "evento" ? "Nombre del evento" : "Nombre de la tarea"} />
                   <Select label="Proyecto" val={form.project_id} onChange={v => setForm({...form, project_id: v})} t={t} options={[{ value: "", label: "Sin proyecto" }, ...projects.map(p => ({ value: p.id, label: p.name }))]} />
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: t.hover, color: t.muted, border: "1px solid " + t.border, fontSize: 12, cursor: "pointer" }}>Cancelar</button>
-                    <button onClick={addTask} disabled={!form.title} style={{ flex: 1, padding: "8px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: form.title ? 1 : 0.5 }}>Crear</button>
+                  {form.type === "tarea" && (
+                    <Select label="Prioridad" val={form.priority} onChange={v => setForm({...form, priority: v})} t={t} options={[
+                      { value: "high", label: "🔴 Alta" }, { value: "medium", label: "🟡 Media" }, { value: "low", label: "🟢 Baja" }
+                    ]} />
+                  )}
+                  <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <Btn t={t} variant="secondary" size="sm" onClick={() => setShowForm(false)} style={{ flex: 1 }}>Cancelar</Btn>
+                    <Btn t={t} size="sm" onClick={addEntry} disabled={!form.title} style={{ flex: 1 }}>Crear</Btn>
                   </div>
                 </div>
               )}
