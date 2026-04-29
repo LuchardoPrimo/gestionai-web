@@ -1546,19 +1546,29 @@ function BudgetPage({ t }) {
         const sedeSpent = sedeProjects.reduce((sum, p) => sum + (p.cost_spent || 0), 0);
         const usedPct = sedeBudget > 0 ? pct(sedeSpent, sedeBudget) : 0;
         const usageColor = usedPct > 90 ? t.red : usedPct > 70 ? t.orange : t.green;
+        const sc = s.color || t.accent;
         return (
-          <Crd key={s.id} t={t} style={{ padding: 22, marginBottom: 14, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color || t.accent, boxShadow: "0 0 12px " + (s.color || t.accent) + "60" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 22 }}>{s.icon || "🏢"}</span>
-                <span style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>{s.name}</span>
-              </div>
-              {sedeBudget > 0 && (
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                  <span style={{ fontSize: 32, fontWeight: 800, color: usageColor, letterSpacing: -1, lineHeight: 1 }}>{usedPct}</span>
-                  <span style={{ fontSize: 16, color: t.dim, fontWeight: 700 }}>%</span>
+          <Crd key={s.id} t={t} style={{ padding: 24, marginBottom: 16, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + sc + ", " + sc + "60)", boxShadow: "0 0 14px " + sc + "70" }} />
+            <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: usageColor + "15", filter: "blur(40px)" }} />
+            <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, " + sc + "30, " + sc + "10)", border: "1px solid " + sc + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 16px " + sc + "30" }}>{s.icon || "🏢"}</div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: -0.4 }}>{s.name}</div>
+                  <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>{sedeProjects.length} proyecto{sedeProjects.length !== 1 ? "s" : ""}{s.address ? " · " + s.address : ""}</div>
                 </div>
+              </div>
+              {sedeBudget > 0 ? (
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 10, color: t.dim, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 2 }}>Ejecutado</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, justifyContent: "flex-end" }}>
+                    <span style={{ fontSize: 36, fontWeight: 800, color: usageColor, letterSpacing: -1.2, lineHeight: 1 }}>{usedPct}</span>
+                    <span style={{ fontSize: 16, color: t.dim, fontWeight: 700 }}>%</span>
+                  </div>
+                </div>
+              ) : (
+                <Badge label="Sin presupuesto" color={t.dim} bg={t.hover} />
               )}
             </div>
 
@@ -1680,19 +1690,25 @@ function DocumentsPage({ t }) {
         const ext = d.name?.split(".").pop()?.toLowerCase() || "";
         const fileColor = ["xlsx","csv","xls","tsv"].includes(ext) ? t.green : ["pdf"].includes(ext) ? t.red : ["doc","docx"].includes(ext) ? t.blue : t.accent;
         return (
-          <Crd key={d.id} t={t} hoverable style={{ padding: "12px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: fileColor + "18", border: "1px solid " + fileColor + "30", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <FileText size={18} color={fileColor} strokeWidth={2.2} />
+          <Crd key={d.id} t={t} hoverable style={{ padding: "14px 18px", marginBottom: 10, display: "flex", alignItems: "center", gap: 14, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "linear-gradient(180deg, " + fileColor + ", " + fileColor + "60)", boxShadow: "0 0 10px " + fileColor + "60" }} />
+            <div style={{ width: 44, height: 44, borderRadius: 11, background: "linear-gradient(135deg, " + fileColor + "30, " + fileColor + "10)", border: "1px solid " + fileColor + "40", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px " + fileColor + "20", marginLeft: 6 }}>
+              <FileText size={19} color={fileColor} strokeWidth={2.2} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</div>
-              <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>{d.date}{d.raw?.size ? " · " + d.raw.size : ""} · <span style={{ textTransform: "uppercase", fontWeight: 600, color: fileColor }}>{ext}</span></div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: -0.2 }}>{d.name}</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ padding: "1px 7px", borderRadius: 5, background: fileColor + "20", color: fileColor, fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{ext || "file"}</span>
+                <span>•</span>
+                <span>{d.date}</span>
+                {d.raw?.size && <><span>•</span><span>{d.raw.size}</span></>}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {d.file_url && (
-                <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: t.accent, textDecoration: "none", padding: "8px 14px", background: t.accentBg, borderRadius: 8, fontWeight: 600, border: "1px solid " + t.accent + "40", display: "inline-flex", alignItems: "center", gap: 6 }}><Eye size={13} /> Ver</a>
+                <a href={d.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: t.accent, textDecoration: "none", padding: "8px 14px", background: t.accentBg, borderRadius: 9, fontWeight: 700, border: "1px solid " + t.accent + "40", display: "inline-flex", alignItems: "center", gap: 6, transition: "all 140ms" }}><Eye size={13} strokeWidth={2.4} /> Ver</a>
               )}
-              <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteDoc(d.id)} disabled={deleting === d.id}>Borrar</Btn>
+              <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteDoc(d.id)} disabled={deleting === d.id} />
             </div>
           </Crd>
         );
@@ -1797,82 +1813,123 @@ function AIReportsPage({ t }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: currentResult ? "1fr 1fr" : "1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: currentResult ? "1.1fr 1fr" : "1fr", gap: 18 }}>
         {/* Left: controls */}
         <div>
           {/* Report type selection */}
-          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Tipo de análisis</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-            {reportTypes.map(r => (
-              <div key={r.value} onClick={() => setReportType(r.value)} style={{
-                padding: "14px 16px", borderRadius: 10, cursor: "pointer", transition: "all 0.15s",
-                background: reportType === r.value ? t.accentBg : t.card,
-                border: reportType === r.value ? "2px solid " + t.accent : "1px solid " + t.border,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <r.icon size={16} color={reportType === r.value ? t.accent : t.muted} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: reportType === r.value ? t.accent : t.text }}>{r.label}</span>
-                </div>
-                <div style={{ fontSize: 11, color: t.dim }}>{r.desc}</div>
-              </div>
-            ))}
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.dim, marginBottom: 10, letterSpacing: 0.5, textTransform: "uppercase" }}>Tipo de análisis</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 22 }}>
+            {reportTypes.map(r => {
+              const sel = reportType === r.value;
+              return (
+                <Crd key={r.value} t={t} hoverable onClick={() => setReportType(r.value)} style={{ padding: 14, position: "relative", overflow: "hidden", border: "1px solid " + (sel ? t.accent : t.border), background: sel ? t.gradGlow : t.card }}>
+                  {sel && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: t.grad, boxShadow: "0 0 12px " + t.accentGlow }} />}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: sel ? t.grad : t.hover, border: "1px solid " + (sel ? "transparent" : t.border), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: sel ? "0 4px 14px " + t.accentGlow : "none" }}>
+                      <r.icon size={15} color={sel ? "#fff" : t.muted} strokeWidth={2.4} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: sel ? t.text : t.text, letterSpacing: -0.2 }}>{r.label}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.dim, lineHeight: 1.4, paddingLeft: 42 }}>{r.desc}</div>
+                </Crd>
+              );
+            })}
           </div>
 
           {reportType === "custom" && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: t.muted, marginBottom: 4 }}>Instrucciones personalizadas</div>
-              <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)} placeholder="Ej: Analizá las ventas por mes y decime cuáles son los 3 productos más rentables..." style={{ width: "100%", height: 80, padding: 10, borderRadius: 8, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 12, resize: "vertical", outline: "none" }} />
-            </div>
+            <Crd t={t} style={{ padding: 14, marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.dim, marginBottom: 8, letterSpacing: 0.4, textTransform: "uppercase" }}>Instrucciones personalizadas</div>
+              <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)} placeholder="Ej: Analizá las ventas por mes y decime cuáles son los 3 productos más rentables…" style={{ width: "100%", height: 90, padding: 12, borderRadius: 9, border: "1px solid " + t.border, background: t.hover, color: t.text, fontSize: 13, lineHeight: 1.5, resize: "vertical", outline: "none", fontFamily: "inherit" }} />
+            </Crd>
           )}
 
           {/* File upload */}
-          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Archivo</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.dim, marginBottom: 10, letterSpacing: 0.5, textTransform: "uppercase" }}>Archivo</div>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" style={{ display: "none" }} onChange={e => { handleFileSelect(e.target.files); e.target.value = ""; }} />
           <div onClick={() => fileRef.current?.click()} style={{
-            border: "2px dashed " + (selectedFile ? t.accent : t.border), borderRadius: 12, padding: 28, textAlign: "center",
-            cursor: "pointer", marginBottom: 16, background: selectedFile ? t.accentBg : t.hover, transition: "all 0.15s",
+            position: "relative", overflow: "hidden",
+            border: "1.5px dashed " + (selectedFile ? t.green : t.borderStrong),
+            borderRadius: 14, padding: "32px 24px", textAlign: "center",
+            cursor: "pointer", marginBottom: 18, background: selectedFile ? t.greenBg : t.hover + "60", transition: "all 180ms ease",
           }}>
-            {selectedFile ? (
-              <div><FileText size={24} color={t.green} style={{ marginBottom: 6 }} /><div style={{ fontSize: 13, color: t.text, fontWeight: 600 }}>{selectedFile}</div><div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>Click para cambiar archivo</div></div>
-            ) : (
-              <div><Upload size={24} color={t.dim} style={{ marginBottom: 6 }} /><div style={{ fontSize: 13, color: t.muted }}>Click para subir Excel, CSV o TXT</div><div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>Formatos: .xlsx, .csv, .tsv, .txt</div></div>
-            )}
+            {selectedFile && <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 50%, " + t.green + "12, transparent 60%)", pointerEvents: "none" }} />}
+            <div style={{ position: "relative" }}>
+              {selectedFile ? (
+                <>
+                  <div style={{ width: 50, height: 50, margin: "0 auto 10px", borderRadius: 12, background: t.green + "20", border: "1px solid " + t.green + "40", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px " + t.green + "40" }}>
+                    <FileText size={24} color={t.green} strokeWidth={2.2} />
+                  </div>
+                  <div style={{ fontSize: 14, color: t.text, fontWeight: 700, letterSpacing: -0.2, marginBottom: 2 }}>{selectedFile}</div>
+                  <div style={{ fontSize: 11, color: t.dim }}>Click para cambiar archivo</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 50, height: 50, margin: "0 auto 10px", borderRadius: 12, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Upload size={22} color={t.muted} strokeWidth={2.2} />
+                  </div>
+                  <div style={{ fontSize: 14, color: t.text, fontWeight: 600, marginBottom: 4 }}>Subí tu archivo</div>
+                  <div style={{ fontSize: 11, color: t.dim }}>Excel · CSV · TSV · TXT — máx 15 MB</div>
+                </>
+              )}
+            </div>
           </div>
 
           <button onClick={generateReport} disabled={!fileData || generating} style={{
-            width: "100%", padding: "14px", borderRadius: 10, background: t.accent, color: "#fff", border: "none",
-            fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: fileData && !generating ? 1 : 0.4,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            width: "100%", padding: "14px 22px", borderRadius: 11, background: t.grad, color: "#fff", border: "none",
+            fontSize: 14, fontWeight: 700, cursor: !fileData || generating ? "not-allowed" : "pointer",
+            opacity: fileData && !generating ? 1 : 0.55, boxShadow: "0 8px 24px " + t.accentGlow,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "transform 140ms, box-shadow 140ms",
+            fontFamily: "inherit", letterSpacing: 0.1,
           }}>
-            {generating ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Analizando datos...</> : <><Sparkles size={16} /> Generar informe</>}
+            {generating ? <><Loader size={16} style={{ animation: "spin 1s linear infinite" }} /> Analizando datos…</> : <><Sparkles size={16} strokeWidth={2.4} /> Generar informe</>}
           </button>
 
           {/* History */}
           {reports.length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Informes anteriores</div>
-              {reports.slice(0, 10).map(r => (
-                <div key={r.id} onClick={() => { setActiveReport(r); setResult(null); }} style={{
-                  padding: "10px 14px", borderRadius: 8, marginBottom: 4, cursor: "pointer",
-                  background: activeReport?.id === r.id ? t.accentBg : t.hover,
-                  border: activeReport?.id === r.id ? "1px solid " + t.accent : "1px solid transparent",
-                }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{r.name}</div>
-                  <div style={{ fontSize: 10, color: t.dim }}>{r.created_at?.split("T")[0]} · {r.report_type}</div>
-                </div>
-              ))}
+            <div style={{ marginTop: 26 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.dim, marginBottom: 10, letterSpacing: 0.5, textTransform: "uppercase" }}>Informes anteriores ({reports.length})</div>
+              {reports.slice(0, 10).map(r => {
+                const sel = activeReport?.id === r.id;
+                return (
+                  <div key={r.id} onClick={() => { setActiveReport(r); setResult(null); }} style={{
+                    padding: "11px 14px", borderRadius: 10, marginBottom: 6, cursor: "pointer",
+                    background: sel ? t.accentBg : t.hover,
+                    border: "1px solid " + (sel ? t.accent + "60" : t.border),
+                    boxShadow: sel ? "0 4px 16px " + t.accentGlow + "40" : "none",
+                    transition: "all 140ms",
+                    display: "flex", alignItems: "center", gap: 10,
+                  }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: sel ? t.grad : t.card, border: "1px solid " + (sel ? "transparent" : t.border), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Sparkles size={13} color={sel ? "#fff" : t.muted} strokeWidth={2.4} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                      <div style={{ fontSize: 10, color: t.dim, marginTop: 1 }}>{r.created_at?.split("T")[0]} · <span style={{ textTransform: "capitalize" }}>{(r.report_type || "").replace(/_/g, " ")}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Right: result */}
         {currentResult && (
-          <Crd t={t} style={{ padding: 24, alignSelf: "flex-start", maxHeight: "calc(100vh - 120px)", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Resultado del análisis</div>
-              <X size={16} color={t.dim} style={{ cursor: "pointer" }} onClick={() => { setResult(null); setActiveReport(null); }} />
+          <Crd t={t} style={{ padding: 0, alignSelf: "flex-start", maxHeight: "calc(100vh - 120px)", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: t.grad, boxShadow: "0 0 18px " + t.accentGlow }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 22px", borderBottom: "1px solid " + t.border, background: t.gradGlow }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 30, height: 30, borderRadius: 9, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px " + t.accentGlow }}>
+                  <Sparkles size={15} color="#fff" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>Resultado del análisis</div>
+                  <div style={{ fontSize: 10, color: t.dim }}>Generado por IA · revisá antes de compartir</div>
+                </div>
+              </div>
+              <div onClick={() => { setResult(null); setActiveReport(null); }} style={{ width: 28, height: 28, borderRadius: 7, background: t.hover, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={14} color={t.muted} /></div>
             </div>
-            <div style={{ fontSize: 13, color: t.text, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{currentResult}</div>
+            <div style={{ padding: 22, fontSize: 13, color: t.text, lineHeight: 1.75, whiteSpace: "pre-wrap", overflowY: "auto" }}>{currentResult}</div>
           </Crd>
         )}
       </div>
@@ -1988,11 +2045,11 @@ function CalendarPage({ t, onNav }) {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selectedDate ? "1fr 320px" : "1fr", gap: 16 }}>
-        <Crd t={t} style={{ padding: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-            {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map(d => (
-              <div key={d} style={{ padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, color: t.dim, letterSpacing: 0.4, textTransform: "uppercase" }}>{d}</div>
+      <div style={{ display: "grid", gridTemplateColumns: selectedDate ? "1fr 340px" : "1fr", gap: 18 }}>
+        <Crd t={t} style={{ padding: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+            {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((d, i) => (
+              <div key={d} style={{ padding: "10px 4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: i === 0 || i === 6 ? t.accent : t.dim, letterSpacing: 0.6, textTransform: "uppercase" }}>{d}</div>
             ))}
             {days.map((d, i) => {
               if (!d) return <div key={i} />;
@@ -2000,16 +2057,42 @@ function CalendarPage({ t, onNav }) {
               const dayEvents = filteredEvents.filter(e => e.date === dateStr);
               const isToday = dateStr === todayStr;
               const isSelected = dateStr === selectedDate;
+              const dow = new Date(dateStr + "T12:00:00").getDay();
+              const isWeekend = dow === 0 || dow === 6;
               return (
-                <div key={i} onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)} style={{ minHeight: 84, padding: 6, border: "1px solid " + (isSelected ? t.accent : isToday ? t.accent + "60" : t.border), borderRadius: 9, background: isToday ? t.accentBg : isSelected ? t.gradGlow : t.hover + "40", cursor: "pointer", transition: "all 140ms", boxShadow: isSelected ? "0 0 0 2px " + t.accentBg : "none" }}>
-                  <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 600, color: isToday ? t.accent : t.text, marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span>{d}</span>
-                    {isToday && <span style={{ fontSize: 8, fontWeight: 800, color: t.accent, letterSpacing: 0.4, textTransform: "uppercase" }}>Hoy</span>}
+                <div key={i} onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)} style={{
+                  position: "relative", minHeight: 92, padding: 8,
+                  border: "1px solid " + (isSelected ? t.accent : isToday ? t.accent + "70" : t.border),
+                  borderRadius: 11,
+                  background: isSelected ? t.gradGlow : isToday ? t.accentBg : isWeekend ? t.bg + "40" : t.hover + "30",
+                  cursor: "pointer", transition: "all 180ms ease",
+                  boxShadow: isSelected ? "0 8px 24px " + t.accentGlow + "60, 0 0 0 1px " + t.accent : isToday ? "0 4px 14px " + t.accentGlow + "30" : "none",
+                  overflow: "hidden",
+                }}>
+                  {isToday && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: t.grad, boxShadow: "0 0 8px " + t.accentGlow }} />}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: isToday ? 22 : "auto", height: isToday ? 22 : "auto",
+                      minWidth: isToday ? 22 : "auto",
+                      borderRadius: isToday ? 7 : 0,
+                      background: isToday ? t.grad : "transparent",
+                      color: isToday ? "#fff" : t.text,
+                      fontSize: 12, fontWeight: isToday ? 800 : 600,
+                      boxShadow: isToday ? "0 4px 12px " + t.accentGlow : "none",
+                      padding: isToday ? "0" : "0",
+                    }}>{d}</span>
+                    {dayEvents.length > 0 && !isToday && (
+                      <span style={{ fontSize: 9, fontWeight: 800, color: t.muted, background: t.hover, padding: "1px 6px", borderRadius: 999, border: "1px solid " + t.border }}>{dayEvents.length}</span>
+                    )}
                   </div>
                   {dayEvents.slice(0, 3).map((e, j) => (
-                    <div key={j} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, background: e.color + "22", color: e.color, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, borderLeft: "2px solid " + e.color }}>{e.label}</div>
+                    <div key={j} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, padding: "2px 6px", borderRadius: 5, background: e.color + "1F", color: e.color, marginBottom: 2, overflow: "hidden", whiteSpace: "nowrap", fontWeight: 600 }}>
+                      <div style={{ width: 4, height: 4, borderRadius: "50%", background: e.color, boxShadow: "0 0 6px " + e.color, flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</span>
+                    </div>
                   ))}
-                  {dayEvents.length > 3 && <div style={{ fontSize: 9, color: t.dim, fontWeight: 600 }}>+{dayEvents.length - 3} más</div>}
+                  {dayEvents.length > 3 && <div style={{ fontSize: 9, color: t.accent, fontWeight: 700, marginTop: 2 }}>+{dayEvents.length - 3} más</div>}
                 </div>
               );
             })}
@@ -2139,17 +2222,25 @@ function SettingsPage({ t, user }) {
         </div>
         {sedes.length === 0 ? (
           <div style={{ padding: 20, textAlign: "center", fontSize: 13, color: t.dim }}>No hay sedes todavía</div>
-        ) : sedes.map(s => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, background: t.hover, marginBottom: 8, border: "1px solid " + t.border }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: (s.color || t.accent) + "20", border: "1px solid " + (s.color || t.accent) + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>{s.name}</div>
-              <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>{s.address || "Sin dirección"} · Budget: <span style={{ color: t.text, fontWeight: 600 }}>{fmt(Number(s.budget || 0))}</span></div>
+        ) : sedes.map(s => {
+          const sc = s.color || t.accent;
+          return (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 11, background: t.hover, marginBottom: 8, border: "1px solid " + t.border, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: sc, boxShadow: "0 0 10px " + sc + "70" }} />
+              <div style={{ width: 42, height: 42, borderRadius: 11, background: "linear-gradient(135deg, " + sc + "30, " + sc + "10)", border: "1px solid " + sc + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginLeft: 6, boxShadow: "0 4px 14px " + sc + "30" }}>{s.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: t.dim, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{s.address || "Sin dirección"}</span>
+                  <span>•</span>
+                  <span>Budget: <span style={{ color: t.text, fontWeight: 700 }}>{fmt(Number(s.budget || 0))}</span></span>
+                </div>
+              </div>
+              <Btn t={t} variant="accent" size="sm" icon={Edit2} onClick={() => editSede(s)}>Editar</Btn>
+              <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteSede(s.id)} />
             </div>
-            <Btn t={t} variant="accent" size="sm" icon={Edit2} onClick={() => editSede(s)}>Editar</Btn>
-            <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => deleteSede(s.id)} />
-          </div>
-        ))}
+          );
+        })}
       </Crd>
 
       <Modal open={showSedeForm} onClose={() => setShowSedeForm(false)} title={editId ? "Editar sede" : "Nueva sede"} t={t}>
