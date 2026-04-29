@@ -7,19 +7,19 @@ import {
   Clock, AlertCircle, Target, Users, MapPin, Zap, Filter, Upload,
   Eye, Download, MoreHorizontal, CheckCircle2, Circle, Loader,
   BookOpen, Monitor, Video, DollarSign, TrendingUp, PieChart,
-  ChevronLeft, Sparkles, Menu, Sun, Moon, LogOut, Home
+  ChevronLeft, Sparkles, Sun, Moon, LogOut,
+  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity
 } from "lucide-react";
 
-// ─── Theme: Linear/Notion dark, paleta coherente con 5 estados ───
-// Estados (orden de flujo): orange → blue → amber → rose → emerald
+// ─── Theme: dark futurista — neón violeta/cyan, paleta coherente con 5 estados ───
 const themes = {
   dark: {
-    bg:"#0A0A0F", card:"#15151D", cardElev:"#1A1A24", hover:"#1F1F2A",
-    sidebar:"#0E0E14", topbar:"rgba(14,14,20,0.85)",
-    border:"#26262F", borderStrong:"#33333F",
-    text:"#F4F4F7", muted:"#A0A0AE", dim:"#6B6B78",
-    accent:"#7C5CFF", accentL:"#A78BFF", accentD:"#5B3FE3",
-    accentBg:"rgba(124,92,255,0.14)", accentGlow:"rgba(124,92,255,0.45)",
+    bg:"#06060B", card:"#101019", cardElev:"#15151F", hover:"#1B1B27",
+    sidebar:"#08080F", topbar:"rgba(8,8,15,0.78)",
+    border:"#1F1F2A", borderStrong:"#2D2D3A",
+    text:"#F5F5F8", muted:"#9C9CAB", dim:"#5C5C6B",
+    accent:"#7C5CFF", accentL:"#A78BFF", accentD:"#5B3FE3", accent2:"#22D3EE",
+    accentBg:"rgba(124,92,255,0.14)", accentGlow:"rgba(124,92,255,0.55)",
     // Estados de tarea / proyecto:
     orange:"#FB923C", orangeBg:"rgba(251,146,60,0.13)",   // Pendiente
     blue:"#38BDF8", blueBg:"rgba(56,189,248,0.13)",       // En curso
@@ -30,17 +30,19 @@ const themes = {
     cyan:"#06B6D4", cyanBg:"rgba(6,182,212,0.13)",        // Reunión
     pink:"#EC4899", pinkBg:"rgba(236,72,153,0.13)",       // Evento
     purple:"#A855F7", purpleBg:"rgba(168,85,247,0.13)",   // Auxiliar
-    shadow:"0 1px 2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)",
-    shadowLg:"0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05)",
-    grad:"linear-gradient(135deg, #7C5CFF 0%, #A78BFF 100%)",
-    gradGlow:"linear-gradient(135deg, rgba(124,92,255,0.18) 0%, rgba(168,85,247,0.10) 100%)",
+    shadow:"0 1px 2px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
+    shadowLg:"0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.05)",
+    grad:"linear-gradient(135deg, #7C5CFF 0%, #22D3EE 100%)",
+    gradSoft:"linear-gradient(135deg, #7C5CFF 0%, #A855F7 100%)",
+    gradGlow:"linear-gradient(135deg, rgba(124,92,255,0.20) 0%, rgba(34,211,238,0.10) 100%)",
+    grid:"linear-gradient(rgba(124,92,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,255,0.04) 1px, transparent 1px)",
   },
   light: {
-    bg:"#F6F6FA", card:"#FFFFFF", cardElev:"#FFFFFF", hover:"#F0F0F5",
-    sidebar:"#FAFAFC", topbar:"rgba(250,250,252,0.85)",
-    border:"#E4E4EB", borderStrong:"#D0D0DA",
-    text:"#0F0F18", muted:"#5F5F70", dim:"#9494A4",
-    accent:"#5B3FE3", accentL:"#7C5CFF", accentD:"#4730B5",
+    bg:"#F4F4F9", card:"#FFFFFF", cardElev:"#FFFFFF", hover:"#EDEDF3",
+    sidebar:"#F8F8FB", topbar:"rgba(248,248,251,0.82)",
+    border:"#E2E2EA", borderStrong:"#CDCDD8",
+    text:"#0B0B14", muted:"#5A5A6B", dim:"#8E8E9F",
+    accent:"#5B3FE3", accentL:"#7C5CFF", accentD:"#4730B5", accent2:"#0891B2",
     accentBg:"rgba(91,63,227,0.10)", accentGlow:"rgba(91,63,227,0.30)",
     orange:"#EA580C", orangeBg:"rgba(234,88,12,0.10)",
     blue:"#0284C7", blueBg:"rgba(2,132,199,0.10)",
@@ -50,10 +52,12 @@ const themes = {
     cyan:"#0891B2", cyanBg:"rgba(8,145,178,0.10)",
     pink:"#DB2777", pinkBg:"rgba(219,39,119,0.10)",
     purple:"#9333EA", purpleBg:"rgba(147,51,234,0.10)",
-    shadow:"0 1px 3px rgba(15,15,24,0.06), 0 0 0 1px rgba(15,15,24,0.05)",
-    shadowLg:"0 12px 32px rgba(15,15,24,0.10), 0 0 0 1px rgba(15,15,24,0.06)",
-    grad:"linear-gradient(135deg, #5B3FE3 0%, #7C5CFF 100%)",
-    gradGlow:"linear-gradient(135deg, rgba(91,63,227,0.10) 0%, rgba(124,92,255,0.06) 100%)",
+    shadow:"0 1px 3px rgba(11,11,20,0.06), 0 0 0 1px rgba(11,11,20,0.05)",
+    shadowLg:"0 16px 40px rgba(11,11,20,0.10), 0 0 0 1px rgba(11,11,20,0.06)",
+    grad:"linear-gradient(135deg, #5B3FE3 0%, #0891B2 100%)",
+    gradSoft:"linear-gradient(135deg, #5B3FE3 0%, #9333EA 100%)",
+    gradGlow:"linear-gradient(135deg, rgba(91,63,227,0.10) 0%, rgba(8,145,178,0.06) 100%)",
+    grid:"linear-gradient(rgba(91,63,227,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(91,63,227,0.04) 1px, transparent 1px)",
   },
 };
 
@@ -81,17 +85,22 @@ function DataProvider({ children, userId }) {
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [reports, setReports] = useState([]);
+  const [dashboardNotes, setDashboardNotes] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!userId) return;
     setLoading(true);
-    // Get company_id from user_profiles
+    // Get company_id + dashboard_notes from user_profiles
     let cId = companyId;
     if (!cId) {
-      const { data: profile } = await supabase.from("user_profiles").select("company_id").eq("id", userId).single();
+      const { data: profile } = await supabase.from("user_profiles").select("company_id, dashboard_notes").eq("id", userId).single();
       cId = profile?.company_id || null;
       setCompanyId(cId);
+      setDashboardNotes(profile?.dashboard_notes || "");
+    } else {
+      const { data: profile } = await supabase.from("user_profiles").select("dashboard_notes").eq("id", userId).single();
+      setDashboardNotes(profile?.dashboard_notes || "");
     }
     if (!cId) { setLoading(false); return; }
 
@@ -131,7 +140,7 @@ function DataProvider({ children, userId }) {
   useEffect(() => { load(); }, [userId]);
 
   return (
-    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId }}>
+    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, dashboardNotes, setDashboardNotes, loading, reload: load, userId, companyId }}>
       {children}
     </DataCtx.Provider>
   );
@@ -222,6 +231,30 @@ function statusColor(s, t) {
   };
   return map[s] || t.muted;
 }
+
+// Icono y color por tipo de proyecto — sustituye emojis viejos
+const PROJECT_TYPES = {
+  general:   { icon: Layers,       color: "accent",  label: "General" },
+  obra:      { icon: Hammer,       color: "orange",  label: "Obra" },
+  mejora:    { icon: Activity,     color: "cyan",    label: "Mejora" },
+  academico: { icon: BookOpen,     color: "blue",    label: "Académico" },
+  mri:       { icon: Stethoscope,  color: "pink",    label: "MRI" },
+};
+const projectTypeMeta = (type, t) => {
+  const m = PROJECT_TYPES[type] || PROJECT_TYPES.general;
+  return { Icon: m.icon, color: t[m.color] || t.accent, label: m.label };
+};
+
+// Prioridad → icono Flag
+const PRIORITY_META = {
+  high:   { color: "red",    label: "Alta" },
+  medium: { color: "yellow", label: "Media" },
+  low:    { color: "green",  label: "Baja" },
+};
+const priorityMeta = (pri, t) => {
+  const m = PRIORITY_META[pri] || PRIORITY_META.medium;
+  return { color: t[m.color], label: m.label };
+};
 
 function PBar({ v, h = 5, color, t, bg }) {
   const c = color || t.accent;
@@ -316,6 +349,70 @@ function Modal({ open, onClose, title, children, t, width = 500 }) {
   );
 }
 
+// Mini anotador con autosave (debounce) — usado en Dashboard y SedeDetail.
+// `summary` es un array de {label, value, color, icon} para el panel resumen.
+function Notepad({ t, value, onSave, summary = [], title = "Anotador", placeholder = "Escribí lo que quieras..." }) {
+  const [text, setText] = useState(value || "");
+  const [saved, setSaved] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const tRef = useRef(null);
+
+  useEffect(() => { setText(value || ""); }, [value]);
+
+  const flush = async (next) => {
+    if (next === (value || "")) return;
+    setSaving(true);
+    try { await onSave(next); setSaved(true); } finally { setSaving(false); }
+  };
+
+  const handleChange = (v) => {
+    setText(v); setSaved(false);
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => flush(v), 1000);
+  };
+
+  return (
+    <Crd t={t} style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 0% 0%, " + t.accentBg + ", transparent 50%)", pointerEvents: "none", opacity: 0.7 }} />
+      <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid " + t.border }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 9, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px " + t.accentGlow }}>
+            <StickyNote size={15} color="#fff" strokeWidth={2.4} />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>{title}</div>
+            <div style={{ fontSize: 10, color: saving ? t.accent : (saved ? t.green : t.muted), fontWeight: 600, letterSpacing: 0.3 }}>
+              {saving ? "Guardando…" : saved ? "Guardado automáticamente" : "Cambios sin guardar"}
+            </div>
+          </div>
+        </div>
+        {!saved && !saving && <Btn t={t} variant="accent" size="sm" icon={Save} onClick={() => { if (tRef.current) clearTimeout(tRef.current); flush(text); }}>Guardar</Btn>}
+      </div>
+
+      {summary && summary.length > 0 && (
+        <div style={{ position: "relative", padding: "12px 16px", display: "grid", gridTemplateColumns: "repeat(" + summary.length + ", 1fr)", gap: 8, borderBottom: "1px solid " + t.border, background: t.hover + "60" }}>
+          {summary.map((s, i) => (
+            <div key={i} style={{ padding: "8px 10px", borderRadius: 9, background: t.card, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 9 }}>
+              {s.icon && <div style={{ width: 24, height: 24, borderRadius: 6, background: (s.color || t.accent) + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><s.icon size={12} color={s.color || t.accent} strokeWidth={2.4} /></div>}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 9, color: t.dim, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", lineHeight: 1.1 }}>{s.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: s.color || t.text, letterSpacing: -0.4, lineHeight: 1.1 }}>{s.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <textarea
+        value={text}
+        onChange={e => handleChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ position: "relative", width: "100%", flex: 1, minHeight: 140, padding: "14px 18px", border: "none", background: "transparent", color: t.text, fontSize: 13, lineHeight: 1.65, resize: "vertical", outline: "none", fontFamily: "inherit" }}
+      />
+    </Crd>
+  );
+}
+
 function EmptyState({ icon: Icon, title, sub, t, action, onAction }) {
   return (
     <div style={{ padding: 48, textAlign: "center" }}>
@@ -383,13 +480,14 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     <div style={{ width: collapsed ? 60 : 232, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0, transition: "width 200ms ease", overflow: "hidden" }}>
       {/* Logo */}
       <div onClick={toggle} style={{ padding: collapsed ? "18px 12px" : "18px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-        <div style={{ width: 30, height: 30, borderRadius: 9, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px " + t.accentGlow }}>
-          <Zap size={15} color="#fff" strokeWidth={2.5} fill="#fff" />
+        <div style={{ position: "relative", width: 32, height: 32, borderRadius: 10, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 6px 20px " + t.accentGlow + ", inset 0 1px 0 rgba(255,255,255,0.2)" }}>
+          <Zap size={16} color="#fff" strokeWidth={2.5} fill="#fff" />
+          <div style={{ position: "absolute", inset: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(255,255,255,0.1)", pointerEvents: "none" }} />
         </div>
         {!collapsed && (
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: -0.4 }}>LuchoNeitor</span>
-            <span style={{ fontSize: 10, color: t.dim, fontWeight: 500 }}>Gestor multi-sede</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: -0.4, background: t.grad, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>LuchoNeitor</span>
+            <span style={{ fontSize: 10, color: t.dim, fontWeight: 500, letterSpacing: 0.3 }}>Gestor multi-sede</span>
           </div>
         )}
       </div>
@@ -496,7 +594,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
 
 // ─── DASHBOARD ───
 function Dashboard({ t, onNav }) {
-  const { sedes, projects, tasks, transactions } = useData();
+  const { sedes, projects, tasks, dashboardNotes, setDashboardNotes, userId } = useData();
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
   const today = now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
@@ -505,12 +603,24 @@ function Dashboard({ t, onNav }) {
   const pendingTasks = tasks.filter(tk => tk.st !== "done");
   const doneTasks = tasks.filter(tk => tk.st === "done");
   const activeProjects = projects.filter(p => p.status === "in_progress" || p.status === "active");
+  const doneProjects = projects.filter(p => p.status === "done" || p.status === "completed");
 
   const dueSoon = tasks.filter(tk => {
     if (!tk.due || tk.st === "done") return false;
     const diff = (new Date(tk.due) - now) / (1000*60*60*24);
     return diff >= 0 && diff <= 7;
   }).sort((a, b) => new Date(a.due) - new Date(b.due));
+
+  const saveDashboardNotes = async (notes) => {
+    const { error } = await supabase.from("user_profiles").update({ dashboard_notes: notes }).eq("id", userId);
+    if (error) {
+      if (error.code === "PGRST204" || /column.*dashboard_notes/i.test(error.message || "")) {
+        alert("La columna user_profiles.dashboard_notes no existe. Aplicá migrations/2026-04-28-add-notes.sql");
+      } else alert("Error: " + error.message);
+      return;
+    }
+    setDashboardNotes(notes);
+  };
 
   return (
     <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
@@ -558,6 +668,25 @@ function Dashboard({ t, onNav }) {
             </div>
           </Crd>
         ))}
+      </div>
+
+      {/* Anotador general */}
+      <div style={{ marginBottom: 28 }}>
+        <Notepad
+          t={t}
+          value={dashboardNotes}
+          onSave={saveDashboardNotes}
+          title="Anotador general"
+          placeholder="Resumen, prioridades de la semana, ideas, recordatorios…"
+          summary={[
+            { label: "Sedes", value: sedes.length, icon: Building2, color: t.accent },
+            { label: "Proyectos", value: projects.length, icon: FolderKanban, color: t.blue },
+            { label: "En curso", value: activeProjects.length, icon: Activity, color: t.blue },
+            { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
+            { label: "T. pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
+            { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
+          ]}
+        />
       </div>
 
       {/* Sedes Grid */}
@@ -807,6 +936,17 @@ function SedeDetail({ sedeId, t, onNav }) {
 
   const deleteDoc = async (id) => { await supabase.from("documents").delete().eq("id", id); reload(); };
 
+  const saveSedeNotes = async (notes) => {
+    const { error } = await supabase.from("sedes").update({ notes }).eq("id", sedeId);
+    if (error) {
+      if (error.code === "PGRST204" || /column.*notes/i.test(error.message || "")) {
+        alert("La columna sedes.notes no existe. Aplicá la migración en migrations/2026-04-28-add-notes.sql");
+      } else alert("Error: " + error.message);
+      return;
+    }
+    reload();
+  };
+
   const priColor = { high: t.red, medium: t.orange, low: t.green };
   const priLabel = { high: "Alta", medium: "Media", low: "Baja" };
 
@@ -859,6 +999,24 @@ function SedeDetail({ sedeId, t, onNav }) {
         ))}
       </div>
 
+      {/* Mini anotador de la sede + resumen */}
+      <div style={{ marginBottom: 22 }}>
+        <Notepad
+          t={t}
+          value={sede.notes || ""}
+          onSave={saveSedeNotes}
+          title={"Anotador — " + sede.name}
+          placeholder="Notas, ideas, recordatorios sobre esta sede…"
+          summary={[
+            { label: "Proyectos", value: sedeProjects.length, icon: FolderKanban, color: t.accent },
+            { label: "Tareas pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
+            { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
+            { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
+            { label: "Documentos", value: documents.filter(d => d.sede_id === sedeId || sedeProjects.some(p => p.id === d.project_id)).length, icon: FileText, color: t.blue },
+          ]}
+        />
+      </div>
+
       {/* Projects — each one is a full workspace card */}
       {sedeProjects.length === 0 ? (
         <EmptyState icon={FolderKanban} title="Sin proyectos en esta sede" sub="Creá tu primer proyecto para empezar" t={t} action="Nuevo proyecto" onAction={() => setShowForm(true)} />
@@ -868,7 +1026,7 @@ function SedeDetail({ sedeId, t, onNav }) {
         const pending = pTasks.filter(tk => tk.st !== "done");
         const done = pTasks.filter(tk => tk.st === "done");
         const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline) - new Date()) / (1000*60*60*24)) : null;
-        const typeEmoji = { obra: "🏗️", mejora: "🔧", academico: "📚", mri: "🏥", general: "📋" };
+        const ptype = projectTypeMeta(p.type, t);
         const projColor = statusColor(p.status, t);
         const isExpanded = expandedProjects[p.id] !== false; // default expanded
         return (
@@ -881,11 +1039,11 @@ function SedeDetail({ sedeId, t, onNav }) {
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "transform 200ms ease" }}>
                     <ChevronDown size={16} color={t.muted} style={{ transform: isExpanded ? "rotate(0)" : "rotate(-90deg)", transition: "transform 200ms" }} />
                   </div>
-                  <div style={{ width: 44, height: 44, borderRadius: 11, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 11, background: ptype.color + "18", border: "1px solid " + ptype.color + "40", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px " + ptype.color + "20" }}><ptype.Icon size={20} color={ptype.color} strokeWidth={2.2} /></div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: -0.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: t.muted, marginTop: 2, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                      <span style={{ textTransform: "capitalize", fontWeight: 600 }}>{p.type}</span>
+                      <span style={{ fontWeight: 600, color: ptype.color }}>{ptype.label}</span>
                       {p.deadline && <><span style={{ color: t.dim }}>•</span><span>{fmtDate(p.deadline)}</span></>}
                       {daysLeft !== null && (
                         <><span style={{ color: t.dim }}>•</span>
@@ -912,7 +1070,7 @@ function SedeDetail({ sedeId, t, onNav }) {
             <div style={{ padding: "16px 24px" }}>
               {/* NOTES section */}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>📝 Notas</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><StickyNote size={12} strokeWidth={2.4} /> Notas</div>
                 {editingNote === p.id ? (
                   <div>
                     <textarea value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus placeholder="Escribí notas, observaciones, ideas..."
@@ -932,7 +1090,7 @@ function SedeDetail({ sedeId, t, onNav }) {
               {/* TASKS section */}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Tareas ({pTasks.length})</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 6 }}><ListChecks size={12} strokeWidth={2.4} /> Tareas <span style={{ color: t.text, fontWeight: 800 }}>{pTasks.length}</span></span>
                   <div onClick={() => setShowTaskForm(showTaskForm === p.id ? null : p.id)} style={{ padding: "5px 12px", borderRadius: 6, background: t.accentBg, color: t.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Agregar</div>
                 </div>
 
@@ -944,7 +1102,7 @@ function SedeDetail({ sedeId, t, onNav }) {
                       onKeyDown={e => { if (e.key === "Enter" && taskForm.title) addTask(p.id); }} />
                     <input type="date" value={taskForm.due_date} onChange={e => setTaskForm({...taskForm, due_date: e.target.value})} style={{ padding: "8px", borderRadius: 8, border: "1px solid " + t.border, background: t.card, color: t.text, fontSize: 12 }} />
                     <select value={taskForm.priority} onChange={e => setTaskForm({...taskForm, priority: e.target.value})} style={{ padding: "8px", borderRadius: 8, border: "1px solid " + t.border, background: t.card, color: t.text, fontSize: 12 }}>
-                      <option value="high">🔴 Alta</option><option value="medium">🟡 Media</option><option value="low">🟢 Baja</option>
+                      <option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option>
                     </select>
                     <button onClick={() => addTask(p.id)} disabled={!taskForm.title} style={{ padding: "8px 18px", borderRadius: 8, background: t.accent, color: "#fff", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: taskForm.title ? 1 : 0.5 }}>Crear</button>
                   </div>
@@ -998,7 +1156,7 @@ function SedeDetail({ sedeId, t, onNav }) {
               {/* DOCUMENTS section */}
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: "0.5px" }}>📎 Documentos ({pDocs.length})</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: t.dim, textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 6 }}><FileText size={12} strokeWidth={2.4} /> Documentos <span style={{ color: t.text, fontWeight: 800 }}>{pDocs.length}</span></span>
                   <div onClick={() => { setUploadTarget(p.id); fileRef.current?.click(); }} style={{ padding: "5px 12px", borderRadius: 6, background: t.orangeBg, color: t.orange, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Subir</div>
                 </div>
                 {pDocs.map(d => (
@@ -1031,8 +1189,8 @@ function SedeDetail({ sedeId, t, onNav }) {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Nuevo proyecto" t={t}>
         <Inp label="Nombre" val={form.name} onChange={v => setForm({...form, name: v})} t={t} placeholder="Ej: Reforma aula 3" />
         <Select label="Tipo" val={form.type} onChange={v => setForm({...form, type: v})} t={t} options={[
-          { value: "general", label: "📋 General" }, { value: "obra", label: "🏗️ Obra" }, { value: "mejora", label: "🔧 Mejora" },
-          { value: "academico", label: "📚 Académico" }, { value: "mri", label: "🏥 MRI" },
+          { value: "general", label: "General" }, { value: "obra", label: "Obra" }, { value: "mejora", label: "Mejora" },
+          { value: "academico", label: "Académico" }, { value: "mri", label: "MRI" },
         ]} />
         <Inp label="Deadline" val={form.deadline} onChange={v => setForm({...form, deadline: v})} t={t} type="date" />
         <Inp label="Costo estimado" val={form.cost} onChange={v => setForm({...form, cost: v})} t={t} type="number" placeholder="$0" />
@@ -1087,7 +1245,7 @@ function ProjectsPage({ t, onNav }) {
     reload();
   };
 
-  const typeEmoji = { obra: "🏗️", mejora: "🔧", academico: "📚", mri: "🏥", general: "📋" };
+  // typeEmoji deprecated — usar projectTypeMeta()
 
   return (
     <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
@@ -1119,6 +1277,7 @@ function ProjectsPage({ t, onNav }) {
             const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline) - new Date()) / (1000*60*60*24)) : null;
             const projColor = statusColor(p.status, t);
             const isCollapsed = !!collapsedProjects[p.id];
+            const ptype = projectTypeMeta(p.type, t);
 
             return (
               <Crd key={p.id} t={t} hoverable style={{ padding: 0, overflow: "hidden", position: "relative" }}>
@@ -1128,10 +1287,10 @@ function ProjectsPage({ t, onNav }) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 10 }}>
                     <div onClick={() => toggleCollapsed(p.id)} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1, cursor: "pointer" }}>
                       <ChevronDown size={16} color={t.muted} style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)", transition: "transform 200ms", flexShrink: 0 }} />
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: projColor + "18", border: "1px solid " + projColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{typeEmoji[p.type] || "📋"}</div>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: ptype.color + "18", border: "1px solid " + ptype.color + "40", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px " + ptype.color + "20" }}><ptype.Icon size={17} color={ptype.color} strokeWidth={2.2} /></div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: t.muted, marginTop: 1, fontWeight: 500 }}>{p.sede?.name || "Sin sede"} · <span style={{ textTransform: "capitalize" }}>{p.type}</span></div>
+                        <div style={{ fontSize: 11, color: t.muted, marginTop: 1, fontWeight: 500 }}>{p.sede?.name || "Sin sede"} · <span style={{ color: ptype.color, fontWeight: 600 }}>{ptype.label}</span></div>
                       </div>
                     </div>
                     <select value={p.status} onChange={e => quickStatus(p.id, e.target.value)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + projColor + "50", background: projColor + "15", color: projColor, fontSize: 12, cursor: "pointer", fontWeight: 700, outline: "none", flexShrink: 0 }}>
@@ -1181,8 +1340,8 @@ function ProjectsPage({ t, onNav }) {
         <Select label="Sede" val={form.sede_id} onChange={v => setForm({...form, sede_id: v})} t={t} options={[{ value: "", label: "Sin sede" }, ...sedes.map(s => ({ value: s.id, label: s.name }))]} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Select label="Tipo" val={form.type} onChange={v => setForm({...form, type: v})} t={t} options={[
-            { value: "general", label: "📋 General" }, { value: "obra", label: "🏗️ Obra" }, { value: "mejora", label: "🔧 Mejora" },
-            { value: "academico", label: "📚 Académico" }, { value: "mri", label: "🏥 MRI" },
+            { value: "general", label: "General" }, { value: "obra", label: "Obra" }, { value: "mejora", label: "Mejora" },
+            { value: "academico", label: "Académico" }, { value: "mri", label: "MRI" },
           ]} />
           <Select label="Estado" val={form.status} onChange={v => setForm({...form, status: v})} t={t} options={STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
         </div>
@@ -1333,7 +1492,7 @@ function TasksPage({ t, onNav }) {
         <Select label="Proyecto" val={form.project_id} onChange={v => setForm({...form, project_id: v})} t={t} options={[{ value: "", label: "Sin proyecto" }, ...projects.map(p => ({ value: p.id, label: p.name }))]} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Select label="Sede" val={form.sede_id} onChange={v => setForm({...form, sede_id: v})} t={t} options={[{ value: "", label: "Sin sede" }, ...sedes.map(s => ({ value: s.id, label: s.name }))]} />
-          <Select label="Prioridad" val={form.priority} onChange={v => setForm({...form, priority: v})} t={t} options={[{ value: "high", label: "🔴 Alta" }, { value: "medium", label: "🟡 Media" }, { value: "low", label: "🟢 Baja" }]} />
+          <Select label="Prioridad" val={form.priority} onChange={v => setForm({...form, priority: v})} t={t} options={[{ value: "high", label: "Alta" }, { value: "medium", label: "Media" }, { value: "low", label: "Baja" }]} />
         </div>
         <Inp label="Fecha límite" val={form.due_date} onChange={v => setForm({...form, due_date: v})} t={t} type="date" />
         <Btn t={t} onClick={saveTask} disabled={!form.title} size="lg" style={{ width: "100%", marginTop: 4 }}>Crear tarea</Btn>
@@ -1888,15 +2047,15 @@ function CalendarPage({ t, onNav }) {
               ) : (
                 <div>
                   <Select label="Tipo" val={form.type} onChange={v => setForm({...form, type: v})} t={t} options={[
-                    { value: "tarea", label: "✅ Tarea" },
-                    { value: "reunion", label: "👥 Reunión" },
-                    { value: "evento", label: "✨ Evento" },
+                    { value: "tarea", label: "Tarea" },
+                    { value: "reunion", label: "Reunión" },
+                    { value: "evento", label: "Evento" },
                   ]} />
                   <Inp label="Título" val={form.title} onChange={v => setForm({...form, title: v})} t={t} placeholder={form.type === "reunion" ? "Reunión con..." : form.type === "evento" ? "Nombre del evento" : "Nombre de la tarea"} />
                   <Select label="Proyecto" val={form.project_id} onChange={v => setForm({...form, project_id: v})} t={t} options={[{ value: "", label: "Sin proyecto" }, ...projects.map(p => ({ value: p.id, label: p.name }))]} />
                   {form.type === "tarea" && (
                     <Select label="Prioridad" val={form.priority} onChange={v => setForm({...form, priority: v})} t={t} options={[
-                      { value: "high", label: "🔴 Alta" }, { value: "medium", label: "🟡 Media" }, { value: "low", label: "🟢 Baja" }
+                      { value: "high", label: "Alta" }, { value: "medium", label: "Media" }, { value: "low", label: "Baja" }
                     ]} />
                   )}
                   <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
@@ -2133,21 +2292,30 @@ export default function App() {
 
   return (
     <DataProvider userId={user.id}>
-      <div style={{ display: "flex", height: "100vh", background: t.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: t.text, fontFeatureSettings: "'cv02', 'cv03', 'cv04', 'cv11'" }}>
+      <div style={{ display: "flex", height: "100vh", background: t.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: t.text, fontFeatureSettings: "'cv02', 'cv03', 'cv04', 'cv11'", position: "relative", overflow: "hidden" }}>
+        {/* Background grid + ambient orbs */}
+        <div aria-hidden style={{ position: "fixed", inset: 0, backgroundImage: t.grid, backgroundSize: "32px 32px", pointerEvents: "none", maskImage: "radial-gradient(ellipse at 50% 0%, black 30%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, black 30%, transparent 80%)" }} />
+        <div aria-hidden style={{ position: "fixed", top: "-10%", right: "-10%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, " + t.accentGlow + " 0%, transparent 70%)", filter: "blur(80px)", pointerEvents: "none", opacity: 0.5 }} />
+        <div aria-hidden style={{ position: "fixed", bottom: "-10%", left: "10%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, " + (t.accent2 || t.accentGlow) + "55 0%, transparent 70%)", filter: "blur(80px)", pointerEvents: "none", opacity: 0.4 }} />
+
         <style>{
           "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');" +
           "*{box-sizing:border-box;margin:0;padding:0}" +
           "html,body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}" +
           "button{font-family:inherit}" +
+          "input,select,textarea{font-family:inherit}" +
           "@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}" +
           "@keyframes fadeIn{from{opacity:0}to{opacity:1}}" +
           "@keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}" +
+          "@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}" +
           "@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(0.95);opacity:0.85}}" +
+          "@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}" +
           "::-webkit-scrollbar{width:8px;height:8px}" +
           "::-webkit-scrollbar-track{background:transparent}" +
           "::-webkit-scrollbar-thumb{background:" + t.border + ";border-radius:4px}" +
           "::-webkit-scrollbar-thumb:hover{background:" + t.borderStrong + "}" +
-          "::selection{background:" + t.accentBg + ";color:" + t.text + "}"
+          "::selection{background:" + t.accentBg + ";color:" + t.text + "}" +
+          "@media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
         }</style>
         <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
