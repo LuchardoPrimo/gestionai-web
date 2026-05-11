@@ -72,39 +72,23 @@ const fmt = (n) => {
 const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : "—";
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
 
-// Silueta de guanaco de perfil mirando a la derecha. Cuerpo + cuello + cabeza
-// en un solo path con curvas suaves, dos orejas redondeadas, cuatro patas con pezuña.
+// Logo Guanaco: fondo dorado redondeado con silueta blanca de guanaco de perfil
+// mirando a la derecha. Cuerpo + cuello + cabeza + dos orejas paradas + 4 patas.
 function GuanacoIcon({ size = 16 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="
-        M 5 17
-        L 5 14
-        Q 5 11.5 7.5 11.5
-        L 17 11.5
-        Q 18 11.5 18.5 10.5
-        L 19.8 8
-        Q 20.3 7 21.3 6.7
-        L 21.3 4.8
-        Q 21.3 3.5 22.5 3.5
-        Q 23.7 3.5 23.7 4.8
-        L 23.7 6.5
-        L 24.7 6.5
-        L 24.7 4.8
-        Q 24.7 3.5 25.9 3.5
-        Q 27.1 3.5 27.1 4.8
-        L 27.1 7
-        Q 28.5 8 28.5 9.7
-        L 28.5 11.5
-        Q 28.5 14 26 14
-        L 23.2 14
-        L 21.5 17
-        Z
-      " />
-      <rect x="6" y="16.5" width="2.4" height="9" rx="1.2" />
-      <rect x="10" y="16.5" width="2.4" height="9" rx="1.2" />
-      <rect x="15.5" y="16.5" width="2.4" height="9" rx="1.2" />
-      <rect x="19" y="16.5" width="2.4" height="9" rx="1.2" />
+    <svg width={size} height={size} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill="#E5A100" />
+      <g fill="#FFFFFF">
+        <rect x="5" y="14" width="15" height="7" rx="3" />
+        <rect x="17.5" y="6.5" width="3.5" height="9" rx="1.75" />
+        <rect x="19" y="4" width="6" height="4" rx="1.8" />
+        <rect x="19.7" y="2" width="1.5" height="2.6" rx="0.7" />
+        <rect x="22" y="2" width="1.5" height="2.6" rx="0.7" />
+        <rect x="6" y="20" width="2" height="6.5" rx="0.9" />
+        <rect x="9.5" y="20" width="2" height="6.5" rx="0.9" />
+        <rect x="14" y="20" width="2" height="6.5" rx="0.9" />
+        <rect x="17.5" y="20" width="2" height="6.5" rx="0.9" />
+      </g>
     </svg>
   );
 }
