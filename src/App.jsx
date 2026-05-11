@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FolderKanban, CheckSquare, Wallet, FileText, BarChart3,
   Calendar, Settings, Building2, GraduationCap, Search, Bell, ChevronDown,
   ChevronRight, Plus, X, Edit2, Trash2, ArrowUpRight, ArrowDownRight,
-  Clock, AlertCircle, Target, Users, MapPin, Zap, Filter, Upload,
+  Clock, AlertCircle, Target, Users, MapPin, Filter, Upload,
   Eye, Download, MoreHorizontal, CheckCircle2, Circle, Loader,
   BookOpen, Monitor, Video, DollarSign, TrendingUp, PieChart,
   ChevronLeft, Sparkles, Sun, Moon, LogOut,
@@ -71,6 +71,21 @@ const fmt = (n) => {
 
 const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : "—";
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+
+// Silueta minimalista de guanaco de perfil mirando a la derecha.
+function GuanacoIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M19 15V9a3 3 0 0 1 3-3h1V4a1 1 0 1 1 2 0v2h1a2 2 0 0 1 2 2v2a3 3 0 0 1-3 3h-1l-1 2h-4z" />
+      <path d="M5 17a3 3 0 0 1 3-3h14v6H5v-3z" />
+      <rect x="6" y="20" width="2" height="7" />
+      <rect x="10" y="20" width="2" height="7" />
+      <rect x="15" y="20" width="2" height="7" />
+      <rect x="19" y="20" width="2" height="7" />
+      <path d="M24 5l-1-2 2 1z" />
+    </svg>
+  );
+}
 
 // ─── Data Context ───
 const DataCtx = createContext({});
@@ -480,13 +495,13 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     <div style={{ width: collapsed ? 60 : 232, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0, transition: "width 200ms ease", overflow: "hidden" }}>
       {/* Logo */}
       <div onClick={toggle} style={{ padding: collapsed ? "18px 12px" : "18px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-        <div style={{ position: "relative", width: 32, height: 32, borderRadius: 10, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 6px 20px " + t.accentGlow + ", inset 0 1px 0 rgba(255,255,255,0.2)" }}>
-          <Zap size={16} color="#fff" strokeWidth={2.5} fill="#fff" />
+        <div style={{ position: "relative", width: 32, height: 32, borderRadius: 10, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 6px 20px rgba(229,161,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2)" }}>
+          <GuanacoIcon size={20} />
           <div style={{ position: "absolute", inset: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(255,255,255,0.1)", pointerEvents: "none" }} />
         </div>
         {!collapsed && (
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: -0.4, background: t.grad, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>LuchoNeitor</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: -0.4, background: t.grad, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>Guanaco</span>
             <span style={{ fontSize: 10, color: t.dim, fontWeight: 500, letterSpacing: 0.3 }}>Gestor multi-sede</span>
           </div>
         )}
@@ -2289,11 +2304,11 @@ function LoginPage({ onLogin, t }) {
 
       <div onSubmit={e => { e.preventDefault(); handleLogin(); }} style={{ width: 400, padding: 36, background: t.cardElev, borderRadius: 20, border: "1px solid " + t.borderStrong, boxShadow: t.shadowLg, position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 12px 32px " + t.accentGlow }}>
-            <Zap size={26} color="#fff" strokeWidth={2.5} fill="#fff" />
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 12px 32px rgba(229,161,0,0.45)" }}>
+            <GuanacoIcon size={34} />
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: -0.6 }}>LuchoNeitor</div>
-          <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Gestor de proyectos multi-sede</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: -0.6 }}>Guanaco</div>
+          <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Gestor de proyectos</div>
         </div>
         <Inp label="Email" val={email} onChange={setEmail} t={t} placeholder="tu@email.com" />
         <Inp label="Contraseña" val={pass} onChange={setPass} t={t} type="password" placeholder="••••••••" />
@@ -2340,10 +2355,10 @@ export default function App() {
 
   if (!authReady) return (
     <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0A0A0F", flexDirection: "column", gap: 16 }}>
-      <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #7C5CFF 0%, #A78BFF 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 32px rgba(124,92,255,0.5)", animation: "pulse 1.6s ease-in-out infinite" }}>
-        <Zap size={26} color="#fff" strokeWidth={2.5} fill="#fff" />
+      <div style={{ width: 56, height: 56, borderRadius: 16, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 32px rgba(229,161,0,0.5)", animation: "pulse 1.6s ease-in-out infinite" }}>
+        <GuanacoIcon size={34} />
       </div>
-      <div style={{ fontSize: 13, color: "#A0A0AE", fontFamily: "'Inter', sans-serif" }}>Cargando LuchoNeitor...</div>
+      <div style={{ fontSize: 13, color: "#A0A0AE", fontFamily: "'Inter', sans-serif" }}>Cargando Guanaco...</div>
       <style>{"@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(0.95);opacity:0.85}}"}</style>
     </div>
   );
@@ -2366,7 +2381,7 @@ export default function App() {
   const sedeId = isSedeDetail ? page.split(":")[1] : null;
   const currentTitle = isSedeDetail
     ? ["Sede", "Detalle"]
-    : pageTitles[page] || ["LuchoNeitor", ""];
+    : pageTitles[page] || ["Guanaco", ""];
 
   const pages = {
     dashboard: Dashboard,
