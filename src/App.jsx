@@ -517,12 +517,14 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
   return (
     <div style={{ width: collapsed ? 60 : 232, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0, transition: "width 200ms ease", overflow: "hidden" }}>
       {/* Logo */}
-      <div onClick={toggle} style={{ padding: collapsed ? "18px 12px" : "18px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+      <div onClick={toggle} title="Guanaco" style={{ padding: collapsed ? "14px 6px" : "18px 16px", display: "flex", flexDirection: collapsed ? "column" : "row", alignItems: "center", justifyContent: "center", gap: collapsed ? 6 : 10, cursor: "pointer" }}>
         <div style={{ position: "relative", width: 32, height: 32, borderRadius: 10, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 6px 20px rgba(229,161,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2)" }}>
           <GuanacoIcon size={20} />
           <div style={{ position: "absolute", inset: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(255,255,255,0.1)", pointerEvents: "none" }} />
         </div>
-        {!collapsed && (
+        {collapsed ? (
+          <span style={{ fontSize: 10, fontWeight: 800, color: t.text, letterSpacing: 0.4, textTransform: "uppercase", background: t.grad, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>Guanaco</span>
+        ) : (
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: t.text, letterSpacing: -0.4, background: t.grad, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>Guanaco</span>
             <span style={{ fontSize: 10, color: t.dim, fontWeight: 500, letterSpacing: 0.3 }}>Gestor multi-sede</span>
@@ -597,6 +599,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
   return (
     <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", background: t.topbar, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + t.border, flexShrink: 0, position: "relative", zIndex: 50 }}>
       <div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: "#E5A100", letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 2 }}>Guanaco</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>{title}</div>
         {sub && <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{sub}</div>}
       </div>
