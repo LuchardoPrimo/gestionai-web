@@ -405,7 +405,7 @@ function Notepad({ t, value, onSave, summary = [], title = "Anotador", placehold
       </div>
 
       {summary && summary.length > 0 && (
-        <div style={{ position: "relative", padding: "12px 16px", display: "grid", gridTemplateColumns: "repeat(" + summary.length + ", 1fr)", gap: 8, borderBottom: "1px solid " + t.border, background: t.hover + "60" }}>
+        <div style={{ position: "relative", padding: "12px 16px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8, borderBottom: "1px solid " + t.border, background: t.hover + "60" }}>
           {summary.map((s, i) => (
             <div key={i} style={{ padding: "8px 10px", borderRadius: 9, background: t.card, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 9 }}>
               {s.icon && <div style={{ width: 24, height: 24, borderRadius: 6, background: (s.color || t.accent) + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><s.icon size={12} color={s.color || t.accent} strokeWidth={2.4} /></div>}
@@ -428,86 +428,26 @@ function Notepad({ t, value, onSave, summary = [], title = "Anotador", placehold
   );
 }
 
-// Drawer lateral derecho con el Notepad adentro. FAB flotante para abrir; Esc o backdrop para cerrar.
-function NotepadDrawer({ t, value, onSave, summary, title, placeholder }) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
+// Columna lateral derecha fija con el Notepad adentro — siempre visible mientras se gestiona.
+function NotepadRail({ t, value, onSave, summary, title, placeholder }) {
   return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
+    <aside style={{
+      width: 380, flexShrink: 0,
+      borderLeft: "1px solid " + t.border,
+      background: t.bg,
+      display: "flex", flexDirection: "column",
+      padding: 16, height: "100%",
+    }}>
+      <Notepad
+        t={t}
+        value={value}
+        onSave={onSave}
+        summary={summary}
         title={title}
-        aria-label={"Abrir " + title}
-        style={{
-          position: "fixed", right: 24, bottom: 24, zIndex: 800,
-          width: 56, height: 56, borderRadius: 18,
-          background: "#E5A100", border: "none", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 10px 30px rgba(229,161,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25)",
-          transition: "transform 160ms ease",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.06)"; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-      >
-        <StickyNote size={22} color="#fff" strokeWidth={2.4} />
-      </button>
-
-      {open && (
-        <div
-          onClick={() => setOpen(false)}
-          style={{
-            position: "fixed", inset: 0, zIndex: 900,
-            background: "rgba(0,0,0,0.45)",
-            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-            animation: "fadeIn 180ms ease",
-          }}
-        />
-      )}
-
-      <div
-        aria-hidden={!open}
-        style={{
-          position: "fixed", top: 0, right: 0, height: "100vh",
-          width: 420, maxWidth: "100vw", zIndex: 950,
-          transform: open ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
-          background: t.bg, borderLeft: "1px solid " + t.borderStrong,
-          boxShadow: "-16px 0 50px rgba(0,0,0,0.45)",
-          display: "flex", flexDirection: "column",
-          padding: 16, gap: 12,
-        }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
-          <button
-            onClick={() => setOpen(false)}
-            aria-label="Cerrar anotador"
-            title="Cerrar (Esc)"
-            style={{
-              width: 34, height: 34, borderRadius: 9,
-              background: t.hover, border: "1px solid " + t.border,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <X size={16} color={t.muted} />
-          </button>
-        </div>
-        <Notepad
-          t={t}
-          value={value}
-          onSave={onSave}
-          summary={summary}
-          title={title}
-          placeholder={placeholder}
-          style={{ flex: 1, minHeight: 0 }}
-        />
-      </div>
-    </>
+        placeholder={placeholder}
+        style={{ flex: 1, minHeight: 0 }}
+      />
+    </aside>
   );
 }
 
@@ -721,7 +661,8 @@ function Dashboard({ t, onNav }) {
   };
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ display: "flex", height: "calc(100vh - 56px)" }}>
+      <div style={{ flex: 1, padding: "32px 32px 40px", overflowY: "auto", minWidth: 0 }}>
       {/* Hero header */}
       <div style={{ position: "relative", marginBottom: 28, padding: "8px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
@@ -767,23 +708,6 @@ function Dashboard({ t, onNav }) {
           </Crd>
         ))}
       </div>
-
-      {/* Anotador general — drawer flotante (FAB en esquina inferior derecha) */}
-      <NotepadDrawer
-        t={t}
-        value={dashboardNotes}
-        onSave={saveDashboardNotes}
-        title="Anotador general"
-        placeholder="Resumen, prioridades de la semana, ideas, recordatorios…"
-        summary={[
-          { label: "Sedes", value: sedes.length, icon: Building2, color: t.accent },
-          { label: "Proyectos", value: projects.length, icon: FolderKanban, color: t.blue },
-          { label: "En curso", value: activeProjects.length, icon: Activity, color: t.blue },
-          { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
-          { label: "T. pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
-          { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
-        ]}
-      />
 
       {/* Sedes Grid */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -910,6 +834,22 @@ function Dashboard({ t, onNav }) {
           ))}
         </Crd>
       </div>
+      </div>
+      <NotepadRail
+        t={t}
+        value={dashboardNotes}
+        onSave={saveDashboardNotes}
+        title="Anotador general"
+        placeholder="Resumen, prioridades de la semana, ideas, recordatorios…"
+        summary={[
+          { label: "Sedes", value: sedes.length, icon: Building2, color: t.accent },
+          { label: "Proyectos", value: projects.length, icon: FolderKanban, color: t.blue },
+          { label: "En curso", value: activeProjects.length, icon: Activity, color: t.blue },
+          { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
+          { label: "T. pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
+          { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
+        ]}
+      />
     </div>
   );
 }
@@ -1049,7 +989,8 @@ function SedeDetail({ sedeId, t, onNav }) {
   const sedeColor = sede.color || t.accent;
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ display: "flex", height: "calc(100vh - 56px)" }}>
+      <div style={{ flex: 1, padding: "32px 32px 40px", overflowY: "auto", minWidth: 0 }}>
       <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={e => { if (uploadTarget) uploadDoc(e.target.files, uploadTarget); e.target.value = ""; }} />
 
       {/* Breadcrumb */}
@@ -1094,22 +1035,6 @@ function SedeDetail({ sedeId, t, onNav }) {
           </Crd>
         ))}
       </div>
-
-      {/* Anotador de la sede — drawer flotante */}
-      <NotepadDrawer
-        t={t}
-        value={sede.notes || ""}
-        onSave={saveSedeNotes}
-        title={"Anotador — " + sede.name}
-        placeholder="Notas, ideas, recordatorios sobre esta sede…"
-        summary={[
-          { label: "Proyectos", value: sedeProjects.length, icon: FolderKanban, color: t.accent },
-          { label: "Tareas pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
-          { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
-          { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
-          { label: "Documentos", value: documents.filter(d => d.sede_id === sedeId || sedeProjects.some(p => p.id === d.project_id)).length, icon: FileText, color: t.blue },
-        ]}
-      />
 
       {/* Projects — each one is a full workspace card */}
       {sedeProjects.length === 0 ? (
@@ -1291,6 +1216,21 @@ function SedeDetail({ sedeId, t, onNav }) {
         <Inp label="Descripción" val={form.description} onChange={v => setForm({...form, description: v})} t={t} placeholder="Notas iniciales..." />
         <Btn t={t} onClick={saveProject} disabled={!form.name} size="lg" style={{ width: "100%", marginTop: 4 }}>Crear proyecto</Btn>
       </Modal>
+      </div>
+      <NotepadRail
+        t={t}
+        value={sede.notes || ""}
+        onSave={saveSedeNotes}
+        title={"Anotador — " + sede.name}
+        placeholder="Notas, ideas, recordatorios sobre esta sede…"
+        summary={[
+          { label: "Proyectos", value: sedeProjects.length, icon: FolderKanban, color: t.accent },
+          { label: "Tareas pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
+          { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
+          { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
+          { label: "Documentos", value: documents.filter(d => d.sede_id === sedeId || sedeProjects.some(p => p.id === d.project_id)).length, icon: FileText, color: t.blue },
+        ]}
+      />
     </div>
   );
 }
