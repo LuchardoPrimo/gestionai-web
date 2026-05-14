@@ -564,15 +564,34 @@ function RichNotepadRail({ t, onNav }) {
     if (saved && editorRef.current) {
       editorRef.current.innerHTML = saved;
     }
+    const onBeforeUnload = () => {
+      if (saveTimerRef.current && editorRef.current) {
+        clearTimeout(saveTimerRef.current);
+        try { localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current.innerHTML || ""); } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      // Flush pendiente al desmontar — y nunca escribir si el ref ya no existe (evita wipe accidental).
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        if (editorRef.current) {
+          try { localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current.innerHTML || ""); } catch { /* ignore */ }
+        }
+      }
+    };
   }, []);
 
   const scheduleSave = () => {
     setSaveState("dirty");
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
+      // Protección: si el componente ya se desmontó, no sobrescribir localStorage con "".
+      if (!editorRef.current) { saveTimerRef.current = null; return; }
       setSaveState("saving");
       try {
-        localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current?.innerHTML || "");
+        localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current.innerHTML || "");
         window.dispatchEvent(new Event(NOTEPAD_UPDATED_EVENT));
         setSaveState("saved");
       } catch {
