@@ -467,6 +467,7 @@ function RichNotepadRail({ t }) {
   });
 
   useEffect(() => {
+    try { document.execCommand("defaultParagraphSeparator", false, "div"); } catch { /* ignore */ }
     const saved = localStorage.getItem(NOTEPAD_STORAGE_KEY);
     if (saved && editorRef.current) {
       editorRef.current.innerHTML = saved;
@@ -499,6 +500,56 @@ function RichNotepadRail({ t }) {
     onInput();
   };
 
+  const isInsideTag = (node, tag) => {
+    let n = node;
+    while (n && n !== editorRef.current) {
+      if (n.nodeName === tag) return true;
+      n = n.parentNode;
+    }
+    return false;
+  };
+
+  const onKeyDown = (e) => {
+    // Enter robusto: forzar nuevo párrafo (a menos que estemos dentro de una lista, donde el default ya hace lo correcto)
+    if (e.key === "Enter" && !e.shiftKey) {
+      const sel = window.getSelection();
+      const node = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+      if (!node || !isInsideTag(node, "LI")) {
+        e.preventDefault();
+        document.execCommand("insertParagraph");
+        onInput();
+      }
+      return;
+    }
+    // "* " al inicio de una línea/bloque → convertir a lista con viñetas
+    if (e.key === " " || e.code === "Space") {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      if (!range.collapsed) return;
+      const node = range.startContainer;
+      if (node.nodeType !== Node.TEXT_NODE) return;
+      if (isInsideTag(node, "LI")) return;
+      const before = node.textContent.slice(0, range.startOffset);
+      if (before !== "*") return;
+      // verificar que no haya texto antes del nodo en el mismo bloque
+      let prev = node.previousSibling;
+      while (prev) {
+        if ((prev.textContent || "").trim() !== "") return;
+        prev = prev.previousSibling;
+      }
+      e.preventDefault();
+      node.textContent = node.textContent.slice(range.startOffset);
+      const newRange = document.createRange();
+      newRange.setStart(node, 0);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      document.execCommand("insertUnorderedList");
+      onInput();
+    }
+  };
+
   const stateLabel = saveState === "saving" ? "Guardando…" : saveState === "saved" ? "Guardado automáticamente" : "Cambios sin guardar";
   const stateColor = saveState === "saving" ? t.accent : saveState === "saved" ? t.green : t.muted;
 
@@ -513,7 +564,7 @@ function RichNotepadRail({ t }) {
 
   return (
     <aside style={{
-      width: 350, flexShrink: 0,
+      width: 420, flexShrink: 0,
       borderLeft: "1px solid " + t.border,
       background: t.bg,
       display: "flex", flexDirection: "column",
@@ -571,6 +622,7 @@ function RichNotepadRail({ t }) {
             suppressContentEditableWarning
             onInput={onInput}
             onBlur={onInput}
+            onKeyDown={onKeyDown}
             spellCheck
             style={{
               position: "relative",
