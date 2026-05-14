@@ -366,7 +366,7 @@ function Modal({ open, onClose, title, children, t, width = 500 }) {
 
 // Mini anotador con autosave (debounce) — usado en Dashboard y SedeDetail.
 // `summary` es un array de {label, value, color, icon} para el panel resumen.
-function Notepad({ t, value, onSave, summary = [], title = "Anotador", placeholder = "Escribí lo que quieras...", style }) {
+function Notepad({ t, value, onSave, summary = [], title = "Anotador", placeholder = "Escribí lo que quieras...", style, mentions = [], onMentionNav }) {
   const [text, setText] = useState(value || "");
   const [saved, setSaved] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -418,6 +418,27 @@ function Notepad({ t, value, onSave, summary = [], title = "Anotador", placehold
         </div>
       )}
 
+      {mentions && mentions.length > 0 && (
+        <div style={{ position: "relative", padding: "10px 18px 12px", borderBottom: "1px solid " + t.border, background: t.accentBg + "30" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <Hash size={11} color={t.accent} strokeWidth={2.6} />
+            <span style={{ fontSize: 10, color: t.accent, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase" }}>Desde el anotador general</span>
+            <span style={{ fontSize: 10, color: t.dim, fontWeight: 600 }}>{mentions.length}</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {mentions.map((html, i) => (
+              <div
+                key={i}
+                onClick={onMentionNav}
+                title={onMentionNav ? "Abrir anotador general" : undefined}
+                style={{ padding: "8px 12px", borderRadius: 8, background: t.card, border: "1px solid " + t.border, color: t.text, fontSize: 13, lineHeight: 1.55, cursor: onMentionNav ? "pointer" : "default", wordBreak: "break-word" }}
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <textarea
         value={text}
         onChange={e => handleChange(e.target.value)}
@@ -429,7 +450,7 @@ function Notepad({ t, value, onSave, summary = [], title = "Anotador", placehold
 }
 
 // Columna lateral derecha fija con el Notepad adentro — siempre visible mientras se gestiona.
-function NotepadRail({ t, value, onSave, summary, title, placeholder }) {
+function NotepadRail({ t, value, onSave, summary, title, placeholder, mentions, onMentionNav }) {
   return (
     <aside style={{
       width: 380, flexShrink: 0,
@@ -445,6 +466,8 @@ function NotepadRail({ t, value, onSave, summary, title, placeholder }) {
         summary={summary}
         title={title}
         placeholder={placeholder}
+        mentions={mentions}
+        onMentionNav={onMentionNav}
         style={{ flex: 1, minHeight: 0 }}
       />
     </aside>
@@ -474,17 +497,66 @@ const tagSpanHtml = (sede, t, fallbackTag) => {
   return `<span class="sede-tag"${sid} style="${style}">${tagText}</span>`;
 };
 
+const NOTEPAD_UPDATED_EVENT = "guanaco-notepad-updated";
+
+// Extrae párrafos del anotador general agrupados por sede_id. Un párrafo es cada hijo
+// directo del editor (div / p / li). Si contiene un .sede-tag con data-sede-id, queda
+// asociado a esa sede. Un mismo párrafo con varias sedes aparece en cada una.
+function extractGeneralNotepadMentions(html) {
+  if (!html || typeof window === "undefined" || !window.DOMParser) return {};
+  let doc;
+  try { doc = new DOMParser().parseFromString(`<div id="r">${html}</div>`, "text/html"); }
+  catch { return {}; }
+  const root = doc.getElementById("r");
+  if (!root) return {};
+  const out = {};
+  const walk = (container) => {
+    for (const node of Array.from(container.children)) {
+      if (node.tagName === "UL" || node.tagName === "OL") { walk(node); continue; }
+      const tags = node.querySelectorAll(".sede-tag[data-sede-id]");
+      if (!tags.length) continue;
+      const seen = new Set();
+      for (const tag of tags) {
+        const sid = tag.getAttribute("data-sede-id");
+        if (!sid || seen.has(sid)) continue;
+        seen.add(sid);
+        if (!out[sid]) out[sid] = [];
+        out[sid].push(node.outerHTML);
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
+
+function useGeneralNotepadMentions(sedeId) {
+  const [mentions, setMentions] = useState([]);
+  useEffect(() => {
+    const recompute = () => {
+      if (!sedeId) { setMentions([]); return; }
+      try {
+        const html = localStorage.getItem(NOTEPAD_STORAGE_KEY) || "";
+        const grouped = extractGeneralNotepadMentions(html);
+        setMentions(grouped[sedeId] || []);
+      } catch { setMentions([]); }
+    };
+    recompute();
+    const onStorage = (e) => { if (!e || e.key === NOTEPAD_STORAGE_KEY) recompute(); };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(NOTEPAD_UPDATED_EVENT, recompute);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(NOTEPAD_UPDATED_EVENT, recompute);
+    };
+  }, [sedeId]);
+  return mentions;
+}
+
 function RichNotepadRail({ t, onNav }) {
   const { sedes } = useData();
   const editorRef = useRef(null);
   const saveTimerRef = useRef(null);
   const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving"
-  const [isEmpty, setIsEmpty] = useState(() => {
-    try {
-      const saved = localStorage.getItem(NOTEPAD_STORAGE_KEY) || "";
-      return saved.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() === "";
-    } catch { return true; }
-  });
 
   useEffect(() => {
     try { document.execCommand("defaultParagraphSeparator", false, "div"); } catch { /* ignore */ }
@@ -501,6 +573,7 @@ function RichNotepadRail({ t, onNav }) {
       setSaveState("saving");
       try {
         localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current?.innerHTML || "");
+        window.dispatchEvent(new Event(NOTEPAD_UPDATED_EVENT));
         setSaveState("saved");
       } catch {
         setSaveState("dirty");
@@ -509,7 +582,6 @@ function RichNotepadRail({ t, onNav }) {
   };
 
   const onInput = () => {
-    setIsEmpty((editorRef.current?.innerText || "").trim() === "");
     scheduleSave();
   };
 
@@ -732,11 +804,6 @@ function RichNotepadRail({ t, onNav }) {
 
         {/* Editor */}
         <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
-          {isEmpty && (
-            <div style={{ position: "absolute", top: 18, left: 22, right: 22, color: t.dim, fontSize: 14, lineHeight: 1.65, pointerEvents: "none", userSelect: "none" }}>
-              Escribí lo que quieras. Usá <span style={{ color: t.accent, fontWeight: 700 }}>#NombreSede</span> para enlazar comentarios con una sede.
-            </div>
-          )}
           <div
             ref={editorRef}
             contentEditable
@@ -764,11 +831,7 @@ function RichNotepadRail({ t, onNav }) {
 
         {/* Footer: chips de sedes para insertar tags */}
         {sedes.length > 0 && (
-          <div style={{ position: "relative", padding: "10px 14px 12px", borderTop: "1px solid " + t.border, background: t.hover + "40" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <Hash size={11} color={t.dim} strokeWidth={2.6} />
-              <span style={{ fontSize: 10, color: t.dim, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }}>Tags de sede · click para insertar · shift+click en un tag abre la sede</span>
-            </div>
+          <div style={{ position: "relative", padding: "8px 14px 10px", borderTop: "1px solid " + t.border, background: t.hover + "40" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {sedes.map(s => {
                 const c = s.color || t.accent;
@@ -1184,6 +1247,7 @@ function SedeDetail({ sedeId, t, onNav }) {
   const fileRef = useRef(null);
   const [uploadTarget, setUploadTarget] = useState(null);
   const [expandedProjects, setExpandedProjects] = useState({});
+  const generalMentions = useGeneralNotepadMentions(sedeId);
 
   if (!sede) return <div style={{ padding: 40, textAlign: "center", color: t.dim }}>Sede no encontrada</div>;
 
@@ -1538,6 +1602,8 @@ function SedeDetail({ sedeId, t, onNav }) {
         onSave={saveSedeNotes}
         title={"Anotador — " + sede.name}
         placeholder="Notas, ideas, recordatorios sobre esta sede…"
+        mentions={generalMentions}
+        onMentionNav={() => onNav && onNav("dashboard")}
         summary={[
           { label: "Proyectos", value: sedeProjects.length, icon: FolderKanban, color: t.accent },
           { label: "Tareas pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
