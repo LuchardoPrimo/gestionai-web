@@ -8,7 +8,7 @@ import {
   Eye, Download, MoreHorizontal, CheckCircle2, Circle, Loader,
   BookOpen, Monitor, Video, DollarSign, TrendingUp, PieChart,
   ChevronLeft, Sparkles, Sun, Moon, LogOut,
-  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity, List
+  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity, List, Hash
 } from "lucide-react";
 
 // ─── Theme: dark futurista — neón violeta/cyan, paleta coherente con 5 estados ───
@@ -451,11 +451,31 @@ function NotepadRail({ t, value, onSave, summary, title, placeholder }) {
   );
 }
 
-// Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + autosave en localStorage.
+// Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + tags #sede + autosave en localStorage.
 // Usa contentEditable + document.execCommand. Pensado para el panel derecho del Dashboard.
 const NOTEPAD_STORAGE_KEY = "guanaco_notepad_html";
 
-function RichNotepadRail({ t }) {
+const normalizeTagName = (s) => (s || "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[̀-ͯ]/g, "")
+  .replace(/[^a-z0-9]/g, "");
+
+const sedeToTagText = (name) => "#" + (name || "")
+  .normalize("NFD")
+  .replace(/[̀-ͯ]/g, "")
+  .replace(/\s+/g, "");
+
+const tagSpanHtml = (sede, t, fallbackTag) => {
+  const color = sede?.color || t.accent;
+  const tagText = sede ? sedeToTagText(sede.name) : "#" + fallbackTag;
+  const sid = sede ? ` data-sede-id="${sede.id}"` : "";
+  const style = `background:${color}22;color:${color};padding:1px 8px;border-radius:999px;font-weight:700;font-size:0.92em;border:1px solid ${color}55;white-space:nowrap`;
+  return `<span class="sede-tag"${sid} style="${style}">${tagText}</span>`;
+};
+
+function RichNotepadRail({ t, onNav }) {
+  const { sedes } = useData();
   const editorRef = useRef(null);
   const saveTimerRef = useRef(null);
   const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving"
@@ -509,9 +529,64 @@ function RichNotepadRail({ t }) {
     return false;
   };
 
+  const isInsideClass = (node, cls) => {
+    let n = node;
+    while (n && n !== editorRef.current) {
+      if (n.nodeType === 1 && n.classList && n.classList.contains(cls)) return true;
+      n = n.parentNode;
+    }
+    return false;
+  };
+
+  const findSedeByTag = (raw) => {
+    const target = normalizeTagName(raw);
+    if (!target) return null;
+    return sedes.find(s => normalizeTagName(s.name) === target)
+        || sedes.find(s => normalizeTagName(s.name).startsWith(target))
+        || null;
+  };
+
+  // Insertar el span del hashtag y un espacio después; mover el cursor luego del espacio.
+  const wrapHashtagAtCaret = () => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    const range = sel.getRangeAt(0);
+    if (!range.collapsed) return false;
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return false;
+    if (isInsideClass(node, "sede-tag")) return false;
+    const offset = range.startOffset;
+    const before = node.textContent.slice(0, offset);
+    const m = before.match(/(^|[\s\u00A0])(#[\w\u00C0-\u017F]+)$/);
+    if (!m) return false;
+    const tagText = m[2];
+    const tagName = tagText.slice(1);
+    const sede = findSedeByTag(tagName);
+    const beforeText = node.textContent.slice(0, offset - tagText.length);
+    const afterText = node.textContent.slice(offset);
+    const parent = node.parentNode;
+    const tpl = document.createElement("template");
+    tpl.innerHTML = tagSpanHtml(sede, t, tagName);
+    const span = tpl.content.firstChild;
+    const beforeNode = document.createTextNode(beforeText);
+    const afterNode = document.createTextNode(" " + afterText);
+    parent.insertBefore(beforeNode, node);
+    parent.insertBefore(span, node);
+    parent.insertBefore(afterNode, node);
+    parent.removeChild(node);
+    const newRange = document.createRange();
+    newRange.setStart(afterNode, 1);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    return true;
+  };
+
   const onKeyDown = (e) => {
-    // Enter robusto: forzar nuevo párrafo (a menos que estemos dentro de una lista, donde el default ya hace lo correcto)
+    // Enter: forzar nuevo párrafo (excepto dentro de listas)
     if (e.key === "Enter" && !e.shiftKey) {
+      // primero intentar cerrar un hashtag pendiente con un espacio implícito
+      wrapHashtagAtCaret();
       const sel = window.getSelection();
       const node = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
       if (!node || !isInsideTag(node, "LI")) {
@@ -521,8 +596,15 @@ function RichNotepadRail({ t }) {
       }
       return;
     }
-    // "* " al inicio de una línea/bloque → convertir a lista con viñetas
+    // Espacio: detectar #tag y "* " al inicio
     if (e.key === " " || e.code === "Space") {
+      // 1) hashtag → chip
+      if (wrapHashtagAtCaret()) {
+        e.preventDefault();
+        onInput();
+        return;
+      }
+      // 2) "* " al inicio → lista
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount) return;
       const range = sel.getRangeAt(0);
@@ -532,7 +614,6 @@ function RichNotepadRail({ t }) {
       if (isInsideTag(node, "LI")) return;
       const before = node.textContent.slice(0, range.startOffset);
       if (before !== "*") return;
-      // verificar que no haya texto antes del nodo en el mismo bloque
       let prev = node.previousSibling;
       while (prev) {
         if ((prev.textContent || "").trim() !== "") return;
@@ -550,17 +631,39 @@ function RichNotepadRail({ t }) {
     }
   };
 
+  // Click en un chip de tag dentro del editor (con shift) → navega a la sede
+  const onEditorClick = (e) => {
+    if (!e.shiftKey) return;
+    let n = e.target;
+    while (n && n !== editorRef.current) {
+      if (n.nodeType === 1 && n.classList && n.classList.contains("sede-tag")) {
+        const sid = n.getAttribute("data-sede-id");
+        if (sid && onNav) { e.preventDefault(); onNav("sede:" + sid); }
+        return;
+      }
+      n = n.parentNode;
+    }
+  };
+
+  // Insertar tag desde el footer
+  const insertSedeTag = (sede) => {
+    editorRef.current?.focus();
+    const html = tagSpanHtml(sede, t) + "&nbsp;";
+    document.execCommand("insertHTML", false, html);
+    onInput();
+  };
+
   const stateLabel = saveState === "saving" ? "Guardando…" : saveState === "saved" ? "Guardado automáticamente" : "Cambios sin guardar";
   const stateColor = saveState === "saving" ? t.accent : saveState === "saved" ? t.green : t.muted;
 
   const tbStyle = {
-    background: t.card, border: "1px solid " + t.border, borderRadius: 8,
+    background: "transparent", border: "1px solid transparent", borderRadius: 8,
     cursor: "pointer", color: t.text, fontWeight: 700,
     display: "inline-flex", alignItems: "center", justifyContent: "center",
-    width: 32, height: 30, padding: 0,
+    width: 32, height: 30, padding: 0, transition: "background 120ms, border-color 120ms",
   };
   const stopFocus = (e) => e.preventDefault();
-  const dividerEl = <div style={{ width: 1, height: 20, background: t.border, margin: "0 2px", alignSelf: "center" }} />;
+  const dividerEl = <div style={{ width: 1, height: 18, background: t.border, margin: "0 4px", alignSelf: "center" }} />;
 
   return (
     <aside style={{
@@ -571,49 +674,67 @@ function RichNotepadRail({ t }) {
       padding: 16, height: "100%",
     }}>
       <Crd t={t} style={{ padding: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 0% 0%, " + t.accentBg + ", transparent 50%)", pointerEvents: "none", opacity: 0.7 }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 0% 0%, " + t.accentBg + ", transparent 55%)", pointerEvents: "none", opacity: 0.85 }} />
 
-        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid " + t.border }}>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px " + t.accentGlow }}>
-            <StickyNote size={15} color="#fff" strokeWidth={2.4} />
+        {/* Header */}
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid " + t.border }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 18px " + t.accentGlow }}>
+            <StickyNote size={18} color="#fff" strokeWidth={2.4} />
           </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>Anotador general</div>
-            <div style={{ fontSize: 10, color: stateColor, fontWeight: 600, letterSpacing: 0.3 }}>{stateLabel}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: -0.4 }}>Anotador general</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: stateColor, boxShadow: saveState === "saving" ? "0 0 6px " + stateColor : "none" }} />
+              <span style={{ fontSize: 11, color: stateColor, fontWeight: 600, letterSpacing: 0.2 }}>{stateLabel}</span>
+            </div>
           </div>
         </div>
 
-        <div style={{ position: "relative", display: "flex", flexWrap: "wrap", gap: 5, padding: "10px 12px", borderBottom: "1px solid " + t.border, background: t.hover + "60" }}>
-          <button type="button" title="Negrita" onMouseDown={stopFocus} onClick={() => exec("bold")} style={tbStyle}>
+        {/* Toolbar */}
+        <div style={{ position: "relative", display: "flex", flexWrap: "wrap", gap: 3, padding: "10px 14px", borderBottom: "1px solid " + t.border, background: t.hover + "55" }}>
+          <button type="button" title="Negrita" onMouseDown={stopFocus} onClick={() => exec("bold")} style={tbStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
             <span style={{ fontWeight: 900, fontSize: 14, color: t.text }}>N</span>
           </button>
-          <button type="button" title="Itálica" onMouseDown={stopFocus} onClick={() => exec("italic")} style={tbStyle}>
+          <button type="button" title="Itálica" onMouseDown={stopFocus} onClick={() => exec("italic")} style={tbStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
             <span style={{ fontStyle: "italic", fontWeight: 700, fontSize: 14, color: t.text, fontFamily: "Georgia, serif" }}>I</span>
           </button>
           {dividerEl}
-          <button type="button" title="Resaltar amarillo" aria-label="Resaltar amarillo" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#FFF176", true)} style={{ ...tbStyle, background: "#FFF176", borderColor: t.borderStrong }} />
-          <button type="button" title="Resaltar verde" aria-label="Resaltar verde" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#A5D6A7", true)} style={{ ...tbStyle, background: "#A5D6A7", borderColor: t.borderStrong }} />
-          <button type="button" title="Resaltar rojo" aria-label="Resaltar rojo" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#FF8A80", true)} style={{ ...tbStyle, background: "#FF8A80", borderColor: t.borderStrong }} />
+          <button type="button" title="Resaltar amarillo" aria-label="Resaltar amarillo" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#FFF176", true)} style={{ ...tbStyle, background: "#FFF176", borderColor: "transparent", boxShadow: "inset 0 0 0 1px " + t.borderStrong + "60" }} />
+          <button type="button" title="Resaltar verde" aria-label="Resaltar verde" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#A5D6A7", true)} style={{ ...tbStyle, background: "#A5D6A7", borderColor: "transparent", boxShadow: "inset 0 0 0 1px " + t.borderStrong + "60" }} />
+          <button type="button" title="Resaltar rojo" aria-label="Resaltar rojo" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#FF8A80", true)} style={{ ...tbStyle, background: "#FF8A80", borderColor: "transparent", boxShadow: "inset 0 0 0 1px " + t.borderStrong + "60" }} />
           {dividerEl}
-          <button type="button" title="Texto chico" onMouseDown={stopFocus} onClick={() => exec("fontSize", "2", true)} style={tbStyle}>
+          <button type="button" title="Texto chico" onMouseDown={stopFocus} onClick={() => exec("fontSize", "2", true)} style={tbStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: t.text }}>A</span>
           </button>
-          <button type="button" title="Texto normal" onMouseDown={stopFocus} onClick={() => exec("fontSize", "3", true)} style={tbStyle}>
+          <button type="button" title="Texto normal" onMouseDown={stopFocus} onClick={() => exec("fontSize", "3", true)} style={tbStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: t.text }}>A</span>
           </button>
-          <button type="button" title="Texto grande" onMouseDown={stopFocus} onClick={() => exec("fontSize", "5", true)} style={tbStyle}>
+          <button type="button" title="Texto grande" onMouseDown={stopFocus} onClick={() => exec("fontSize", "5", true)} style={tbStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
             <span style={{ fontSize: 16, fontWeight: 800, color: t.text }}>A</span>
           </button>
           {dividerEl}
-          <button type="button" title="Lista con viñetas" onMouseDown={stopFocus} onClick={() => exec("insertUnorderedList")} style={tbStyle}>
+          <button type="button" title="Lista con viñetas" onMouseDown={stopFocus} onClick={() => exec("insertUnorderedList")} style={tbStyle}
+            onMouseEnter={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
             <List size={15} color={t.text} strokeWidth={2.4} />
           </button>
         </div>
 
+        {/* Editor */}
         <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
           {isEmpty && (
-            <div style={{ position: "absolute", top: 14, left: 18, right: 18, color: t.dim, fontSize: 13, lineHeight: 1.65, pointerEvents: "none", userSelect: "none" }}>
-              Escribí lo que quieras… resumen del día, prioridades, ideas, recordatorios.
+            <div style={{ position: "absolute", top: 18, left: 22, right: 22, color: t.dim, fontSize: 14, lineHeight: 1.65, pointerEvents: "none", userSelect: "none" }}>
+              Escribí lo que quieras. Usá <span style={{ color: t.accent, fontWeight: 700 }}>#NombreSede</span> para enlazar comentarios con una sede.
             </div>
           )}
           <div
@@ -623,15 +744,16 @@ function RichNotepadRail({ t }) {
             onInput={onInput}
             onBlur={onInput}
             onKeyDown={onKeyDown}
+            onClick={onEditorClick}
             spellCheck
             style={{
               position: "relative",
               height: "100%",
               overflowY: "auto",
-              padding: "14px 18px",
+              padding: "18px 22px",
               color: t.text,
-              fontSize: 13,
-              lineHeight: 1.65,
+              fontSize: 14,
+              lineHeight: 1.7,
               outline: "none",
               fontFamily: "inherit",
               background: "transparent",
@@ -639,6 +761,38 @@ function RichNotepadRail({ t }) {
             }}
           />
         </div>
+
+        {/* Footer: chips de sedes para insertar tags */}
+        {sedes.length > 0 && (
+          <div style={{ position: "relative", padding: "10px 14px 12px", borderTop: "1px solid " + t.border, background: t.hover + "40" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Hash size={11} color={t.dim} strokeWidth={2.6} />
+              <span style={{ fontSize: 10, color: t.dim, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }}>Tags de sede · click para insertar · shift+click en un tag abre la sede</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {sedes.map(s => {
+                const c = s.color || t.accent;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onMouseDown={stopFocus}
+                    onClick={() => insertSedeTag(s)}
+                    title={"Insertar " + sedeToTagText(s.name)}
+                    style={{
+                      padding: "3px 9px", borderRadius: 999,
+                      background: c + "1A", color: c,
+                      border: "1px solid " + c + "55",
+                      fontSize: 11, fontWeight: 700, cursor: "pointer",
+                      display: "inline-flex", alignItems: "center", gap: 3,
+                    }}>
+                    {sedeToTagText(s.name)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </Crd>
     </aside>
   );
@@ -846,22 +1000,22 @@ function Dashboard({ t, onNav }) {
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 56px)" }}>
-      <div style={{ flex: 1, padding: "32px 32px 40px", overflowY: "auto", minWidth: 0 }}>
+      <div style={{ flex: 1, padding: "20px 24px 28px", overflowY: "auto", minWidth: 0 }}>
       {/* Hero header */}
-      <div style={{ position: "relative", marginBottom: 28, padding: "8px 0" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Vista general</div>
-            <div style={{ fontSize: 30, fontWeight: 800, color: t.text, letterSpacing: -0.8, lineHeight: 1.15 }}>
+            <div style={{ fontSize: 11, color: t.accent, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 4 }}>Vista general</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: -0.6, lineHeight: 1.15 }}>
               Buen día — {sedes.length} sede{sedes.length !== 1 ? "s" : ""} en gestión
             </div>
-            <div style={{ fontSize: 13, color: t.muted, marginTop: 6, textTransform: "capitalize" }}>{today}</div>
+            <div style={{ fontSize: 12, color: t.muted, marginTop: 3, textTransform: "capitalize" }}>{today}</div>
           </div>
           {overdueTasks.length > 0 && (
-            <div onClick={() => onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, background: t.redBg, border: "1px solid " + t.red + "40", cursor: "pointer", boxShadow: "0 4px 14px " + t.red + "30" }}>
-              <AlertCircle size={15} color={t.red} />
+            <div onClick={() => onNav("tasks")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: t.redBg, border: "1px solid " + t.red + "40", cursor: "pointer", boxShadow: "0 4px 14px " + t.red + "30" }}>
+              <AlertCircle size={14} color={t.red} />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: t.red, lineHeight: 1.1 }}>{overdueTasks.length} tarea{overdueTasks.length > 1 ? "s" : ""} vencida{overdueTasks.length > 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.red, lineHeight: 1.1 }}>{overdueTasks.length} tarea{overdueTasks.length > 1 ? "s" : ""} vencida{overdueTasks.length > 1 ? "s" : ""}</div>
                 <div style={{ fontSize: 10, color: t.red, opacity: 0.8 }}>Click para revisar</div>
               </div>
             </div>
@@ -870,42 +1024,36 @@ function Dashboard({ t, onNav }) {
       </div>
 
       {/* KPI Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12, marginBottom: 18 }}>
         {[
           { label: "Proyectos activos", val: activeProjects.length, sub: projects.length + " totales", icon: FolderKanban, color: t.accent, nav: "projects" },
           { label: "Tareas pendientes", val: pendingTasks.length, sub: doneTasks.length + " completadas", icon: CheckSquare, color: t.orange, nav: "tasks" },
           { label: "Tareas vencidas", val: overdueTasks.length, sub: overdueTasks.length > 0 ? "Requieren atención" : "Todo al día", icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green, nav: "tasks" },
           { label: "Sedes", val: sedes.length, sub: "En gestión", icon: Building2, color: t.green, nav: "settings" },
         ].map((k, i) => (
-          <Crd key={i} t={t} onClick={() => onNav(k.nav)} style={{ padding: 20, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, borderRadius: "50%", background: k.color + "12", filter: "blur(28px)" }} />
+          <Crd key={i} t={t} onClick={() => onNav(k.nav)} style={{ padding: 14, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -26, right: -26, width: 80, height: 80, borderRadius: "50%", background: k.color + "12", filter: "blur(24px)" }} />
             <div style={{ position: "relative" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: t.muted, letterSpacing: 0.3 }}>{k.label}</span>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: k.color + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <k.icon size={14} color={k.color} strokeWidth={2.4} />
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: k.color + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <k.icon size={13} color={k.color} strokeWidth={2.4} />
                 </div>
               </div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: t.text, letterSpacing: -1, lineHeight: 1 }}>{k.val}</div>
-              {k.sub && <div style={{ fontSize: 11, color: t.dim, marginTop: 6, fontWeight: 500 }}>{k.sub}</div>}
+              <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: -0.8, lineHeight: 1 }}>{k.val}</div>
+              {k.sub && <div style={{ fontSize: 11, color: t.dim, marginTop: 4, fontWeight: 500 }}>{k.sub}</div>}
             </div>
           </Crd>
         ))}
       </div>
 
       {/* Sedes Grid */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Tus sedes</div>
-          <div style={{ fontSize: 12, color: t.dim, marginTop: 2 }}>Click para ver el detalle de cada una</div>
-        </div>
-      </div>
       {sedes.length === 0 ? (
-        <Crd t={t} style={{ padding: 20, marginBottom: 28 }}>
+        <Crd t={t} style={{ padding: 20, marginBottom: 18 }}>
           <EmptyState icon={Building2} title="Sin sedes todavía" sub="Agregá tu primera sede para empezar a gestionar proyectos" t={t} action="Agregar sede" onAction={() => onNav("settings")} />
         </Crd>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: sedes.length >= 3 ? "repeat(3,1fr)" : "repeat(" + Math.max(sedes.length, 1) + ",1fr)", gap: 14, marginBottom: 28 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 18 }}>
           {sedes.map(s => {
             const sedeProjects = projects.filter(p => p.sede_id === s.id);
             const sedeTasks = tasks.filter(tk => tk.sede_id === s.id || sedeProjects.some(p => p.id === tk.project_id));
@@ -915,51 +1063,48 @@ function Dashboard({ t, onNav }) {
             const spent = sedeProjects.reduce((sum, p) => sum + (p.cost_spent || 0), 0);
             const sedeColor = s.color || t.accent;
             return (
-              <Crd key={s.id} t={t} onClick={() => onNav("sede:" + s.id)} style={{ padding: 22, position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "linear-gradient(180deg, " + sedeColor + ", " + sedeColor + "60)", boxShadow: "0 0 14px " + sedeColor + "60" }} />
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: sedeColor + "20", border: "1px solid " + sedeColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{s.icon || "🏢"}</div>
+              <Crd key={s.id} t={t} onClick={() => onNav("sede:" + s.id)} style={{ padding: 14, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "linear-gradient(180deg, " + sedeColor + ", " + sedeColor + "60)", boxShadow: "0 0 12px " + sedeColor + "60" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: sedeColor + "20", border: "1px solid " + sedeColor + "30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon || "🏢"}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
                     {s.address && <div style={{ fontSize: 11, color: t.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.address}</div>}
                   </div>
-                  <ArrowUpRight size={16} color={t.dim} />
+                  <ArrowUpRight size={14} color={t.dim} />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div style={{ padding: "10px 12px", borderRadius: 10, background: t.hover }}>
-                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Proyectos</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: t.text, lineHeight: 1 }}>{sedeProjects.length}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: budget > 0 || sedeProjects.length > 0 ? 10 : 0 }}>
+                  <div style={{ padding: "7px 9px", borderRadius: 8, background: t.hover }}>
+                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 2 }}>Proyectos</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.text, lineHeight: 1 }}>{sedeProjects.length}</div>
                   </div>
-                  <div style={{ padding: "10px 12px", borderRadius: 10, background: sedePending.length > 0 ? t.orangeBg : t.hover }}>
-                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Pendientes</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: sedePending.length > 0 ? t.orange : t.text, lineHeight: 1 }}>{sedePending.length}</div>
+                  <div style={{ padding: "7px 9px", borderRadius: 8, background: sedePending.length > 0 ? t.orangeBg : t.hover }}>
+                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 2 }}>Pendientes</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: sedePending.length > 0 ? t.orange : t.text, lineHeight: 1 }}>{sedePending.length}</div>
                   </div>
-                  <div style={{ padding: "10px 12px", borderRadius: 10, background: sedeOverdue.length > 0 ? t.redBg : t.greenBg }}>
-                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Vencidas</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: sedeOverdue.length > 0 ? t.red : t.green, lineHeight: 1 }}>{sedeOverdue.length}</div>
+                  <div style={{ padding: "7px 9px", borderRadius: 8, background: sedeOverdue.length > 0 ? t.redBg : t.greenBg }}>
+                    <div style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 2 }}>Vencidas</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: sedeOverdue.length > 0 ? t.red : t.green, lineHeight: 1 }}>{sedeOverdue.length}</div>
                   </div>
                 </div>
 
                 {budget > 0 && (
-                  <div style={{ padding: "10px 12px", borderRadius: 10, background: t.hover, marginBottom: sedeProjects.length > 0 ? 12 : 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
-                      <span style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Presupuesto</span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: pct(spent, budget) > 90 ? t.red : pct(spent, budget) > 70 ? t.orange : t.green }}>{pct(spent, budget)}%</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: t.muted, fontWeight: 500 }}>{fmt(spent)} <span style={{ color: t.dim }}>de</span> {fmt(budget)}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 9px", borderRadius: 8, background: t.hover, marginBottom: sedeProjects.length > 0 ? 8 : 0, gap: 8 }}>
+                    <span style={{ fontSize: 11, color: t.muted, fontWeight: 500 }}>{fmt(spent)} <span style={{ color: t.dim }}>de</span> {fmt(budget)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: pct(spent, budget) > 90 ? t.red : pct(spent, budget) > 70 ? t.orange : t.green }}>{pct(spent, budget)}%</span>
                   </div>
                 )}
 
                 {sedeProjects.length > 0 && (
-                  <div style={{ borderTop: "1px solid " + t.border, paddingTop: 10 }}>
-                    {sedeProjects.slice(0, 3).map(p => (
-                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", gap: 8 }}>
+                  <div style={{ borderTop: "1px solid " + t.border, paddingTop: 6 }}>
+                    {sedeProjects.slice(0, 2).map(p => (
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0", gap: 8 }}>
                         <span style={{ fontSize: 12, color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</span>
                         <StatusBadge s={p.status} t={t} />
                       </div>
                     ))}
-                    {sedeProjects.length > 3 && <div style={{ fontSize: 11, color: t.accent, marginTop: 4, fontWeight: 600 }}>+{sedeProjects.length - 3} más →</div>}
+                    {sedeProjects.length > 2 && <div style={{ fontSize: 11, color: t.accent, marginTop: 2, fontWeight: 600 }}>+{sedeProjects.length - 2} más →</div>}
                   </div>
                 )}
               </Crd>
@@ -969,48 +1114,48 @@ function Dashboard({ t, onNav }) {
       )}
 
       {/* Tasks + Projects */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr", gap: 16 }}>
-        <Crd t={t} style={{ padding: 22 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Crd t={t} style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Próximas tareas</div>
-              <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>Vencidas y de los próximos 7 días</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>Próximas tareas</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>Vencidas y próximos 7 días</div>
             </div>
-            <span onClick={() => onNav("tasks")} style={{ fontSize: 12, color: t.accent, cursor: "pointer", fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: t.accentBg }}>Ver todas →</span>
+            <span onClick={() => onNav("tasks")} style={{ fontSize: 11, color: t.accent, cursor: "pointer", fontWeight: 600, padding: "3px 9px", borderRadius: 6, background: t.accentBg }}>Ver todas →</span>
           </div>
           {[...overdueTasks, ...dueSoon].length === 0 ? (
-            <div style={{ padding: 28, textAlign: "center" }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: t.greenBg, border: "1px solid " + t.green + "40", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CheckCircle2 size={24} color={t.green} />
+            <div style={{ padding: 18, textAlign: "center" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: t.greenBg, border: "1px solid " + t.green + "40", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                <CheckCircle2 size={20} color={t.green} />
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: t.green }}>Todo al día</div>
-              <div style={{ fontSize: 12, color: t.dim, marginTop: 2 }}>No hay tareas urgentes</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.green }}>Todo al día</div>
+              <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>No hay tareas urgentes</div>
             </div>
           ) : [...overdueTasks, ...dueSoon].slice(0, 8).map(tk => {
             const isOverdue = tk.due && new Date(tk.due) < new Date(todayStr);
             return (
-              <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, marginBottom: 4, borderLeft: "3px solid " + (isOverdue ? t.red : t.accent), background: isOverdue ? t.redBg : t.hover }}>
+              <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, marginBottom: 3, borderLeft: "3px solid " + (isOverdue ? t.red : t.accent), background: isOverdue ? t.redBg : t.hover }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: t.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.title}</div>
-                  <div style={{ fontSize: 11, color: t.dim, marginTop: 1 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
+                  <div style={{ fontSize: 12, color: t.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.title}</div>
+                  <div style={{ fontSize: 10, color: t.dim, marginTop: 1 }}>{tk.project}{tk.sede ? " · " + tk.sede : ""}</div>
                 </div>
-                {tk.due && <span style={{ fontSize: 11, fontWeight: 700, color: isOverdue ? t.red : t.muted, padding: "3px 8px", borderRadius: 6, background: isOverdue ? t.red + "20" : t.card }}>{isOverdue ? "Vencida" : fmtDate(tk.due)}</span>}
+                {tk.due && <span style={{ fontSize: 10, fontWeight: 700, color: isOverdue ? t.red : t.muted, padding: "2px 7px", borderRadius: 6, background: isOverdue ? t.red + "20" : t.card }}>{isOverdue ? "Vencida" : fmtDate(tk.due)}</span>}
               </div>
             );
           })}
         </Crd>
 
-        <Crd t={t} style={{ padding: 22 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Proyectos activos</div>
-            <span onClick={() => onNav("projects")} style={{ fontSize: 12, color: t.accent, cursor: "pointer", fontWeight: 600 }}>→</span>
+        <Crd t={t} style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>Proyectos activos</div>
+            <span onClick={() => onNav("projects")} style={{ fontSize: 11, color: t.accent, cursor: "pointer", fontWeight: 600, padding: "3px 9px", borderRadius: 6, background: t.accentBg }}>Ver todos →</span>
           </div>
           {activeProjects.length === 0 ? (
-            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 18 }}>Sin proyectos activos</div>
-          ) : activeProjects.slice(0, 6).map(p => (
-            <div key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid " + t.border }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</span>
+            <div style={{ fontSize: 12, color: t.dim, textAlign: "center", padding: 14 }}>Sin proyectos activos</div>
+          ) : activeProjects.slice(0, 8).map(p => (
+            <div key={p.id} style={{ padding: "7px 0", borderBottom: "1px solid " + t.border }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2, gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</span>
                 <StatusBadge s={p.status} t={t} />
               </div>
               <div style={{ fontSize: 10, color: t.dim }}>{p.sede?.name || "Sin sede"}{p.deadline ? " · " + fmtDate(p.deadline) : ""}</div>
@@ -1019,7 +1164,7 @@ function Dashboard({ t, onNav }) {
         </Crd>
       </div>
       </div>
-      <RichNotepadRail t={t} />
+      <RichNotepadRail t={t} onNav={onNav} />
     </div>
   );
 }
