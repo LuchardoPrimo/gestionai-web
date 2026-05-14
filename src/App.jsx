@@ -8,7 +8,7 @@ import {
   Eye, Download, MoreHorizontal, CheckCircle2, Circle, Loader,
   BookOpen, Monitor, Video, DollarSign, TrendingUp, PieChart,
   ChevronLeft, Sparkles, Sun, Moon, LogOut,
-  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity
+  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity, List
 } from "lucide-react";
 
 // ─── Theme: dark futurista — neón violeta/cyan, paleta coherente con 5 estados ───
@@ -106,22 +106,16 @@ function DataProvider({ children, userId }) {
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [reports, setReports] = useState([]);
-  const [dashboardNotes, setDashboardNotes] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!userId) return;
     setLoading(true);
-    // Get company_id + dashboard_notes from user_profiles
     let cId = companyId;
     if (!cId) {
-      const { data: profile } = await supabase.from("user_profiles").select("company_id, dashboard_notes").eq("id", userId).single();
+      const { data: profile } = await supabase.from("user_profiles").select("company_id").eq("id", userId).single();
       cId = profile?.company_id || null;
       setCompanyId(cId);
-      setDashboardNotes(profile?.dashboard_notes || "");
-    } else {
-      const { data: profile } = await supabase.from("user_profiles").select("dashboard_notes").eq("id", userId).single();
-      setDashboardNotes(profile?.dashboard_notes || "");
     }
     if (!cId) { setLoading(false); return; }
 
@@ -161,7 +155,7 @@ function DataProvider({ children, userId }) {
   useEffect(() => { load(); }, [userId]);
 
   return (
-    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, dashboardNotes, setDashboardNotes, loading, reload: load, userId, companyId }}>
+    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId }}>
       {children}
     </DataCtx.Provider>
   );
@@ -457,6 +451,147 @@ function NotepadRail({ t, value, onSave, summary, title, placeholder }) {
   );
 }
 
+// Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + autosave en localStorage.
+// Usa contentEditable + document.execCommand. Pensado para el panel derecho del Dashboard.
+const NOTEPAD_STORAGE_KEY = "guanaco_notepad_html";
+
+function RichNotepadRail({ t }) {
+  const editorRef = useRef(null);
+  const saveTimerRef = useRef(null);
+  const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving"
+  const [isEmpty, setIsEmpty] = useState(() => {
+    try {
+      const saved = localStorage.getItem(NOTEPAD_STORAGE_KEY) || "";
+      return saved.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() === "";
+    } catch { return true; }
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem(NOTEPAD_STORAGE_KEY);
+    if (saved && editorRef.current) {
+      editorRef.current.innerHTML = saved;
+    }
+  }, []);
+
+  const scheduleSave = () => {
+    setSaveState("dirty");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setSaveState("saving");
+      try {
+        localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current?.innerHTML || "");
+        setSaveState("saved");
+      } catch {
+        setSaveState("dirty");
+      }
+    }, 2000);
+  };
+
+  const onInput = () => {
+    setIsEmpty((editorRef.current?.innerText || "").trim() === "");
+    scheduleSave();
+  };
+
+  const exec = (cmd, value = null, useCss = false) => {
+    editorRef.current?.focus();
+    if (useCss) document.execCommand("styleWithCSS", false, true);
+    document.execCommand(cmd, false, value);
+    onInput();
+  };
+
+  const stateLabel = saveState === "saving" ? "Guardando…" : saveState === "saved" ? "Guardado automáticamente" : "Cambios sin guardar";
+  const stateColor = saveState === "saving" ? t.accent : saveState === "saved" ? t.green : t.muted;
+
+  const tbStyle = {
+    background: t.card, border: "1px solid " + t.border, borderRadius: 8,
+    cursor: "pointer", color: t.text, fontWeight: 700,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    width: 32, height: 30, padding: 0,
+  };
+  const stopFocus = (e) => e.preventDefault();
+  const dividerEl = <div style={{ width: 1, height: 20, background: t.border, margin: "0 2px", alignSelf: "center" }} />;
+
+  return (
+    <aside style={{
+      width: 350, flexShrink: 0,
+      borderLeft: "1px solid " + t.border,
+      background: t.bg,
+      display: "flex", flexDirection: "column",
+      padding: 16, height: "100%",
+    }}>
+      <Crd t={t} style={{ padding: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 0% 0%, " + t.accentBg + ", transparent 50%)", pointerEvents: "none", opacity: 0.7 }} />
+
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid " + t.border }}>
+          <div style={{ width: 30, height: 30, borderRadius: 9, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px " + t.accentGlow }}>
+            <StickyNote size={15} color="#fff" strokeWidth={2.4} />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>Anotador general</div>
+            <div style={{ fontSize: 10, color: stateColor, fontWeight: 600, letterSpacing: 0.3 }}>{stateLabel}</div>
+          </div>
+        </div>
+
+        <div style={{ position: "relative", display: "flex", flexWrap: "wrap", gap: 5, padding: "10px 12px", borderBottom: "1px solid " + t.border, background: t.hover + "60" }}>
+          <button type="button" title="Negrita" onMouseDown={stopFocus} onClick={() => exec("bold")} style={tbStyle}>
+            <span style={{ fontWeight: 900, fontSize: 14, color: t.text }}>N</span>
+          </button>
+          <button type="button" title="Itálica" onMouseDown={stopFocus} onClick={() => exec("italic")} style={tbStyle}>
+            <span style={{ fontStyle: "italic", fontWeight: 700, fontSize: 14, color: t.text, fontFamily: "Georgia, serif" }}>I</span>
+          </button>
+          {dividerEl}
+          <button type="button" title="Resaltar amarillo" aria-label="Resaltar amarillo" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#FFF176", true)} style={{ ...tbStyle, background: "#FFF176", borderColor: t.borderStrong }} />
+          <button type="button" title="Resaltar verde" aria-label="Resaltar verde" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#A5D6A7", true)} style={{ ...tbStyle, background: "#A5D6A7", borderColor: t.borderStrong }} />
+          <button type="button" title="Resaltar rojo" aria-label="Resaltar rojo" onMouseDown={stopFocus} onClick={() => exec("hiliteColor", "#FF8A80", true)} style={{ ...tbStyle, background: "#FF8A80", borderColor: t.borderStrong }} />
+          {dividerEl}
+          <button type="button" title="Texto chico" onMouseDown={stopFocus} onClick={() => exec("fontSize", "2", true)} style={tbStyle}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: t.text }}>A</span>
+          </button>
+          <button type="button" title="Texto normal" onMouseDown={stopFocus} onClick={() => exec("fontSize", "3", true)} style={tbStyle}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: t.text }}>A</span>
+          </button>
+          <button type="button" title="Texto grande" onMouseDown={stopFocus} onClick={() => exec("fontSize", "5", true)} style={tbStyle}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: t.text }}>A</span>
+          </button>
+          {dividerEl}
+          <button type="button" title="Lista con viñetas" onMouseDown={stopFocus} onClick={() => exec("insertUnorderedList")} style={tbStyle}>
+            <List size={15} color={t.text} strokeWidth={2.4} />
+          </button>
+        </div>
+
+        <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+          {isEmpty && (
+            <div style={{ position: "absolute", top: 14, left: 18, right: 18, color: t.dim, fontSize: 13, lineHeight: 1.65, pointerEvents: "none", userSelect: "none" }}>
+              Escribí lo que quieras… resumen del día, prioridades, ideas, recordatorios.
+            </div>
+          )}
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={onInput}
+            onBlur={onInput}
+            spellCheck
+            style={{
+              position: "relative",
+              height: "100%",
+              overflowY: "auto",
+              padding: "14px 18px",
+              color: t.text,
+              fontSize: 13,
+              lineHeight: 1.65,
+              outline: "none",
+              fontFamily: "inherit",
+              background: "transparent",
+              wordBreak: "break-word",
+            }}
+          />
+        </div>
+      </Crd>
+    </aside>
+  );
+}
+
 function EmptyState({ icon: Icon, title, sub, t, action, onAction }) {
   return (
     <div style={{ padding: 48, textAlign: "center" }}>
@@ -641,7 +776,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
 
 // ─── DASHBOARD ───
 function Dashboard({ t, onNav }) {
-  const { sedes, projects, tasks, dashboardNotes, setDashboardNotes, userId } = useData();
+  const { sedes, projects, tasks } = useData();
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
   const today = now.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
@@ -650,24 +785,12 @@ function Dashboard({ t, onNav }) {
   const pendingTasks = tasks.filter(tk => tk.st !== "done");
   const doneTasks = tasks.filter(tk => tk.st === "done");
   const activeProjects = projects.filter(p => p.status === "in_progress" || p.status === "active");
-  const doneProjects = projects.filter(p => p.status === "done" || p.status === "completed");
 
   const dueSoon = tasks.filter(tk => {
     if (!tk.due || tk.st === "done") return false;
     const diff = (new Date(tk.due) - now) / (1000*60*60*24);
     return diff >= 0 && diff <= 7;
   }).sort((a, b) => new Date(a.due) - new Date(b.due));
-
-  const saveDashboardNotes = async (notes) => {
-    const { error } = await supabase.from("user_profiles").update({ dashboard_notes: notes }).eq("id", userId);
-    if (error) {
-      if (error.code === "PGRST204" || /column.*dashboard_notes/i.test(error.message || "")) {
-        alert("La columna user_profiles.dashboard_notes no existe. Aplicá migrations/2026-04-28-add-notes.sql");
-      } else alert("Error: " + error.message);
-      return;
-    }
-    setDashboardNotes(notes);
-  };
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 56px)" }}>
@@ -844,21 +967,7 @@ function Dashboard({ t, onNav }) {
         </Crd>
       </div>
       </div>
-      <NotepadRail
-        t={t}
-        value={dashboardNotes}
-        onSave={saveDashboardNotes}
-        title="Anotador general"
-        placeholder="Resumen, prioridades de la semana, ideas, recordatorios…"
-        summary={[
-          { label: "Sedes", value: sedes.length, icon: Building2, color: t.accent },
-          { label: "Proyectos", value: projects.length, icon: FolderKanban, color: t.blue },
-          { label: "En curso", value: activeProjects.length, icon: Activity, color: t.blue },
-          { label: "Listos", value: doneProjects.length, icon: CheckCircle2, color: t.green },
-          { label: "T. pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
-          { label: "Vencidas", value: overdueTasks.length, icon: AlertCircle, color: overdueTasks.length > 0 ? t.red : t.green },
-        ]}
-      />
+      <RichNotepadRail t={t} />
     </div>
   );
 }
