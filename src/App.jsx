@@ -477,6 +477,32 @@ function NotepadRail({ t, value, onSave, summary, title, placeholder, mentions, 
 // Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + tags #sede + autosave en localStorage.
 // Usa contentEditable + document.execCommand. Pensado para el panel derecho del Dashboard.
 const NOTEPAD_STORAGE_KEY = "guanaco_notepad_html";
+const NOTEPAD_BACKUP_KEY = "guanaco_notepad_html.backup";
+
+const htmlHasContent = (html) => {
+  if (!html) return false;
+  // Si tiene tags de sede o cualquier texto visible, se considera "con contenido".
+  if (/<span\s+class="sede-tag"/i.test(html)) return true;
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() !== "";
+};
+
+const saveNotepadHtml = (html) => {
+  try { localStorage.setItem(NOTEPAD_STORAGE_KEY, html || ""); } catch { /* ignore */ }
+  // Backup solo si hay contenido real — así un wipe accidental no se replica al respaldo.
+  if (htmlHasContent(html)) {
+    try { localStorage.setItem(NOTEPAD_BACKUP_KEY, html); } catch { /* ignore */ }
+  }
+};
+
+const loadNotepadHtml = () => {
+  let primary = "";
+  let backup = "";
+  try { primary = localStorage.getItem(NOTEPAD_STORAGE_KEY) || ""; } catch { /* ignore */ }
+  try { backup = localStorage.getItem(NOTEPAD_BACKUP_KEY) || ""; } catch { /* ignore */ }
+  if (htmlHasContent(primary)) return { html: primary, restored: false };
+  if (htmlHasContent(backup)) return { html: backup, restored: true };
+  return { html: "", restored: false };
+};
 
 const normalizeTagName = (s) => (s || "")
   .toLowerCase()
@@ -556,18 +582,23 @@ function RichNotepadRail({ t, onNav }) {
   const { sedes } = useData();
   const editorRef = useRef(null);
   const saveTimerRef = useRef(null);
-  const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving"
+  const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving" | "restored"
 
   useEffect(() => {
     try { document.execCommand("defaultParagraphSeparator", false, "div"); } catch { /* ignore */ }
-    const saved = localStorage.getItem(NOTEPAD_STORAGE_KEY);
-    if (saved && editorRef.current) {
-      editorRef.current.innerHTML = saved;
+    const { html, restored } = loadNotepadHtml();
+    if (html && editorRef.current) {
+      editorRef.current.innerHTML = html;
+      if (restored) {
+        // Persistir inmediatamente lo restaurado al primario y avisar al usuario.
+        try { localStorage.setItem(NOTEPAD_STORAGE_KEY, html); } catch { /* ignore */ }
+        setSaveState("restored");
+      }
     }
     const onBeforeUnload = () => {
       if (saveTimerRef.current && editorRef.current) {
         clearTimeout(saveTimerRef.current);
-        try { localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current.innerHTML || ""); } catch { /* ignore */ }
+        saveNotepadHtml(editorRef.current.innerHTML || "");
       }
     };
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -577,7 +608,7 @@ function RichNotepadRail({ t, onNav }) {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         if (editorRef.current) {
-          try { localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current.innerHTML || ""); } catch { /* ignore */ }
+          saveNotepadHtml(editorRef.current.innerHTML || "");
         }
       }
     };
@@ -591,7 +622,7 @@ function RichNotepadRail({ t, onNav }) {
       if (!editorRef.current) { saveTimerRef.current = null; return; }
       setSaveState("saving");
       try {
-        localStorage.setItem(NOTEPAD_STORAGE_KEY, editorRef.current.innerHTML || "");
+        saveNotepadHtml(editorRef.current.innerHTML || "");
         window.dispatchEvent(new Event(NOTEPAD_UPDATED_EVENT));
         setSaveState("saved");
       } catch {
@@ -744,8 +775,16 @@ function RichNotepadRail({ t, onNav }) {
     onInput();
   };
 
-  const stateLabel = saveState === "saving" ? "Guardando…" : saveState === "saved" ? "Guardado automáticamente" : "Cambios sin guardar";
-  const stateColor = saveState === "saving" ? t.accent : saveState === "saved" ? t.green : t.muted;
+  const stateLabel =
+    saveState === "saving" ? "Guardando…" :
+    saveState === "saved" ? "Guardado automáticamente" :
+    saveState === "restored" ? "Restaurado desde respaldo" :
+    "Cambios sin guardar";
+  const stateColor =
+    saveState === "saving" ? t.accent :
+    saveState === "saved" ? t.green :
+    saveState === "restored" ? t.orange :
+    t.muted;
 
   const tbStyle = {
     background: "transparent", border: "1px solid transparent", borderRadius: 8,
