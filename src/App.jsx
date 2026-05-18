@@ -97,6 +97,9 @@ function GuanacoIcon({ size = 16 }) {
 const DataCtx = createContext({});
 const useData = () => useContext(DataCtx);
 
+const NOTEPAD_REPORT_TYPE = "notepad";
+const NOTEPAD_REPORT_NAME = "Anotador general";
+
 function DataProvider({ children, userId }) {
   const [companyId, setCompanyId] = useState(null);
   const [sedes, setSedes] = useState([]);
@@ -107,6 +110,10 @@ function DataProvider({ children, userId }) {
   const [notifications, setNotifications] = useState([]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notepadHtml, setNotepadHtml] = useState("");
+  const [notepadLoaded, setNotepadLoaded] = useState(false);
+  const notepadReportIdRef = useRef(null);
+  const notepadQueueRef = useRef(Promise.resolve());
 
   const load = async () => {
     if (!userId) return;
@@ -119,7 +126,7 @@ function DataProvider({ children, userId }) {
     }
     if (!cId) { setLoading(false); return; }
 
-    const [se, pr, ta, doc, tx, notif, rep] = await Promise.all([
+    const [se, pr, ta, doc, tx, notif, rep, np] = await Promise.all([
       supabase.from("sedes").select("*").eq("user_id", userId).order("name"),
       supabase.from("projects").select("*, sede:sedes(name, color, icon)").eq("company_id", cId).order("created_at", { ascending: false }),
       supabase.from("tasks").select("*, project:projects(name, sede_id), sede:sedes(name)").eq("company_id", cId).order("due_date"),
@@ -127,6 +134,7 @@ function DataProvider({ children, userId }) {
       supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").eq("company_id", cId).order("date", { ascending: false }).limit(100),
       supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("ai_reports").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("ai_reports").select("id, result").eq("user_id", userId).eq("report_type", NOTEPAD_REPORT_TYPE).maybeSingle(),
     ]);
     setSedes(se.data || []);
     setProjects((pr.data || []).map(p => ({
@@ -149,13 +157,55 @@ function DataProvider({ children, userId }) {
     })));
     setNotifications(notif.data || []);
     setReports(rep.data || []);
+    notepadReportIdRef.current = np?.data?.id || null;
+    setNotepadHtml(np?.data?.result || "");
+    setNotepadLoaded(true);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [userId]);
 
+  // Save serializado para evitar inserts duplicados ante saves concurrentes.
+  const saveNotepad = (html) => {
+    if (!userId) return Promise.resolve();
+    setNotepadHtml(html);
+    const job = notepadQueueRef.current.then(async () => {
+      if (!notepadReportIdRef.current) {
+        const existing = await supabase
+          .from("ai_reports")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("report_type", NOTEPAD_REPORT_TYPE)
+          .maybeSingle();
+        if (existing.data?.id) notepadReportIdRef.current = existing.data.id;
+      }
+      if (notepadReportIdRef.current) {
+        const { error } = await supabase
+          .from("ai_reports")
+          .update({ result: html, name: NOTEPAD_REPORT_NAME })
+          .eq("id", notepadReportIdRef.current);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("ai_reports")
+          .insert({
+            user_id: userId,
+            name: NOTEPAD_REPORT_NAME,
+            report_type: NOTEPAD_REPORT_TYPE,
+            result: html,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        if (data?.id) notepadReportIdRef.current = data.id;
+      }
+    });
+    notepadQueueRef.current = job.catch(() => {});
+    return job;
+  };
+
   return (
-    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId }}>
+    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId, notepadHtml, notepadLoaded, saveNotepad }}>
       {children}
     </DataCtx.Provider>
   );
@@ -474,35 +524,8 @@ function NotepadRail({ t, value, onSave, summary, title, placeholder, mentions, 
   );
 }
 
-// Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + tags #sede + autosave en localStorage.
+// Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + tags #sede + autosave en Supabase.
 // Usa contentEditable + document.execCommand. Pensado para el panel derecho del Dashboard.
-const NOTEPAD_STORAGE_KEY = "guanaco_notepad_html";
-const NOTEPAD_BACKUP_KEY = "guanaco_notepad_html.backup";
-
-const htmlHasContent = (html) => {
-  if (!html) return false;
-  // Si tiene tags de sede o cualquier texto visible, se considera "con contenido".
-  if (/<span\s+class="sede-tag"/i.test(html)) return true;
-  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() !== "";
-};
-
-const saveNotepadHtml = (html) => {
-  try { localStorage.setItem(NOTEPAD_STORAGE_KEY, html || ""); } catch { /* ignore */ }
-  // Backup solo si hay contenido real — así un wipe accidental no se replica al respaldo.
-  if (htmlHasContent(html)) {
-    try { localStorage.setItem(NOTEPAD_BACKUP_KEY, html); } catch { /* ignore */ }
-  }
-};
-
-const loadNotepadHtml = () => {
-  let primary = "";
-  let backup = "";
-  try { primary = localStorage.getItem(NOTEPAD_STORAGE_KEY) || ""; } catch { /* ignore */ }
-  try { backup = localStorage.getItem(NOTEPAD_BACKUP_KEY) || ""; } catch { /* ignore */ }
-  if (htmlHasContent(primary)) return { html: primary, restored: false };
-  if (htmlHasContent(backup)) return { html: backup, restored: true };
-  return { html: "", restored: false };
-};
 
 const normalizeTagName = (s) => (s || "")
   .toLowerCase()
@@ -522,8 +545,6 @@ const tagSpanHtml = (sede, t, fallbackTag) => {
   const style = `background:${color}22;color:${color};padding:1px 8px;border-radius:999px;font-weight:700;font-size:0.92em;border:1px solid ${color}55;white-space:nowrap`;
   return `<span class="sede-tag"${sid} style="${style}">${tagText}</span>`;
 };
-
-const NOTEPAD_UPDATED_EVENT = "guanaco-notepad-updated";
 
 // Extrae párrafos del anotador general agrupados por sede_id. Un párrafo es cada hijo
 // directo del editor (div / p / li). Si contiene un .sede-tag con data-sede-id, queda
@@ -556,77 +577,61 @@ function extractGeneralNotepadMentions(html) {
 }
 
 function useGeneralNotepadMentions(sedeId) {
-  const [mentions, setMentions] = useState([]);
-  useEffect(() => {
-    const recompute = () => {
-      if (!sedeId) { setMentions([]); return; }
-      try {
-        const html = localStorage.getItem(NOTEPAD_STORAGE_KEY) || "";
-        const grouped = extractGeneralNotepadMentions(html);
-        setMentions(grouped[sedeId] || []);
-      } catch { setMentions([]); }
-    };
-    recompute();
-    const onStorage = (e) => { if (!e || e.key === NOTEPAD_STORAGE_KEY) recompute(); };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener(NOTEPAD_UPDATED_EVENT, recompute);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(NOTEPAD_UPDATED_EVENT, recompute);
-    };
-  }, [sedeId]);
-  return mentions;
+  const { notepadHtml } = useData();
+  return useMemo(() => {
+    if (!sedeId) return [];
+    const grouped = extractGeneralNotepadMentions(notepadHtml || "");
+    return grouped[sedeId] || [];
+  }, [sedeId, notepadHtml]);
 }
 
 function RichNotepadRail({ t, onNav }) {
-  const { sedes } = useData();
+  const { sedes, notepadHtml, notepadLoaded, saveNotepad } = useData();
   const editorRef = useRef(null);
   const saveTimerRef = useRef(null);
-  const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving" | "restored"
+  const initializedRef = useRef(false);
+  const [saveState, setSaveState] = useState("saved"); // "saved" | "dirty" | "saving" | "error"
 
+  // Inicializa el editor una sola vez con el HTML traído de Supabase.
   useEffect(() => {
+    if (initializedRef.current) return;
+    if (!notepadLoaded) return;
     try { document.execCommand("defaultParagraphSeparator", false, "div"); } catch { /* ignore */ }
-    const { html, restored } = loadNotepadHtml();
-    if (html && editorRef.current) {
-      editorRef.current.innerHTML = html;
-      if (restored) {
-        // Persistir inmediatamente lo restaurado al primario y avisar al usuario.
-        try { localStorage.setItem(NOTEPAD_STORAGE_KEY, html); } catch { /* ignore */ }
-        setSaveState("restored");
-      }
+    if (editorRef.current) {
+      editorRef.current.innerHTML = notepadHtml || "";
     }
-    const onBeforeUnload = () => {
-      if (saveTimerRef.current && editorRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveNotepadHtml(editorRef.current.innerHTML || "");
-      }
+    initializedRef.current = true;
+  }, [notepadLoaded, notepadHtml]);
+
+  // Flush pendiente al desmontar / cerrar pestaña: persistir lo último escrito antes de perderlo.
+  useEffect(() => {
+    const flushNow = () => {
+      if (!saveTimerRef.current || !editorRef.current) return;
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      saveNotepad(editorRef.current.innerHTML || "");
     };
-    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("beforeunload", flushNow);
     return () => {
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      // Flush pendiente al desmontar — y nunca escribir si el ref ya no existe (evita wipe accidental).
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        if (editorRef.current) {
-          saveNotepadHtml(editorRef.current.innerHTML || "");
-        }
-      }
+      window.removeEventListener("beforeunload", flushNow);
+      flushNow();
     };
-  }, []);
+  }, [saveNotepad]);
 
   const scheduleSave = () => {
     setSaveState("dirty");
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      // Protección: si el componente ya se desmontó, no sobrescribir localStorage con "".
-      if (!editorRef.current) { saveTimerRef.current = null; return; }
+    saveTimerRef.current = setTimeout(async () => {
+      saveTimerRef.current = null;
+      if (!editorRef.current) return;
+      const html = editorRef.current.innerHTML || "";
       setSaveState("saving");
       try {
-        saveNotepadHtml(editorRef.current.innerHTML || "");
-        window.dispatchEvent(new Event(NOTEPAD_UPDATED_EVENT));
+        await saveNotepad(html);
         setSaveState("saved");
-      } catch {
-        setSaveState("dirty");
+      } catch (err) {
+        console.error("saveNotepad failed:", err);
+        setSaveState("error");
       }
     }, 2000);
   };
@@ -777,13 +782,13 @@ function RichNotepadRail({ t, onNav }) {
 
   const stateLabel =
     saveState === "saving" ? "Guardando…" :
-    saveState === "saved" ? "Guardado automáticamente" :
-    saveState === "restored" ? "Restaurado desde respaldo" :
+    saveState === "saved" ? "Guardado ✓ en la nube" :
+    saveState === "error" ? "Error al guardar — reintentá" :
     "Cambios sin guardar";
   const stateColor =
     saveState === "saving" ? t.accent :
     saveState === "saved" ? t.green :
-    saveState === "restored" ? t.orange :
+    saveState === "error" ? t.red :
     t.muted;
 
   const tbStyle = {
