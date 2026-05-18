@@ -981,6 +981,7 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     { id: "tasks", icon: CheckSquare, label: "Tareas" },
     { id: "budget", icon: Wallet, label: "Presupuestos" },
     { id: "documents", icon: FileText, label: "Documentos" },
+    { id: "notes", icon: StickyNote, label: "Anotadores" },
     { id: "reports", icon: Sparkles, label: "Informes IA" },
     { id: "calendar", icon: Calendar, label: "Calendario" },
   ];
@@ -2195,6 +2196,212 @@ function DocumentsPage({ t }) {
   );
 }
 
+// ─── NOTES PAGE — Anotadores tipo post-it ───
+function StickyPostIt({ t, borderColor, icon: Icon, title, subtitle, content, onSave, span = 1, emoji }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  const startEdit = () => {
+    setDraft(content || "");
+    setEditing(true);
+    setJustSaved(false);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setDraft("");
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      setEditing(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch (err) {
+      console.error("StickyPostIt save error:", err);
+      alert("No se pudo guardar: " + (err?.message || err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasContent = (content || "").trim().length > 0;
+
+  return (
+    <div
+      style={{
+        gridColumn: span > 1 ? `span ${span}` : undefined,
+        background: t.card,
+        border: "1px solid " + t.border,
+        borderTop: "5px solid " + borderColor,
+        borderRadius: 14,
+        boxShadow: t.shadow,
+        padding: 20,
+        minHeight: 200,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        position: "relative",
+        transition: "box-shadow 160ms ease, transform 160ms ease",
+      }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: 9,
+          background: borderColor + "22", color: borderColor,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16, fontWeight: 800,
+        }}>
+          {emoji ? <span>{emoji}</span> : Icon ? <Icon size={16} strokeWidth={2.4} color={borderColor} /> : null}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 11, color: t.dim, fontWeight: 500 }}>{subtitle}</div>}
+        </div>
+        {!editing && (
+          <button
+            onClick={startEdit}
+            style={{
+              padding: "6px 12px", borderRadius: 8,
+              background: t.hover, border: "1px solid " + t.border,
+              color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 5,
+            }}>
+            <Edit2 size={12} /> Editar
+          </button>
+        )}
+        {justSaved && (
+          <span style={{ fontSize: 11, color: t.green, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <CheckCircle2 size={12} /> Guardado
+          </span>
+        )}
+      </div>
+
+      {/* Content */}
+      {editing ? (
+        <>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Escribí lo que quieras…"
+            autoFocus
+            style={{
+              flex: 1,
+              minHeight: 220,
+              maxHeight: 500,
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid " + t.borderStrong,
+              background: t.bg,
+              color: t.text,
+              fontSize: 13,
+              lineHeight: 1.6,
+              fontFamily: "inherit",
+              resize: "vertical",
+              outline: "none",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button
+              onClick={cancel}
+              disabled={saving}
+              style={{
+                padding: "10px 16px", borderRadius: 9,
+                background: "transparent", border: "1px solid " + t.border,
+                color: t.muted, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>
+              Cancelar
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              style={{
+                padding: "10px 18px", borderRadius: 9,
+                background: borderColor, border: "1px solid " + borderColor,
+                color: "#fff", fontSize: 13, fontWeight: 700, cursor: saving ? "wait" : "pointer",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                boxShadow: "0 6px 18px " + borderColor + "40",
+              }}>
+              <Save size={13} /> {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div
+          onClick={startEdit}
+          style={{
+            flex: 1,
+            maxHeight: 400,
+            overflowY: "auto",
+            padding: hasContent ? "4px 2px" : "20px 2px",
+            color: hasContent ? t.text : t.dim,
+            fontSize: 13,
+            lineHeight: 1.65,
+            cursor: "pointer",
+            fontStyle: hasContent ? "normal" : "italic",
+            wordBreak: "break-word",
+            whiteSpace: "pre-wrap",
+          }}
+          dangerouslySetInnerHTML={hasContent ? { __html: content } : undefined}>
+          {hasContent ? null : "Click para agregar notas…"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotesPage({ t }) {
+  const { sedes, notepadHtml, saveNotepad, reload } = useData();
+
+  const saveSedeNotes = async (sedeId, notes) => {
+    const { error } = await supabase.from("sedes").update({ notes }).eq("id", sedeId);
+    if (error) throw error;
+    reload();
+  };
+
+  return (
+    <div style={{ padding: 24, overflowY: "auto", height: "calc(100vh - 56px)" }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+        gap: 18,
+      }}>
+        <StickyPostIt
+          t={t}
+          borderColor="#E5A100"
+          emoji="📝"
+          title="Anotador general"
+          subtitle="Visible desde el Dashboard"
+          content={notepadHtml || ""}
+          onSave={saveNotepad}
+          span={2}
+        />
+        {sedes.map((s) => (
+          <StickyPostIt
+            key={s.id}
+            t={t}
+            borderColor={s.color || t.accent}
+            icon={MapPin}
+            title={s.name}
+            subtitle={s.address || "Sede"}
+            content={s.notes || ""}
+            onSave={(notes) => saveSedeNotes(s.id, notes)}
+          />
+        ))}
+        {sedes.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: t.dim, fontSize: 13 }}>
+            Todavía no agregaste sedes. Creá una desde Configuración para empezar a anotar.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── AI REPORTS PAGE ───
 function AIReportsPage({ t }) {
   const { reports, sedes, projects, reload, userId } = useData();
@@ -2834,6 +3041,7 @@ export default function App() {
     tasks: ["Tareas", "Gestión de tareas"],
     budget: ["Presupuestos", "Control financiero"],
     documents: ["Documentos", "Repositorio de archivos"],
+    notes: ["Anotadores", "Notas por sede + anotador general"],
     reports: ["Informes IA", "Análisis automáticos"],
     calendar: ["Calendario", "Timeline de eventos"],
     settings: ["Configuración", "Ajustes del sistema"],
@@ -2852,6 +3060,7 @@ export default function App() {
     tasks: TasksPage,
     budget: BudgetPage,
     documents: DocumentsPage,
+    notes: NotesPage,
     reports: AIReportsPage,
     calendar: CalendarPage,
     settings: SettingsPage,
