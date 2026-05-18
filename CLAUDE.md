@@ -51,7 +51,7 @@ Multi-tenancy: cada usuario tiene un `company_id` en `user_profiles`. Casi todas
 | Tabla | Campos clave |
 |-------|--------------|
 | `user_profiles` | `id` (= auth.users.id), `company_id` |
-| `sedes` | `id`, `user_id`, `name`, `address`, `budget`, `color`, `icon`, `type` |
+| `sedes` | `id`, `user_id`, `name`, `address`, `budget`, `color`, `icon`, `type`, `notes` (anotador por sede — **no** `description`) |
 | `projects` | `id`, `company_id`, `sede_id`, `name`, `type` (general/obra/mejora/academico/mri), `status` (planning/in_progress/completed), `progress`, `cost`, `cost_spent`, `budget`, `deadline`, `description` |
 | `tasks` | `id`, `company_id`, `project_id`, `sede_id`, `title`, `status` (ver sistema de 5 estados), `priority` (high/medium/low), `due_date`, `assignee`, `notes`, `tags` |
 | `documents` | `id`, `company_id`, `project_id`, `sede_id`, `name`, `type` (pdf/excel/document/other), `status`, `source`, `file_url`, `size` |
@@ -112,7 +112,13 @@ Antes de agregar un valor nuevo en la UI hay que actualizar el CHECK en la DB.
 
 En el kanban de tareas y en las listas reordenables, el drag debe iniciarse **únicamente desde el handle dedicado** (icono de agarre), no desde toda la tarjeta. Si se hace draggable la tarjeta entera, los clicks en botones internos (cambiar estado, borrar, editar nota) terminan disparando el drag y arruinan la interacción. `draggable={true}` va en el handle, no en el contenedor.
 
-### 5. Herencia de `sede_id` en tareas
+### 5. Anotador de sede vive en `sedes.notes`, no en `sedes.description`
+
+La columna canónica para el anotador libre por sede es **`sedes.notes`** (text). No hay columna `sedes.description` — toda la app (DataProvider, `SedeDetail.saveSedeNotes`, `NotesPage`, bot de Telegram) lee y escribe `sede.notes`. La migración que la crea es `migrations/2026-04-28-add-notes.sql`.
+
+Notas de **proyecto** sí van en `projects.description` (no confundir). Si aparece código tocando `sede.description`, es un bug — la columna ni existe en el schema.
+
+### 6. Herencia de `sede_id` en tareas
 
 Cuando una tarea se crea desde dentro de un proyecto (ej. `SedeDetail`, sección de tareas de un proyecto), el `sede_id` debe heredarse automáticamente del proyecto. Si la tarea se crea suelta (calendario, página de tareas), el `sede_id` se setea explícito o queda `null`. La query del Dashboard arma "tareas de la sede" como:
 
