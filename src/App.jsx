@@ -8,7 +8,8 @@ import {
   Eye, Download, MoreHorizontal, CheckCircle2, Circle, Loader,
   BookOpen, Monitor, Video, DollarSign, TrendingUp, PieChart,
   ChevronLeft, Sparkles, Sun, Moon, LogOut,
-  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity, List, Hash
+  StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity, List, Hash,
+  Menu, PanelRightClose, PanelRightOpen
 } from "lucide-react";
 
 // ─── Theme: dark futurista — neón violeta/cyan, paleta coherente con 5 estados ───
@@ -71,6 +72,44 @@ const fmt = (n) => {
 
 const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : "—";
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+
+// ─── Hooks responsive ───
+// Devuelve true si la ventana mide menos que el breakpoint (default: 768 px).
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth < breakpoint
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+    mq.addListener(handler);
+    return () => mq.removeListener(handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// Visibilidad del anotador general — persiste en localStorage.
+// Default: oculto en mobile, visible en desktop, salvo que el usuario haya elegido lo contrario.
+function useNotepadVisibility() {
+  const isMobile = useIsMobile();
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem("guanaco.notepadVisible");
+    if (saved !== null) return saved === "true";
+    return window.innerWidth >= 768;
+  });
+  const update = (v) => {
+    setVisible(v);
+    try { window.localStorage.setItem("guanaco.notepadVisible", String(v)); } catch { /* ignore */ }
+  };
+  return [visible, update, isMobile];
+}
 
 // Logo Guanaco: fondo dorado redondeado con silueta blanca de guanaco de perfil
 // mirando a la derecha. Cuerpo + cuello + cabeza + dos orejas paradas + 4 patas.
@@ -398,10 +437,11 @@ function Select({ label, val, onChange, options, t, style }) {
 }
 
 function Modal({ open, onClose, title, children, t, width = 500 }) {
+  const isMobile = useIsMobile();
   if (!open) return null;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 150ms ease" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 16, padding: 26, width, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto", boxShadow: t.shadowLg, animation: "scaleIn 180ms ease" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 1000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", animation: "fadeIn 150ms ease", padding: isMobile ? 0 : 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: isMobile ? "16px 16px 0 0" : 16, padding: isMobile ? 18 : 26, width, maxWidth: isMobile ? "100%" : "92vw", maxHeight: isMobile ? "94vh" : "88vh", overflowY: "auto", boxShadow: t.shadowLg, animation: isMobile ? "slideUp 200ms ease" : "scaleIn 180ms ease" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <span style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.2 }}>{title}</span>
           <div onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: t.hover, transition: "background 140ms" }}>
@@ -499,28 +539,53 @@ function Notepad({ t, value, onSave, summary = [], title = "Anotador", placehold
   );
 }
 
-// Columna lateral derecha fija con el Notepad adentro — siempre visible mientras se gestiona.
-function NotepadRail({ t, value, onSave, summary, title, placeholder, mentions, onMentionNav }) {
+// Columna lateral derecha con el Notepad adentro — togglable (TopBar) y drawer en mobile.
+function NotepadRail({ t, value, onSave, summary, title, placeholder, mentions, onMentionNav, isMobile, visible = true, onClose }) {
+  if (!visible) return null;
+
+  const asideStyle = isMobile
+    ? {
+        position: "fixed", top: 0, right: 0, bottom: 0,
+        width: "min(420px, 92vw)",
+        borderLeft: "1px solid " + t.border,
+        background: t.bg,
+        display: "flex", flexDirection: "column",
+        padding: 12, zIndex: 210,
+        boxShadow: "-16px 0 60px rgba(0,0,0,0.55)",
+        animation: "slideInRight 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+      }
+    : {
+        width: 380, flexShrink: 0,
+        borderLeft: "1px solid " + t.border,
+        background: t.bg,
+        display: "flex", flexDirection: "column",
+        padding: 16, height: "100%",
+      };
+
   return (
-    <aside style={{
-      width: 380, flexShrink: 0,
-      borderLeft: "1px solid " + t.border,
-      background: t.bg,
-      display: "flex", flexDirection: "column",
-      padding: 16, height: "100%",
-    }}>
-      <Notepad
-        t={t}
-        value={value}
-        onSave={onSave}
-        summary={summary}
-        title={title}
-        placeholder={placeholder}
-        mentions={mentions}
-        onMentionNav={onMentionNav}
-        style={{ flex: 1, minHeight: 0 }}
-      />
-    </aside>
+    <>
+      {isMobile && (
+        <div onClick={onClose} aria-hidden style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", zIndex: 209, animation: "fadeIn 180ms ease" }} />
+      )}
+      <aside style={asideStyle}>
+        {isMobile && (
+          <div onClick={onClose} title="Cerrar anotador" style={{ position: "absolute", top: 18, right: 18, zIndex: 2, width: 34, height: 34, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: t.cardElev, border: "1px solid " + t.borderStrong, cursor: "pointer" }}>
+            <X size={16} color={t.text} />
+          </div>
+        )}
+        <Notepad
+          t={t}
+          value={value}
+          onSave={onSave}
+          summary={summary}
+          title={title}
+          placeholder={placeholder}
+          mentions={mentions}
+          onMentionNav={onMentionNav}
+          style={{ flex: 1, minHeight: 0 }}
+        />
+      </aside>
+    </>
   );
 }
 
@@ -585,8 +650,10 @@ function useGeneralNotepadMentions(sedeId) {
   }, [sedeId, notepadHtml]);
 }
 
-function RichNotepadRail({ t, onNav }) {
+function RichNotepadRail({ t, onNav, isMobile, visible = true, onClose }) {
   const { sedes, notepadHtml, notepadLoaded, saveNotepad } = useData();
+  // En desktop, cuando está oculto no se monta; en mobile se monta sólo cuando visible (drawer overlay).
+  if (!visible) return null;
   const editorRef = useRef(null);
   const saveTimerRef = useRef(null);
   const initializedRef = useRef(false);
@@ -800,14 +867,36 @@ function RichNotepadRail({ t, onNav }) {
   const stopFocus = (e) => e.preventDefault();
   const dividerEl = <div style={{ width: 1, height: 18, background: t.border, margin: "0 4px", alignSelf: "center" }} />;
 
+  const asideStyle = isMobile
+    ? {
+        position: "fixed", top: 0, right: 0, bottom: 0,
+        width: "min(420px, 92vw)",
+        borderLeft: "1px solid " + t.border,
+        background: t.bg,
+        display: "flex", flexDirection: "column",
+        padding: 12, zIndex: 210,
+        boxShadow: "-16px 0 60px rgba(0,0,0,0.55)",
+        animation: "slideInRight 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+      }
+    : {
+        width: 420, flexShrink: 0,
+        borderLeft: "1px solid " + t.border,
+        background: t.bg,
+        display: "flex", flexDirection: "column",
+        padding: 16, height: "100%",
+      };
+
   return (
-    <aside style={{
-      width: 420, flexShrink: 0,
-      borderLeft: "1px solid " + t.border,
-      background: t.bg,
-      display: "flex", flexDirection: "column",
-      padding: 16, height: "100%",
-    }}>
+    <>
+      {isMobile && (
+        <div onClick={onClose} aria-hidden style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", zIndex: 209, animation: "fadeIn 180ms ease" }} />
+      )}
+      <aside style={asideStyle}>
+        {isMobile && (
+          <div onClick={onClose} title="Cerrar anotador" style={{ position: "absolute", top: 18, right: 18, zIndex: 2, width: 34, height: 34, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: t.cardElev, border: "1px solid " + t.borderStrong, cursor: "pointer" }}>
+            <X size={16} color={t.text} />
+          </div>
+        )}
       <Crd t={t} style={{ padding: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 0% 0%, " + t.accentBg + ", transparent 55%)", pointerEvents: "none", opacity: 0.85 }} />
 
@@ -921,6 +1010,7 @@ function RichNotepadRail({ t, onNav }) {
         )}
       </Crd>
     </aside>
+    </>
   );
 }
 
@@ -969,7 +1059,7 @@ function NavItem({ id, icon: Icon, label, indent, count, color, active, onNav, c
   );
 }
 
-function Sidebar({ active, onNav, collapsed, toggle, t }) {
+function Sidebar({ active, onNav, collapsed, toggle, t, isMobile, mobileOpen, onMobileClose }) {
   const { sedes } = useData();
   const [sedesOpen, setSedesOpen] = useState(true);
   const [hoverItem, setHoverItem] = useState(null);
@@ -986,17 +1076,58 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
     { id: "calendar", icon: Calendar, label: "Calendario" },
   ];
 
-  const navProps = { active, onNav, collapsed, t, hoverItem, setHoverItem };
+  // En mobile, el sidebar siempre se muestra expandido (el drawer ya es ancho de sobra).
+  const isCollapsed = isMobile ? false : collapsed;
+  const handleNav = (id) => {
+    onNav(id);
+    if (isMobile && onMobileClose) onMobileClose();
+  };
+
+  const navProps = { active, onNav: handleNav, collapsed: isCollapsed, t, hoverItem, setHoverItem };
+
+  // Estilos según mobile/desktop.
+  const desktopStyle = {
+    width: isCollapsed ? 60 : 232,
+    background: t.sidebar,
+    borderRight: "1px solid " + t.border,
+    display: "flex",
+    flexDirection: "column",
+    flexShrink: 0,
+    transition: "width 200ms ease",
+    overflow: "hidden",
+  };
+  const mobileStyle = {
+    position: "fixed",
+    top: 0, left: 0, bottom: 0,
+    width: 264,
+    maxWidth: "82vw",
+    background: t.sidebar,
+    borderRight: "1px solid " + t.border,
+    display: "flex",
+    flexDirection: "column",
+    zIndex: 200,
+    transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
+    transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+    boxShadow: mobileOpen ? "0 16px 60px rgba(0,0,0,0.55)" : "none",
+  };
 
   return (
-    <div style={{ width: collapsed ? 60 : 232, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0, transition: "width 200ms ease", overflow: "hidden" }}>
+    <>
+      {isMobile && mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          aria-hidden
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", zIndex: 199, animation: "fadeIn 180ms ease" }}
+        />
+      )}
+      <div style={isMobile ? mobileStyle : desktopStyle}>
       {/* Logo */}
-      <div onClick={toggle} title="Guanaco" style={{ padding: collapsed ? "14px 6px" : "18px 16px", display: "flex", flexDirection: collapsed ? "column" : "row", alignItems: "center", justifyContent: "center", gap: collapsed ? 6 : 10, cursor: "pointer" }}>
+      <div onClick={isMobile ? onMobileClose : toggle} title="Guanaco" style={{ padding: isCollapsed ? "14px 6px" : "18px 16px", display: "flex", flexDirection: isCollapsed ? "column" : "row", alignItems: "center", justifyContent: "center", gap: isCollapsed ? 6 : 10, cursor: "pointer" }}>
         <div style={{ position: "relative", width: 32, height: 32, borderRadius: 10, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 6px 20px rgba(229,161,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2)" }}>
           <GuanacoIcon size={20} />
           <div style={{ position: "absolute", inset: 0, borderRadius: 10, boxShadow: "0 0 0 1px rgba(255,255,255,0.1)", pointerEvents: "none" }} />
         </div>
-        {collapsed ? (
+        {isCollapsed ? (
           <span style={{ fontSize: 10, fontWeight: 800, color: t.text, letterSpacing: 0.4, textTransform: "uppercase", background: t.grad, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>Guanaco</span>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
@@ -1020,17 +1151,17 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
                   onMouseLeave={() => setHoverItem(null)}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 2, borderRadius: 8, cursor: "pointer", color: hoverItem === "_sedes" ? t.text : t.muted, fontSize: 13, fontWeight: 500, background: hoverItem === "_sedes" ? t.hover : "transparent", transition: "color 140ms, background 140ms" }}>
                   <Building2 size={15} strokeWidth={2} />
-                  {!collapsed && <>
+                  {!isCollapsed && <>
                     <span style={{ flex: 1, letterSpacing: -0.1 }}>Sedes</span>
                     <span style={{ fontSize: 10, color: t.dim, fontWeight: 600 }}>{sedes.length}</span>
                     <ChevronDown size={13} style={{ transform: sedesOpen ? "rotate(0)" : "rotate(-90deg)", transition: "transform 160ms" }} />
                   </>}
                 </div>
-                {sedesOpen && !collapsed && sedes.map(s => (
+                {sedesOpen && !isCollapsed && sedes.map(s => (
                   <NavItem key={s.id} id={"sede:" + s.id} icon={MapPin} label={s.name} indent color={s.color} {...navProps} />
                 ))}
-                {sedesOpen && !collapsed && (
-                  <div onClick={() => onNav("settings")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", marginLeft: 16, fontSize: 11, color: t.dim, cursor: "pointer", fontWeight: 500 }}>
+                {sedesOpen && !isCollapsed && (
+                  <div onClick={() => handleNav("settings")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", marginLeft: 16, fontSize: 11, color: t.dim, cursor: "pointer", fontWeight: 500 }}>
                     <Plus size={12} /> Agregar sede
                   </div>
                 )}
@@ -1045,7 +1176,8 @@ function Sidebar({ active, onNav, collapsed, toggle, t }) {
       <div style={{ padding: "10px 8px", borderTop: "1px solid " + t.border }}>
         <NavItem id="settings" icon={Settings} label="Configuración" {...navProps} />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1065,25 +1197,39 @@ function IconBtn({ t, onClick, children, title, dot }) {
   );
 }
 
-function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
+function TopBar({ title, sub, theme, toggleTheme, t, onLogout, isMobile, onMenu, showNotepadToggle, notepadVisible, toggleNotepad }) {
   const { notifications } = useData();
   const unread = notifications.filter(n => !n.read).length;
   const [showNotif, setShowNotif] = useState(false);
 
   return (
-    <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", background: t.topbar, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + t.border, flexShrink: 0, position: "relative", zIndex: 50 }}>
-      <div>
-        <div style={{ fontSize: 9, fontWeight: 800, color: "#E5A100", letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 2 }}>Guanaco</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>{title}</div>
-        {sub && <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{sub}</div>}
+    <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 24px", gap: 12, background: t.topbar, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + t.border, flexShrink: 0, position: "relative", zIndex: 50 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 0, minWidth: 0, flex: 1 }}>
+        {isMobile && (
+          <div onClick={onMenu} title="Abrir menú" style={{ width: 38, height: 38, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: t.hover, border: "1px solid " + t.border, flexShrink: 0 }}>
+            <Menu size={18} color={t.text} strokeWidth={2.2} />
+          </div>
+        )}
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: "#E5A100", letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 2 }}>Guanaco</div>
+          <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: t.text, letterSpacing: -0.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
+          {sub && !isMobile && <div style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{sub}</div>}
+        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 8, flexShrink: 0 }}>
+        {showNotepadToggle && (
+          <IconBtn t={t} onClick={toggleNotepad} title={notepadVisible ? "Ocultar anotador" : "Mostrar anotador"}>
+            {notepadVisible
+              ? <PanelRightClose size={15} color={t.muted} />
+              : <PanelRightOpen size={15} color={t.accent} />}
+          </IconBtn>
+        )}
         <div style={{ position: "relative" }}>
           <IconBtn t={t} onClick={() => setShowNotif(!showNotif)} title="Notificaciones" dot={unread > 0}>
             <Bell size={15} color={t.muted} />
           </IconBtn>
           {showNotif && (
-            <div style={{ position: "absolute", top: 42, right: 0, width: 340, background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 12, padding: 8, zIndex: 100, boxShadow: t.shadowLg }}>
+            <div style={{ position: "absolute", top: 42, right: 0, width: isMobile ? "min(320px, 90vw)" : 340, background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 12, padding: 8, zIndex: 100, boxShadow: t.shadowLg }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: t.text, padding: "8px 12px", letterSpacing: -0.2 }}>Notificaciones {unread > 0 && <span style={{ fontSize: 10, color: t.accent, marginLeft: 6 }}>{unread} sin leer</span>}</div>
               {notifications.length === 0 ? (
                 <div style={{ padding: 24, textAlign: "center", fontSize: 12, color: t.dim }}>Sin notificaciones</div>
@@ -1096,9 +1242,11 @@ function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
             </div>
           )}
         </div>
-        <IconBtn t={t} onClick={toggleTheme} title={theme === "dark" ? "Modo claro" : "Modo oscuro"}>
-          {theme === "dark" ? <Sun size={15} color={t.muted} /> : <Moon size={15} color={t.muted} />}
-        </IconBtn>
+        {!isMobile && (
+          <IconBtn t={t} onClick={toggleTheme} title={theme === "dark" ? "Modo claro" : "Modo oscuro"}>
+            {theme === "dark" ? <Sun size={15} color={t.muted} /> : <Moon size={15} color={t.muted} />}
+          </IconBtn>
+        )}
         <IconBtn t={t} onClick={onLogout} title="Cerrar sesión">
           <LogOut size={15} color={t.muted} />
         </IconBtn>
@@ -1108,7 +1256,7 @@ function TopBar({ title, sub, theme, toggleTheme, t, onLogout }) {
 }
 
 // ─── DASHBOARD ───
-function Dashboard({ t, onNav }) {
+function Dashboard({ t, onNav, isMobile, notepadVisible, onCloseNotepad }) {
   const { sedes, projects, tasks } = useData();
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
@@ -1127,7 +1275,7 @@ function Dashboard({ t, onNav }) {
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 56px)" }}>
-      <div style={{ flex: 1, padding: "20px 24px 28px", overflowY: "auto", minWidth: 0 }}>
+      <div style={{ flex: 1, padding: isMobile ? "16px 14px 24px" : "20px 24px 28px", overflowY: "auto", minWidth: 0 }}>
       {/* Hero header */}
       <div style={{ position: "relative", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -1151,7 +1299,7 @@ function Dashboard({ t, onNav }) {
       </div>
 
       {/* KPI Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))", gap: isMobile ? 8 : 12, marginBottom: 18 }}>
         {[
           { label: "Proyectos activos", val: activeProjects.length, sub: projects.length + " totales", icon: FolderKanban, color: t.accent, nav: "projects" },
           { label: "Tareas pendientes", val: pendingTasks.length, sub: doneTasks.length + " completadas", icon: CheckSquare, color: t.orange, nav: "tasks" },
@@ -1241,7 +1389,7 @@ function Dashboard({ t, onNav }) {
       )}
 
       {/* Tasks + Projects */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
         <Crd t={t} style={{ padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <div>
@@ -1291,13 +1439,13 @@ function Dashboard({ t, onNav }) {
         </Crd>
       </div>
       </div>
-      <RichNotepadRail t={t} onNav={onNav} />
+      <RichNotepadRail t={t} onNav={onNav} isMobile={isMobile} visible={notepadVisible} onClose={onCloseNotepad} />
     </div>
   );
 }
 
 // ─── SEDE DETAIL (Dashboard-style workspace) ───
-function SedeDetail({ sedeId, t, onNav }) {
+function SedeDetail({ sedeId, t, onNav, isMobile, notepadVisible, onCloseNotepad }) {
   const { sedes, projects, tasks, documents, reload, userId, companyId } = useData();
   const sede = sedes.find(s => s.id === sedeId);
   const [showForm, setShowForm] = useState(false);
@@ -1433,7 +1581,7 @@ function SedeDetail({ sedeId, t, onNav }) {
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 56px)" }}>
-      <div style={{ flex: 1, padding: "32px 32px 40px", overflowY: "auto", minWidth: 0 }}>
+      <div style={{ flex: 1, padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", minWidth: 0 }}>
       <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={e => { if (uploadTarget) uploadDoc(e.target.files, uploadTarget); e.target.value = ""; }} />
 
       {/* Breadcrumb */}
@@ -1442,20 +1590,20 @@ function SedeDetail({ sedeId, t, onNav }) {
       </div>
 
       {/* Sede Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg, " + sedeColor + "30, " + sedeColor + "08)", border: "1px solid " + sedeColor + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, boxShadow: "0 8px 24px " + sedeColor + "20" }}>{sede.icon || "🏢"}</div>
-          <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", marginBottom: isMobile ? 18 : 28, gap: 16, flexDirection: isMobile ? "column" : "row" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 12 : 18 }}>
+          <div style={{ width: isMobile ? 52 : 64, height: isMobile ? 52 : 64, borderRadius: 18, background: "linear-gradient(135deg, " + sedeColor + "30, " + sedeColor + "08)", border: "1px solid " + sedeColor + "40", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 24 : 30, boxShadow: "0 8px 24px " + sedeColor + "20", flexShrink: 0 }}>{sede.icon || "🏢"}</div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 11, color: sedeColor, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Sede</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.8, lineHeight: 1.1 }}>{sede.name}</div>
+            <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: t.text, letterSpacing: -0.8, lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis" }}>{sede.name}</div>
             <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>{sede.address || "Sin dirección"} · <span style={{ color: t.text, fontWeight: 600 }}>{sedeProjects.length}</span> proyecto{sedeProjects.length !== 1 ? "s" : ""}</div>
           </div>
         </div>
-        <Btn t={t} onClick={() => setShowForm(true)} icon={Plus} size="lg">Nuevo proyecto</Btn>
+        <Btn t={t} onClick={() => setShowForm(true)} icon={Plus} size="lg" style={isMobile ? { width: "100%" } : undefined}>Nuevo proyecto</Btn>
       </div>
 
       {/* Dashboard KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(5,1fr)", gap: isMobile ? 8 : 12, marginBottom: isMobile ? 18 : 28 }}>
         {[
           { label: "Proyectos", val: sedeProjects.length, sub: activeProjects.length + " en curso", color: t.accent, icon: FolderKanban },
           { label: "Listos", val: doneProjects.length, sub: "Proyectos completados", color: t.green, icon: CheckCircle2 },
@@ -1668,6 +1816,9 @@ function SedeDetail({ sedeId, t, onNav }) {
         placeholder="Notas, ideas, recordatorios sobre esta sede…"
         mentions={generalMentions}
         onMentionNav={() => onNav && onNav("dashboard")}
+        isMobile={isMobile}
+        visible={notepadVisible}
+        onClose={onCloseNotepad}
         summary={[
           { label: "Proyectos", value: sedeProjects.length, icon: FolderKanban, color: t.accent },
           { label: "Tareas pend.", value: pendingTasks.length, icon: ListChecks, color: pendingTasks.length > 0 ? t.orange : t.green },
@@ -1680,7 +1831,7 @@ function SedeDetail({ sedeId, t, onNav }) {
   );
 }
 // ─── PROJECTS PAGE ───
-function ProjectsPage({ t, onNav }) {
+function ProjectsPage({ t, onNav, isMobile }) {
   const { projects, tasks, sedes, documents, reload, userId, companyId } = useData();
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
@@ -1727,7 +1878,7 @@ function ProjectsPage({ t, onNav }) {
   // typeEmoji deprecated — usar projectTypeMeta()
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
           <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Workspace</div>
@@ -1836,7 +1987,7 @@ function ProjectsPage({ t, onNav }) {
 }
 
 // ─── TASKS PAGE ───
-function TasksPage({ t, onNav }) {
+function TasksPage({ t, onNav, isMobile }) {
   const { tasks, projects, sedes, reload, userId, companyId } = useData();
   const [view, setView] = useState("kanban");
   const [filter, setFilter] = useState("all");
@@ -1899,7 +2050,7 @@ function TasksPage({ t, onNav }) {
   };
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Workspace</div>
@@ -1923,11 +2074,11 @@ function TasksPage({ t, onNav }) {
       </div>
 
       {view === "kanban" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(220px, 1fr))", gap: 12, alignItems: "flex-start", overflowX: "auto" }}>
+        <div style={{ display: isMobile ? "flex" : "grid", gridTemplateColumns: "repeat(5, minmax(220px, 1fr))", gap: 12, alignItems: "flex-start", overflowX: "auto", paddingBottom: 8, WebkitOverflowScrolling: "touch" }}>
           {columns.map(col => {
             const colTasks = filtered.filter(tk => tk.st === col.id);
             return (
-              <div key={col.id} style={{ minWidth: 0 }}>
+              <div key={col.id} style={{ minWidth: isMobile ? 240 : 0, width: isMobile ? 240 : "auto", flexShrink: 0 }}>
                 <div style={{ padding: "10px 14px", borderRadius: 10, background: col.bg, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid " + col.color + "30" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: col.color, boxShadow: "0 0 8px " + col.color + "90" }} />
@@ -1980,14 +2131,14 @@ function TasksPage({ t, onNav }) {
   );
 }
 // ─── BUDGET PAGE ───
-function BudgetPage({ t }) {
+function BudgetPage({ t, isMobile }) {
   const { sedes, projects } = useData();
   const totalBudget = sedes.reduce((s, se) => s + Number(se.budget || 0), 0);
   const totalSpent = projects.reduce((s, p) => s + (p.cost_spent || 0), 0);
   const totalAllocated = projects.reduce((s, p) => s + (p.cost || 0), 0);
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Finanzas</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Presupuestos</div>
@@ -1995,7 +2146,7 @@ function BudgetPage({ t }) {
       </div>
 
       {/* Global KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)", gap: isMobile ? 10 : 14, marginBottom: 28 }}>
         {[
           { label: "Budget total", val: fmt(totalBudget), color: t.text, icon: Wallet },
           { label: "Asignado", val: fmt(totalAllocated), color: t.blue, icon: Target },
@@ -2104,7 +2255,7 @@ function BudgetPage({ t }) {
 }
 
 // ─── DOCUMENTS PAGE ───
-function DocumentsPage({ t }) {
+function DocumentsPage({ t, isMobile }) {
   const { documents, sedes, projects, reload, userId, companyId } = useData();
   const [filter, setFilter] = useState("all");
   const [deleting, setDeleting] = useState(null);
@@ -2146,7 +2297,7 @@ function DocumentsPage({ t }) {
   };
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Repositorio</div>
@@ -2354,7 +2505,7 @@ function StickyPostIt({ t, borderColor, icon: Icon, title, subtitle, content, on
   );
 }
 
-function NotesPage({ t }) {
+function NotesPage({ t, isMobile }) {
   const { sedes, notepadHtml, saveNotepad, reload } = useData();
 
   const saveSedeNotes = async (sedeId, notes) => {
@@ -2403,7 +2554,7 @@ function NotesPage({ t }) {
 }
 
 // ─── AI REPORTS PAGE ───
-function AIReportsPage({ t }) {
+function AIReportsPage({ t, isMobile }) {
   const { reports, sedes, projects, reload, userId } = useData();
   const [generating, setGenerating] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -2486,7 +2637,7 @@ function AIReportsPage({ t }) {
   const currentResult = activeReport ? activeReport.result : result;
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px " + t.accentGlow }}>
           <Sparkles size={20} color="#fff" />
@@ -2636,7 +2787,7 @@ const CAL_TYPES = {
 
 const tagsHas = (tags, v) => Array.isArray(tags) && tags.some(x => String(x).toLowerCase() === v);
 
-function CalendarPage({ t, onNav }) {
+function CalendarPage({ t, onNav, isMobile }) {
   const { tasks, projects, reload, companyId } = useData();
   const [month, setMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -2696,7 +2847,7 @@ function CalendarPage({ t, onNav }) {
   };
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Timeline</div>
@@ -2746,9 +2897,9 @@ function CalendarPage({ t, onNav }) {
               const isWeekend = dow === 0 || dow === 6;
               return (
                 <div key={i} onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)} style={{
-                  position: "relative", minHeight: 92, padding: 8,
+                  position: "relative", minHeight: isMobile ? 56 : 92, padding: isMobile ? 5 : 8,
                   border: "1px solid " + (isSelected ? t.accent : isToday ? t.accent + "70" : t.border),
-                  borderRadius: 11,
+                  borderRadius: isMobile ? 8 : 11,
                   background: isSelected ? t.gradGlow : isToday ? t.accentBg : isWeekend ? t.bg + "40" : t.hover + "30",
                   cursor: "pointer", transition: "all 180ms ease",
                   boxShadow: isSelected ? "0 8px 24px " + t.accentGlow + "60, 0 0 0 1px " + t.accent : isToday ? "0 4px 14px " + t.accentGlow + "30" : "none",
@@ -2841,7 +2992,7 @@ function CalendarPage({ t, onNav }) {
 }
 
 // ─── SETTINGS PAGE ───
-function SettingsPage({ t, user }) {
+function SettingsPage({ t, user, isMobile }) {
   const { sedes, reload, userId } = useData();
   const [showSedeForm, setShowSedeForm] = useState(false);
   const [sedeForm, setSedeForm] = useState({ name: "", address: "", budget: "", color: "#7C5CFF", icon: "🏢" });
@@ -2876,7 +3027,7 @@ function SettingsPage({ t, user }) {
   const colors = ["#7C5CFF", "#3DDC84", "#FFA34D", "#FF4D6D", "#FF6FB5", "#4DA8FF", "#FFD93D", "#B86BFF"];
 
   return (
-    <div style={{ padding: "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
+    <div style={{ padding: isMobile ? "18px 14px 32px" : "32px 32px 40px", overflowY: "auto", height: "calc(100vh - 56px)" }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 12, color: t.accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>Sistema</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -0.7 }}>Configuración</div>
@@ -3004,8 +3155,15 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [notepadVisible, setNotepadVisible, isMobile] = useNotepadVisibility();
   const [theme, setTheme] = useState("dark");
   const t = themes[theme];
+
+  // Cierro el drawer mobile cuando el viewport pasa a desktop.
+  useEffect(() => {
+    if (!isMobile && mobileNavOpen) setMobileNavOpen(false);
+  }, [isMobile, mobileNavOpen]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -3068,6 +3226,9 @@ export default function App() {
 
   const PageComponent = isSedeDetail ? null : pages[page];
 
+  // Páginas que tienen anotador general embebido — sólo en ellas el toggle del topbar tiene efecto.
+  const pageHasNotepad = page === "dashboard" || isSedeDetail;
+
   return (
     <DataProvider userId={user.id}>
       <div style={{ display: "flex", height: "100vh", background: t.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: t.text, fontFeatureSettings: "'cv02', 'cv03', 'cv04', 'cv11'", position: "relative", overflow: "hidden" }}>
@@ -3086,6 +3247,8 @@ export default function App() {
           "@keyframes fadeIn{from{opacity:0}to{opacity:1}}" +
           "@keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}" +
           "@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}" +
+          "@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}" +
+          "@keyframes slideInLeft{from{transform:translateX(-100%)}to{transform:translateX(0)}}" +
           "@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(0.95);opacity:0.85}}" +
           "@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}" +
           "::-webkit-scrollbar{width:8px;height:8px}" +
@@ -3095,13 +3258,25 @@ export default function App() {
           "::selection{background:" + t.accentBg + ";color:" + t.text + "}" +
           "@media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
         }</style>
-        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <TopBar title={currentTitle[0]} sub={currentTitle[1]} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} onLogout={handleLogout} />
+        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} isMobile={isMobile} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+          <TopBar
+            title={currentTitle[0]}
+            sub={currentTitle[1]}
+            theme={theme}
+            toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+            t={t}
+            onLogout={handleLogout}
+            isMobile={isMobile}
+            onMenu={() => setMobileNavOpen(true)}
+            showNotepadToggle={pageHasNotepad}
+            notepadVisible={notepadVisible}
+            toggleNotepad={() => setNotepadVisible(!notepadVisible)}
+          />
           {isSedeDetail ? (
-            <SedeDetail sedeId={sedeId} t={t} onNav={setPage} />
+            <SedeDetail sedeId={sedeId} t={t} onNav={setPage} isMobile={isMobile} notepadVisible={notepadVisible} onCloseNotepad={() => setNotepadVisible(false)} />
           ) : PageComponent ? (
-            <PageComponent t={t} onNav={setPage} user={user} />
+            <PageComponent t={t} onNav={setPage} user={user} isMobile={isMobile} notepadVisible={notepadVisible} onCloseNotepad={() => setNotepadVisible(false)} />
           ) : (
             <div style={{ padding: 40, textAlign: "center", color: t.dim }}>Página no encontrada</div>
           )}
