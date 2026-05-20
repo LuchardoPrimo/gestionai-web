@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import {
@@ -12,105 +12,13 @@ import {
   StickyNote, Save, ListChecks, Layers, Hammer, Stethoscope, Activity, List, Hash,
   Menu, PanelRightClose, PanelRightOpen
 } from "lucide-react";
-
-// ─── Theme: dark futurista — neón violeta/cyan, paleta coherente con 5 estados ───
-const themes = {
-  dark: {
-    bg:"#06060B", card:"#101019", cardElev:"#15151F", hover:"#1B1B27",
-    sidebar:"#08080F", topbar:"rgba(8,8,15,0.78)",
-    border:"#1F1F2A", borderStrong:"#2D2D3A",
-    text:"#F5F5F8", muted:"#9C9CAB", dim:"#5C5C6B",
-    accent:"#7C5CFF", accentL:"#A78BFF", accentD:"#5B3FE3", accent2:"#22D3EE",
-    accentBg:"rgba(124,92,255,0.14)", accentGlow:"rgba(124,92,255,0.55)",
-    // Estados de tarea / proyecto:
-    orange:"#FB923C", orangeBg:"rgba(251,146,60,0.13)",   // Pendiente
-    blue:"#38BDF8", blueBg:"rgba(56,189,248,0.13)",       // En curso
-    yellow:"#FBBF24", yellowBg:"rgba(251,191,36,0.13)",   // Esperando respuesta
-    red:"#F43F5E", redBg:"rgba(244,63,94,0.13)",          // Pendiente solución / vencido
-    green:"#10B981", greenBg:"rgba(16,185,129,0.13)",     // Listo
-    // Tipos calendario:
-    cyan:"#06B6D4", cyanBg:"rgba(6,182,212,0.13)",        // Reunión
-    pink:"#EC4899", pinkBg:"rgba(236,72,153,0.13)",       // Evento
-    purple:"#A855F7", purpleBg:"rgba(168,85,247,0.13)",   // Auxiliar
-    shadow:"0 1px 2px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
-    shadowLg:"0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.05)",
-    grad:"linear-gradient(135deg, #7C5CFF 0%, #22D3EE 100%)",
-    gradSoft:"linear-gradient(135deg, #7C5CFF 0%, #A855F7 100%)",
-    gradGlow:"linear-gradient(135deg, rgba(124,92,255,0.20) 0%, rgba(34,211,238,0.10) 100%)",
-    grid:"linear-gradient(rgba(124,92,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(124,92,255,0.04) 1px, transparent 1px)",
-  },
-  light: {
-    bg:"#F4F4F9", card:"#FFFFFF", cardElev:"#FFFFFF", hover:"#EDEDF3",
-    sidebar:"#F8F8FB", topbar:"rgba(248,248,251,0.82)",
-    border:"#E2E2EA", borderStrong:"#CDCDD8",
-    text:"#0B0B14", muted:"#5A5A6B", dim:"#8E8E9F",
-    accent:"#5B3FE3", accentL:"#7C5CFF", accentD:"#4730B5", accent2:"#0891B2",
-    accentBg:"rgba(91,63,227,0.10)", accentGlow:"rgba(91,63,227,0.30)",
-    orange:"#EA580C", orangeBg:"rgba(234,88,12,0.10)",
-    blue:"#0284C7", blueBg:"rgba(2,132,199,0.10)",
-    yellow:"#CA8A04", yellowBg:"rgba(202,138,4,0.10)",
-    red:"#E11048", redBg:"rgba(225,16,72,0.10)",
-    green:"#059669", greenBg:"rgba(5,150,105,0.10)",
-    cyan:"#0891B2", cyanBg:"rgba(8,145,178,0.10)",
-    pink:"#DB2777", pinkBg:"rgba(219,39,119,0.10)",
-    purple:"#9333EA", purpleBg:"rgba(147,51,234,0.10)",
-    shadow:"0 1px 3px rgba(11,11,20,0.06), 0 0 0 1px rgba(11,11,20,0.05)",
-    shadowLg:"0 16px 40px rgba(11,11,20,0.10), 0 0 0 1px rgba(11,11,20,0.06)",
-    grad:"linear-gradient(135deg, #5B3FE3 0%, #0891B2 100%)",
-    gradSoft:"linear-gradient(135deg, #5B3FE3 0%, #9333EA 100%)",
-    gradGlow:"linear-gradient(135deg, rgba(91,63,227,0.10) 0%, rgba(8,145,178,0.06) 100%)",
-    grid:"linear-gradient(rgba(91,63,227,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(91,63,227,0.04) 1px, transparent 1px)",
-  },
-};
-
-const fmt = (n) => {
-  if (n === undefined || n === null || isNaN(n)) return "$0";
-  const a = Math.abs(n);
-  if (a >= 1e6) return (n < 0 ? "-" : "") + "$" + (a / 1e6).toFixed(1) + "M";
-  if (a >= 1e3) return (n < 0 ? "-" : "") + "$" + (a / 1e3).toFixed(0) + "K";
-  return "$" + Number(n).toLocaleString("es-AR");
-};
-
-const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : "—";
-const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
-
-// ─── Hooks responsive ───
-// Devuelve true si la ventana mide menos que el breakpoint (default: 768 px).
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" && window.innerWidth < breakpoint
-  );
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-    const handler = (e) => setIsMobile(e.matches);
-    setIsMobile(mq.matches);
-    if (mq.addEventListener) {
-      mq.addEventListener("change", handler);
-      return () => mq.removeEventListener("change", handler);
-    }
-    mq.addListener(handler);
-    return () => mq.removeListener(handler);
-  }, [breakpoint]);
-  return isMobile;
-}
-
-// Visibilidad del anotador general — persiste en localStorage.
-// Default: oculto en mobile, visible en desktop, salvo que el usuario haya elegido lo contrario.
-function useNotepadVisibility() {
-  const isMobile = useIsMobile();
-  const [visible, setVisible] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const saved = window.localStorage.getItem("guanaco.notepadVisible");
-    if (saved !== null) return saved === "true";
-    return window.innerWidth >= 768;
-  });
-  const update = (v) => {
-    setVisible(v);
-    try { window.localStorage.setItem("guanaco.notepadVisible", String(v)); } catch { /* ignore */ }
-  };
-  return [visible, update, isMobile];
-}
+import { themes } from "./lib/theme.js";
+import { fmt, fmtDate, pct } from "./lib/format.js";
+import { STATUS_OPTIONS, normalizeProjectStatus, statusColor, projectTypeMeta, tagsHas } from "./lib/status.js";
+import { normalizeTagName, sedeToTagText, tagSpanHtml } from "./lib/notepad.js";
+import { useIsMobile, useNotepadVisibility } from "./hooks/useViewport.js";
+import { useGeneralNotepadMentions } from "./hooks/useGeneralNotepadMentions.js";
+import { DataProvider, useData } from "./data/DataProvider.jsx";
 
 // Logo Guanaco: fondo dorado redondeado con silueta blanca de guanaco de perfil
 // mirando a la derecha. Cuerpo + cuello + cabeza + dos orejas paradas + 4 patas.
@@ -133,210 +41,9 @@ function GuanacoIcon({ size = 16 }) {
   );
 }
 
-// ─── Data Context ───
-const DataCtx = createContext({});
-const useData = () => useContext(DataCtx);
+// DataProvider, useData y constantes del anotador viven en src/data/DataProvider.jsx
+// y src/lib/notepad.js — se importan arriba.
 
-const NOTEPAD_REPORT_TYPE = "notepad";
-const NOTEPAD_REPORT_NAME = "Anotador general";
-
-function DataProvider({ children, userId }) {
-  const [companyId, setCompanyId] = useState(null);
-  const [sedes, setSedes] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [notepadHtml, setNotepadHtml] = useState("");
-  const [notepadLoaded, setNotepadLoaded] = useState(false);
-  const notepadReportIdRef = useRef(null);
-  const notepadQueueRef = useRef(Promise.resolve());
-
-  const load = async () => {
-    if (!userId) return;
-    setLoading(true);
-    let cId = companyId;
-    if (!cId) {
-      const { data: profile } = await supabase.from("user_profiles").select("company_id").eq("id", userId).single();
-      cId = profile?.company_id || null;
-      setCompanyId(cId);
-    }
-    if (!cId) { setLoading(false); return; }
-
-    const [se, pr, ta, doc, tx, notif, rep, np] = await Promise.all([
-      supabase.from("sedes").select("*").eq("user_id", userId).order("name"),
-      supabase.from("projects").select("*, sede:sedes(name, color, icon)").eq("company_id", cId).order("created_at", { ascending: false }),
-      supabase.from("tasks").select("*, project:projects(name, sede_id), sede:sedes(name)").eq("company_id", cId).order("due_date"),
-      supabase.from("documents").select("*").eq("company_id", cId).order("created_at", { ascending: false }).limit(100),
-      supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").eq("company_id", cId).order("date", { ascending: false }).limit(100),
-      supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("ai_reports").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("ai_reports").select("id, result").eq("user_id", userId).eq("report_type", NOTEPAD_REPORT_TYPE).maybeSingle(),
-    ]);
-    setSedes(se.data || []);
-    setProjects((pr.data || []).map(p => ({
-      ...p, progress: p.progress || 0, cost: Number(p.cost || 0), cost_spent: Number(p.cost_spent || 0),
-      budget: Number(p.budget || 0),
-    })));
-    setTasks((ta.data || []).map(t => ({
-      id: t.id, title: t.title, st: t.status, pri: t.priority, due: t.due_date,
-      who: t.assignee, project: t.project?.name || "—", project_id: t.project_id,
-      sede_id: t.sede_id, sede: t.sede?.name, tags: t.tags || [], raw: t,
-    })));
-    setDocuments((doc.data || []).map(d => ({
-      id: d.id, name: d.name, type: d.type, status: d.status, date: d.created_at?.split("T")[0],
-      file_url: d.file_url, project_id: d.project_id, sede_id: d.sede_id, raw: d,
-    })));
-    setTransactions((tx.data || []).map(t => ({
-      id: t.id, desc: t.description, amount: Number(t.amount || 0), status: t.status,
-      date: t.date, contact: t.contact?.name || "—", project: t.project?.name || "—",
-      project_id: t.project_id, raw: t,
-    })));
-    setNotifications(notif.data || []);
-    setReports(rep.data || []);
-    notepadReportIdRef.current = np?.data?.id || null;
-    setNotepadHtml(np?.data?.result || "");
-    setNotepadLoaded(true);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, [userId]);
-
-  // ─── Optimistic update helpers ───
-  // Cada uno devuelve una función de rollback para revertir si Supabase falla.
-  // El patch usa los nombres de columnas de la DB (status, priority, due_date, etc.);
-  // se mapean a los campos del shape local (st, pri, due, ...).
-
-  const mapTaskPatch = (dbPatch) => {
-    const m = {};
-    if ("status" in dbPatch) m.st = dbPatch.status;
-    if ("priority" in dbPatch) m.pri = dbPatch.priority;
-    if ("due_date" in dbPatch) m.due = dbPatch.due_date;
-    if ("title" in dbPatch) m.title = dbPatch.title;
-    if ("project_id" in dbPatch) m.project_id = dbPatch.project_id;
-    if ("sede_id" in dbPatch) m.sede_id = dbPatch.sede_id;
-    if ("tags" in dbPatch) m.tags = dbPatch.tags;
-    return m;
-  };
-
-  const patchTaskLocal = (id, dbPatch) => {
-    const mapped = mapTaskPatch(dbPatch);
-    let prev = null;
-    setTasks(curr => curr.map(t => {
-      if (t.id !== id) return t;
-      prev = t;
-      // Mantengo `raw` sincronizado por si lo consultan luego.
-      return { ...t, ...mapped, raw: { ...t.raw, ...dbPatch } };
-    }));
-    return () => { if (prev) setTasks(curr => curr.map(t => t.id === id ? prev : t)); };
-  };
-
-  const removeTaskLocal = (id) => {
-    let prev = null;
-    let prevIdx = -1;
-    setTasks(curr => {
-      prevIdx = curr.findIndex(t => t.id === id);
-      if (prevIdx < 0) return curr;
-      prev = curr[prevIdx];
-      return curr.filter(t => t.id !== id);
-    });
-    return () => {
-      if (prev) setTasks(curr => {
-        if (curr.some(t => t.id === prev.id)) return curr;
-        const next = curr.slice();
-        next.splice(Math.min(prevIdx, next.length), 0, prev);
-        return next;
-      });
-    };
-  };
-
-  const patchProjectLocal = (id, dbPatch) => {
-    let prev = null;
-    setProjects(curr => curr.map(p => {
-      if (p.id !== id) return p;
-      prev = p;
-      return { ...p, ...dbPatch };
-    }));
-    return () => { if (prev) setProjects(curr => curr.map(p => p.id === id ? prev : p)); };
-  };
-
-  const removeProjectLocal = (id) => {
-    let prev = null;
-    let prevIdx = -1;
-    setProjects(curr => {
-      prevIdx = curr.findIndex(p => p.id === id);
-      if (prevIdx < 0) return curr;
-      prev = curr[prevIdx];
-      return curr.filter(p => p.id !== id);
-    });
-    return () => {
-      if (prev) setProjects(curr => {
-        if (curr.some(p => p.id === prev.id)) return curr;
-        const next = curr.slice();
-        next.splice(Math.min(prevIdx, next.length), 0, prev);
-        return next;
-      });
-    };
-  };
-
-  const patchSedeLocal = (id, dbPatch) => {
-    let prev = null;
-    setSedes(curr => curr.map(s => {
-      if (s.id !== id) return s;
-      prev = s;
-      return { ...s, ...dbPatch };
-    }));
-    return () => { if (prev) setSedes(curr => curr.map(s => s.id === id ? prev : s)); };
-  };
-
-  // Save serializado para evitar inserts duplicados ante saves concurrentes.
-  const saveNotepad = (html) => {
-    if (!userId) return Promise.resolve();
-    setNotepadHtml(html);
-    const job = notepadQueueRef.current.then(async () => {
-      if (!notepadReportIdRef.current) {
-        const existing = await supabase
-          .from("ai_reports")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("report_type", NOTEPAD_REPORT_TYPE)
-          .maybeSingle();
-        if (existing.data?.id) notepadReportIdRef.current = existing.data.id;
-      }
-      if (notepadReportIdRef.current) {
-        const { error } = await supabase
-          .from("ai_reports")
-          .update({ result: html, name: NOTEPAD_REPORT_NAME })
-          .eq("id", notepadReportIdRef.current);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from("ai_reports")
-          .insert({
-            user_id: userId,
-            name: NOTEPAD_REPORT_NAME,
-            report_type: NOTEPAD_REPORT_TYPE,
-            result: html,
-          })
-          .select("id")
-          .single();
-        if (error) throw error;
-        if (data?.id) notepadReportIdRef.current = data.id;
-      }
-    });
-    notepadQueueRef.current = job.catch(() => {});
-    return job;
-  };
-
-  return (
-    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId, notepadHtml, notepadLoaded, saveNotepad, patchTaskLocal, removeTaskLocal, patchProjectLocal, removeProjectLocal, patchSedeLocal }}>
-      {children}
-    </DataCtx.Provider>
-  );
-}
 
 // ─── UI Primitives ───
 function Crd({ children, t, style: s, onClick, hoverable }) {
@@ -371,24 +78,6 @@ function Badge({ label, color, bg, dot }) {
   );
 }
 
-// Estados unificados para tareas y proyectos
-const STATUS_OPTIONS = [
-  { value: "todo", label: "Pendiente" },
-  { value: "in_progress", label: "En curso" },
-  { value: "waiting_response", label: "Esperando respuesta" },
-  { value: "pending_solution", label: "Pendiente solución" },
-  { value: "done", label: "Listo" },
-];
-
-// Mapeo de project.status legacy (planning/in_progress/completed) a las labels nuevas
-const PROJECT_STATUS_MAP = {
-  planning: "todo",
-  in_progress: "in_progress",
-  completed: "done",
-};
-
-const normalizeProjectStatus = (s) => PROJECT_STATUS_MAP[s] || s;
-
 function StatusBadge({ s, t }) {
   const m = {
     todo: { l: "Pendiente", c: t.orange, b: t.orangeBg },
@@ -412,41 +101,6 @@ function StatusBadge({ s, t }) {
   return <Badge label={v.l} color={v.c} bg={v.b} dot />;
 }
 
-// Color helper para un estado (tareas o proyectos)
-function statusColor(s, t) {
-  const map = {
-    todo: t.orange, planning: t.orange,
-    in_progress: t.blue, active: t.blue,
-    waiting_response: t.yellow,
-    pending_solution: t.red,
-    done: t.green, completed: t.green,
-  };
-  return map[s] || t.muted;
-}
-
-// Icono y color por tipo de proyecto — sustituye emojis viejos
-const PROJECT_TYPES = {
-  general:   { icon: Layers,       color: "accent",  label: "General" },
-  obra:      { icon: Hammer,       color: "orange",  label: "Obra" },
-  mejora:    { icon: Activity,     color: "cyan",    label: "Mejora" },
-  academico: { icon: BookOpen,     color: "blue",    label: "Académico" },
-  mri:       { icon: Stethoscope,  color: "pink",    label: "MRI" },
-};
-const projectTypeMeta = (type, t) => {
-  const m = PROJECT_TYPES[type] || PROJECT_TYPES.general;
-  return { Icon: m.icon, color: t[m.color] || t.accent, label: m.label };
-};
-
-// Prioridad → icono Flag
-const PRIORITY_META = {
-  high:   { color: "red",    label: "Alta" },
-  medium: { color: "yellow", label: "Media" },
-  low:    { color: "green",  label: "Baja" },
-};
-const priorityMeta = (pri, t) => {
-  const m = PRIORITY_META[pri] || PRIORITY_META.medium;
-  return { color: t[m.color], label: m.label };
-};
 
 function PBar({ v, h = 5, color, t, bg }) {
   const c = color || t.accent;
@@ -680,63 +334,6 @@ function NotepadRail({ t, value, onSave, summary, title, placeholder, mentions, 
 // Anotador con formato (negrita/itálica/resaltado/tamaño/lista) + tags #sede + autosave en Supabase.
 // Usa contentEditable + document.execCommand. Pensado para el panel derecho del Dashboard.
 
-const normalizeTagName = (s) => (s || "")
-  .toLowerCase()
-  .normalize("NFD")
-  .replace(/[̀-ͯ]/g, "")
-  .replace(/[^a-z0-9]/g, "");
-
-const sedeToTagText = (name) => "#" + (name || "")
-  .normalize("NFD")
-  .replace(/[̀-ͯ]/g, "")
-  .replace(/\s+/g, "");
-
-const tagSpanHtml = (sede, t, fallbackTag) => {
-  const color = sede?.color || t.accent;
-  const tagText = sede ? sedeToTagText(sede.name) : "#" + fallbackTag;
-  const sid = sede ? ` data-sede-id="${sede.id}"` : "";
-  const style = `background:${color}22;color:${color};padding:1px 8px;border-radius:999px;font-weight:700;font-size:0.92em;border:1px solid ${color}55;white-space:nowrap`;
-  return `<span class="sede-tag"${sid} style="${style}">${tagText}</span>`;
-};
-
-// Extrae párrafos del anotador general agrupados por sede_id. Un párrafo es cada hijo
-// directo del editor (div / p / li). Si contiene un .sede-tag con data-sede-id, queda
-// asociado a esa sede. Un mismo párrafo con varias sedes aparece en cada una.
-function extractGeneralNotepadMentions(html) {
-  if (!html || typeof window === "undefined" || !window.DOMParser) return {};
-  let doc;
-  try { doc = new DOMParser().parseFromString(`<div id="r">${html}</div>`, "text/html"); }
-  catch { return {}; }
-  const root = doc.getElementById("r");
-  if (!root) return {};
-  const out = {};
-  const walk = (container) => {
-    for (const node of Array.from(container.children)) {
-      if (node.tagName === "UL" || node.tagName === "OL") { walk(node); continue; }
-      const tags = node.querySelectorAll(".sede-tag[data-sede-id]");
-      if (!tags.length) continue;
-      const seen = new Set();
-      for (const tag of tags) {
-        const sid = tag.getAttribute("data-sede-id");
-        if (!sid || seen.has(sid)) continue;
-        seen.add(sid);
-        if (!out[sid]) out[sid] = [];
-        out[sid].push(node.outerHTML);
-      }
-    }
-  };
-  walk(root);
-  return out;
-}
-
-function useGeneralNotepadMentions(sedeId) {
-  const { notepadHtml } = useData();
-  return useMemo(() => {
-    if (!sedeId) return [];
-    const grouped = extractGeneralNotepadMentions(notepadHtml || "");
-    return grouped[sedeId] || [];
-  }, [sedeId, notepadHtml]);
-}
 
 function RichNotepadRail({ t, onNav, isMobile, visible = true, onClose }) {
   const { sedes, notepadHtml, notepadLoaded, saveNotepad } = useData();
@@ -2887,7 +2484,6 @@ const CAL_TYPES = {
   evento:   { label: "Evento",   icon: Sparkles,    key: "event" },
 };
 
-const tagsHas = (tags, v) => Array.isArray(tags) && tags.some(x => String(x).toLowerCase() === v);
 
 function CalendarPage({ t, onNav, isMobile }) {
   const { tasks, projects, reload, companyId } = useData();
