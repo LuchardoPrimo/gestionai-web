@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext, useRef, useMemo } from "react";
+import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Wallet, FileText, BarChart3,
@@ -3150,20 +3151,70 @@ function LoginPage({ onLogin, t }) {
 }
 
 // ─── APP ROOT ───
+// Mapeo legacy id → path. Las páginas siguen llamando onNav("dashboard"),
+// onNav("sede:" + id), etc. — el wrapper traduce a URL real.
+const NAV_ID_TO_PATH = {
+  dashboard: "/",
+  projects: "/projects",
+  tasks: "/tasks",
+  budget: "/budget",
+  documents: "/documents",
+  notes: "/notes",
+  reports: "/reports",
+  calendar: "/calendar",
+  settings: "/settings",
+};
+
+function navIdToPath(id) {
+  if (typeof id !== "string") return "/";
+  if (id.startsWith("sede:")) return "/sedes/" + id.slice(5);
+  return NAV_ID_TO_PATH[id] || "/";
+}
+
+function pathToNavId(pathname) {
+  if (pathname === "/" || pathname === "") return "dashboard";
+  if (pathname.startsWith("/sedes/")) return "sede:" + pathname.split("/")[2];
+  // /projects → "projects", /tasks → "tasks", etc.
+  const seg = pathname.split("/")[1];
+  return seg || "dashboard";
+}
+
+const PAGE_TITLES = {
+  "/": ["Dashboard", "Vista general"],
+  "/projects": ["Proyectos", "Todos los proyectos"],
+  "/tasks": ["Tareas", "Gestión de tareas"],
+  "/budget": ["Presupuestos", "Control financiero"],
+  "/documents": ["Documentos", "Repositorio de archivos"],
+  "/notes": ["Anotadores", "Notas por sede + anotador general"],
+  "/reports": ["Informes IA", "Análisis automáticos"],
+  "/calendar": ["Calendario", "Timeline de eventos"],
+  "/settings": ["Configuración", "Ajustes del sistema"],
+};
+
+// Wrapper que extrae sedeId de la URL para pasarlo como prop a SedeDetail.
+function SedeDetailRoute(props) {
+  const { sedeId } = useParams();
+  return <SedeDetail sedeId={sedeId} {...props} />;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
-  const [page, setPage] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notepadVisible, setNotepadVisible, isMobile] = useNotepadVisibility();
   const [theme, setTheme] = useState("dark");
   const t = themes[theme];
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Cierro el drawer mobile cuando el viewport pasa a desktop.
+  // Cierro el drawer mobile cuando el viewport pasa a desktop o al cambiar de ruta.
   useEffect(() => {
     if (!isMobile && mobileNavOpen) setMobileNavOpen(false);
   }, [isMobile, mobileNavOpen]);
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -3181,6 +3232,9 @@ export default function App() {
     setUser(null);
   };
 
+  // Wrapper que mantiene el contrato onNav(id) que ya usan las páginas.
+  const onNav = (id) => navigate(navIdToPath(id));
+
   if (!authReady) return (
     <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0A0A0F", flexDirection: "column", gap: 16 }}>
       <div style={{ width: 56, height: 56, borderRadius: 16, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 32px rgba(229,161,0,0.5)", animation: "pulse 1.6s ease-in-out infinite" }}>
@@ -3193,41 +3247,14 @@ export default function App() {
 
   if (!user) return <LoginPage onLogin={() => {}} t={themes.dark} />;
 
-  const pageTitles = {
-    dashboard: ["Dashboard", "Vista general"],
-    projects: ["Proyectos", "Todos los proyectos"],
-    tasks: ["Tareas", "Gestión de tareas"],
-    budget: ["Presupuestos", "Control financiero"],
-    documents: ["Documentos", "Repositorio de archivos"],
-    notes: ["Anotadores", "Notas por sede + anotador general"],
-    reports: ["Informes IA", "Análisis automáticos"],
-    calendar: ["Calendario", "Timeline de eventos"],
-    settings: ["Configuración", "Ajustes del sistema"],
-  };
-
-  // Parse page for sede detail
-  const isSedeDetail = page.startsWith("sede:");
-  const sedeId = isSedeDetail ? page.split(":")[1] : null;
+  const activeId = pathToNavId(location.pathname);
+  const isSedeDetail = activeId.startsWith("sede:");
   const currentTitle = isSedeDetail
     ? ["Sede", "Detalle"]
-    : pageTitles[page] || ["Guanaco", ""];
+    : PAGE_TITLES[location.pathname] || ["Guanaco", ""];
+  const pageHasNotepad = location.pathname === "/" || isSedeDetail;
 
-  const pages = {
-    dashboard: Dashboard,
-    projects: ProjectsPage,
-    tasks: TasksPage,
-    budget: BudgetPage,
-    documents: DocumentsPage,
-    notes: NotesPage,
-    reports: AIReportsPage,
-    calendar: CalendarPage,
-    settings: SettingsPage,
-  };
-
-  const PageComponent = isSedeDetail ? null : pages[page];
-
-  // Páginas que tienen anotador general embebido — sólo en ellas el toggle del topbar tiene efecto.
-  const pageHasNotepad = page === "dashboard" || isSedeDetail;
+  const pageCommonProps = { t, onNav, isMobile, notepadVisible, onCloseNotepad: () => setNotepadVisible(false) };
 
   return (
     <DataProvider userId={user.id}>
@@ -3258,7 +3285,7 @@ export default function App() {
           "::selection{background:" + t.accentBg + ";color:" + t.text + "}" +
           "@media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
         }</style>
-        <Sidebar active={page} onNav={setPage} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} isMobile={isMobile} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+        <Sidebar active={activeId} onNav={onNav} collapsed={collapsed} toggle={() => setCollapsed(!collapsed)} t={t} isMobile={isMobile} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
           <TopBar
             title={currentTitle[0]}
@@ -3273,13 +3300,19 @@ export default function App() {
             notepadVisible={notepadVisible}
             toggleNotepad={() => setNotepadVisible(!notepadVisible)}
           />
-          {isSedeDetail ? (
-            <SedeDetail sedeId={sedeId} t={t} onNav={setPage} isMobile={isMobile} notepadVisible={notepadVisible} onCloseNotepad={() => setNotepadVisible(false)} />
-          ) : PageComponent ? (
-            <PageComponent t={t} onNav={setPage} user={user} isMobile={isMobile} notepadVisible={notepadVisible} onCloseNotepad={() => setNotepadVisible(false)} />
-          ) : (
-            <div style={{ padding: 40, textAlign: "center", color: t.dim }}>Página no encontrada</div>
-          )}
+          <Routes>
+            <Route path="/" element={<Dashboard {...pageCommonProps} />} />
+            <Route path="/sedes/:sedeId" element={<SedeDetailRoute {...pageCommonProps} />} />
+            <Route path="/projects" element={<ProjectsPage {...pageCommonProps} />} />
+            <Route path="/tasks" element={<TasksPage {...pageCommonProps} />} />
+            <Route path="/budget" element={<BudgetPage {...pageCommonProps} />} />
+            <Route path="/documents" element={<DocumentsPage {...pageCommonProps} />} />
+            <Route path="/notes" element={<NotesPage {...pageCommonProps} />} />
+            <Route path="/reports" element={<AIReportsPage {...pageCommonProps} user={user} />} />
+            <Route path="/calendar" element={<CalendarPage {...pageCommonProps} />} />
+            <Route path="/settings" element={<SettingsPage {...pageCommonProps} user={user} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
       </div>
     </DataProvider>
