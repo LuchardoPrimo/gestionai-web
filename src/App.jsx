@@ -205,6 +205,93 @@ function DataProvider({ children, userId }) {
 
   useEffect(() => { load(); }, [userId]);
 
+  // ─── Optimistic update helpers ───
+  // Cada uno devuelve una función de rollback para revertir si Supabase falla.
+  // El patch usa los nombres de columnas de la DB (status, priority, due_date, etc.);
+  // se mapean a los campos del shape local (st, pri, due, ...).
+
+  const mapTaskPatch = (dbPatch) => {
+    const m = {};
+    if ("status" in dbPatch) m.st = dbPatch.status;
+    if ("priority" in dbPatch) m.pri = dbPatch.priority;
+    if ("due_date" in dbPatch) m.due = dbPatch.due_date;
+    if ("title" in dbPatch) m.title = dbPatch.title;
+    if ("project_id" in dbPatch) m.project_id = dbPatch.project_id;
+    if ("sede_id" in dbPatch) m.sede_id = dbPatch.sede_id;
+    if ("tags" in dbPatch) m.tags = dbPatch.tags;
+    return m;
+  };
+
+  const patchTaskLocal = (id, dbPatch) => {
+    const mapped = mapTaskPatch(dbPatch);
+    let prev = null;
+    setTasks(curr => curr.map(t => {
+      if (t.id !== id) return t;
+      prev = t;
+      // Mantengo `raw` sincronizado por si lo consultan luego.
+      return { ...t, ...mapped, raw: { ...t.raw, ...dbPatch } };
+    }));
+    return () => { if (prev) setTasks(curr => curr.map(t => t.id === id ? prev : t)); };
+  };
+
+  const removeTaskLocal = (id) => {
+    let prev = null;
+    let prevIdx = -1;
+    setTasks(curr => {
+      prevIdx = curr.findIndex(t => t.id === id);
+      if (prevIdx < 0) return curr;
+      prev = curr[prevIdx];
+      return curr.filter(t => t.id !== id);
+    });
+    return () => {
+      if (prev) setTasks(curr => {
+        if (curr.some(t => t.id === prev.id)) return curr;
+        const next = curr.slice();
+        next.splice(Math.min(prevIdx, next.length), 0, prev);
+        return next;
+      });
+    };
+  };
+
+  const patchProjectLocal = (id, dbPatch) => {
+    let prev = null;
+    setProjects(curr => curr.map(p => {
+      if (p.id !== id) return p;
+      prev = p;
+      return { ...p, ...dbPatch };
+    }));
+    return () => { if (prev) setProjects(curr => curr.map(p => p.id === id ? prev : p)); };
+  };
+
+  const removeProjectLocal = (id) => {
+    let prev = null;
+    let prevIdx = -1;
+    setProjects(curr => {
+      prevIdx = curr.findIndex(p => p.id === id);
+      if (prevIdx < 0) return curr;
+      prev = curr[prevIdx];
+      return curr.filter(p => p.id !== id);
+    });
+    return () => {
+      if (prev) setProjects(curr => {
+        if (curr.some(p => p.id === prev.id)) return curr;
+        const next = curr.slice();
+        next.splice(Math.min(prevIdx, next.length), 0, prev);
+        return next;
+      });
+    };
+  };
+
+  const patchSedeLocal = (id, dbPatch) => {
+    let prev = null;
+    setSedes(curr => curr.map(s => {
+      if (s.id !== id) return s;
+      prev = s;
+      return { ...s, ...dbPatch };
+    }));
+    return () => { if (prev) setSedes(curr => curr.map(s => s.id === id ? prev : s)); };
+  };
+
   // Save serializado para evitar inserts duplicados ante saves concurrentes.
   const saveNotepad = (html) => {
     if (!userId) return Promise.resolve();
@@ -245,7 +332,7 @@ function DataProvider({ children, userId }) {
   };
 
   return (
-    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId, notepadHtml, notepadLoaded, saveNotepad }}>
+    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId, notepadHtml, notepadLoaded, saveNotepad, patchTaskLocal, removeTaskLocal, patchProjectLocal, removeProjectLocal, patchSedeLocal }}>
       {children}
     </DataCtx.Provider>
   );
@@ -1447,7 +1534,7 @@ function Dashboard({ t, onNav, isMobile, notepadVisible, onCloseNotepad }) {
 
 // ─── SEDE DETAIL (Dashboard-style workspace) ───
 function SedeDetail({ sedeId, t, onNav, isMobile, notepadVisible, onCloseNotepad }) {
-  const { sedes, projects, tasks, documents, reload, userId, companyId } = useData();
+  const { sedes, projects, tasks, documents, reload, userId, companyId, patchTaskLocal, removeTaskLocal, patchProjectLocal, removeProjectLocal, patchSedeLocal } = useData();
   const sede = sedes.find(s => s.id === sedeId);
   const [showForm, setShowForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(null);
@@ -1493,9 +1580,13 @@ function SedeDetail({ sedeId, t, onNav, isMobile, notepadVisible, onCloseNotepad
   };
 
   const quickStatus = async (id, status) => {
+    const rollback = patchProjectLocal(id, { status });
     const { error } = await supabase.from("projects").update({ status }).eq("id", id);
-    if (error && error.code === "23514") alert("La DB no soporta este estado todavía. Aplicá la migración SQL en migrations/extend-project-status.sql.");
-    reload();
+    if (error) {
+      rollback();
+      if (error.code === "23514") alert("La DB no soporta este estado todavía. Aplicá la migración SQL en migrations/extend-project-status.sql.");
+      else alert("Error: " + error.message);
+    }
   };
 
   const saveProjectNote = async (id) => {
@@ -1533,18 +1624,21 @@ function SedeDetail({ sedeId, t, onNav, isMobile, notepadVisible, onCloseNotepad
   const toggleTask = async (id, st) => {
     // Cycle through todo → in_progress → done → todo (skip blocked states for quick toggle)
     const next = st === "todo" ? "in_progress" : st === "in_progress" ? "done" : "todo";
-    await supabase.from("tasks").update({ status: next }).eq("id", id);
-    reload();
+    const rollback = patchTaskLocal(id, { status: next });
+    const { error } = await supabase.from("tasks").update({ status: next }).eq("id", id);
+    if (error) { rollback(); alert("Error: " + error.message); }
   };
 
   const setTaskStatus = async (id, status) => {
-    await supabase.from("tasks").update({ status }).eq("id", id);
-    reload();
+    const rollback = patchTaskLocal(id, { status });
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
+    if (error) { rollback(); alert("Error: " + error.message); }
   };
 
   const deleteTask = async (id) => {
-    await supabase.from("tasks").delete().eq("id", id);
-    reload();
+    const rollback = removeTaskLocal(id);
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) { rollback(); alert("Error: " + error.message); }
   };
 
   const uploadDoc = async (files, projectId) => {
@@ -1565,14 +1659,15 @@ function SedeDetail({ sedeId, t, onNav, isMobile, notepadVisible, onCloseNotepad
   const deleteDoc = async (id) => { await supabase.from("documents").delete().eq("id", id); reload(); };
 
   const saveSedeNotes = async (notes) => {
+    // Optimista: actualizo local primero, no recargo todo el snapshot al terminar.
+    const rollback = patchSedeLocal(sedeId, { notes });
     const { error } = await supabase.from("sedes").update({ notes }).eq("id", sedeId);
     if (error) {
+      rollback();
       if (error.code === "PGRST204" || /column.*notes/i.test(error.message || "")) {
         alert("La columna sedes.notes no existe. Aplicá la migración en migrations/2026-04-28-add-notes.sql");
       } else alert("Error: " + error.message);
-      return;
     }
-    reload();
   };
 
   const priColor = { high: t.red, medium: t.orange, low: t.green };
@@ -1833,7 +1928,7 @@ function SedeDetail({ sedeId, t, onNav, isMobile, notepadVisible, onCloseNotepad
 }
 // ─── PROJECTS PAGE ───
 function ProjectsPage({ t, onNav, isMobile }) {
-  const { projects, tasks, sedes, documents, reload, userId, companyId } = useData();
+  const { projects, tasks, sedes, documents, reload, userId, companyId, patchProjectLocal } = useData();
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -1864,7 +1959,11 @@ function ProjectsPage({ t, onNav, isMobile }) {
     reload();
   };
 
-  const quickStatus = async (id, status) => { await supabase.from("projects").update({ status }).eq("id", id); reload(); };
+  const quickStatus = async (id, status) => {
+    const rollback = patchProjectLocal(id, { status });
+    const { error } = await supabase.from("projects").update({ status }).eq("id", id);
+    if (error) { rollback(); alert("Error: " + error.message); }
+  };
 
   const deleteProject = async (id) => {
     if (!window.confirm("¿Eliminar este proyecto?")) return;
@@ -1989,7 +2088,7 @@ function ProjectsPage({ t, onNav, isMobile }) {
 
 // ─── TASKS PAGE ───
 function TasksPage({ t, onNav, isMobile }) {
-  const { tasks, projects, sedes, reload, userId, companyId } = useData();
+  const { tasks, projects, sedes, reload, userId, companyId, patchTaskLocal, removeTaskLocal } = useData();
   const [view, setView] = useState("kanban");
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
@@ -2010,13 +2109,15 @@ function TasksPage({ t, onNav, isMobile }) {
   };
 
   const updateStatus = async (taskId, newStatus) => {
-    await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
-    reload();
+    const rollback = patchTaskLocal(taskId, { status: newStatus });
+    const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
+    if (error) { rollback(); alert("Error: " + error.message); }
   };
 
   const deleteTask = async (id) => {
-    await supabase.from("tasks").delete().eq("id", id);
-    reload();
+    const rollback = removeTaskLocal(id);
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) { rollback(); alert("Error: " + error.message); }
   };
 
   const priColors = { high: t.red, medium: t.orange, low: t.green };
