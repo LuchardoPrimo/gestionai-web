@@ -46,6 +46,8 @@ App monolítica de un solo archivo grande: `src/App.jsx` (~1700 líneas). Toda l
 
 Multi-tenancy: cada usuario tiene un `company_id` en `user_profiles`. Casi todas las consultas filtran por `company_id` (no por `user_id`) — ver bug conocido más abajo.
 
+**Workspaces colaborativos (estilo Notion):** desde 2026-05-26 cada usuario puede pertenecer a varios *workspaces* compartidos. El `workspace_id` activo se guarda en `user_profiles.active_workspace_id` y se usa como `company_id` para filtrar/insertar (son lo mismo conceptualmente — el id de un workspace ES el company_id). Tablas nuevas: `workspaces` (id, name, owner_id), `workspace_members` (workspace_id, user_id) y `workspace_invitations` (workspace_id, email, accepted_at). Las sedes ahora también tienen `workspace_id` y se comparten entre miembros (la columna `sedes.user_id` se mantiene como "quién la creó" pero el filtro principal es por workspace). RLS filtra todo por `workspace_members`.
+
 ## Schema de base de datos (Supabase)
 
 | Tabla | Campos clave |

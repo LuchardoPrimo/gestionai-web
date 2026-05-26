@@ -744,6 +744,151 @@ function NavItem({ id, icon: Icon, label, indent, count, color, active, onNav, c
   );
 }
 
+// ─── WorkspaceSwitcher ───
+// Dropdown que muestra el workspace activo y permite cambiar o crear uno nuevo.
+function WorkspaceSwitcher({ t, collapsed }) {
+  const { workspaces, workspaceId, switchWorkspace, createWorkspace, pendingInvitations } = useData();
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const current = workspaces.find(w => w.id === workspaceId);
+  const pendingCount = pendingInvitations?.length || 0;
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    await createWorkspace(newName.trim());
+    setNewName("");
+    setCreating(false);
+    setOpen(false);
+  };
+
+  if (collapsed) {
+    return (
+      <div onClick={() => setOpen(!open)} title={current?.name || "Workspace"} ref={ref} style={{ position: "relative", margin: "0 8px 8px", padding: "10px 0", borderRadius: 10, background: t.hover, border: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <Layers size={16} color={t.accent} />
+        {pendingCount > 0 && <div style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: t.red, boxShadow: "0 0 6px " + t.red }} />}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative", margin: "0 12px 10px" }}>
+      <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: t.hover, border: "1px solid " + t.border, cursor: "pointer", transition: "border-color 140ms" }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: t.accentBg, border: "1px solid " + t.accent + "40", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Layers size={14} color={t.accent} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }}>Espacio</div>
+          <div style={{ fontSize: 13, color: t.text, fontWeight: 700, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current?.name || "Cargando..."}</div>
+        </div>
+        {pendingCount > 0 && (
+          <div style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: t.red, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{pendingCount}</div>
+        )}
+        <ChevronDown size={14} color={t.muted} style={{ transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 160ms" }} />
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 12, boxShadow: t.shadowLg, zIndex: 50, padding: 6, animation: "scaleIn 140ms ease" }}>
+          <div style={{ padding: "6px 10px 8px", fontSize: 10, color: t.dim, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>Tus espacios</div>
+          {workspaces.map(w => (
+            <div key={w.id} onClick={() => { switchWorkspace(w.id); setOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: w.id === workspaceId ? t.accentBg : "transparent", transition: "background 120ms" }}>
+              <div style={{ width: 22, height: 22, borderRadius: 6, background: w.id === workspaceId ? t.accent + "33" : t.hover, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Layers size={11} color={w.id === workspaceId ? t.accent : t.muted} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: t.text, fontWeight: w.id === workspaceId ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</div>
+              {w.owner_id === workspaceId && <span style={{ fontSize: 9, color: t.dim, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }}>owner</span>}
+              {w.id === workspaceId && <CheckCircle2 size={13} color={t.accent} />}
+            </div>
+          ))}
+          <div style={{ height: 1, background: t.border, margin: "6px 0" }} />
+          {creating ? (
+            <div style={{ padding: 6, display: "flex", gap: 6 }}>
+              <input
+                autoFocus
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") { setCreating(false); setNewName(""); } }}
+                placeholder="Nombre del espacio"
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.bg, color: t.text, fontSize: 12, outline: "none" }}
+              />
+              <Btn t={t} size="sm" onClick={handleCreate} disabled={!newName.trim()}>OK</Btn>
+            </div>
+          ) : (
+            <div onClick={() => setCreating(true)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", color: t.accent, fontSize: 12, fontWeight: 600 }}>
+              <Plus size={13} /> Crear nuevo espacio
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Invitations Modal ───
+// Aparece automáticamente si hay invitaciones pendientes para el email del usuario.
+function InvitationsModal({ t }) {
+  const { pendingInvitations, acceptInvitation, rejectInvitation } = useData();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(null);
+  const seenRef = useRef(false);
+
+  useEffect(() => {
+    if (pendingInvitations.length > 0 && !seenRef.current) {
+      seenRef.current = true;
+      setOpen(true);
+    }
+  }, [pendingInvitations.length]);
+
+  if (!open || pendingInvitations.length === 0) return null;
+
+  const handleAccept = async (inv) => {
+    setBusy(inv.id);
+    try { await acceptInvitation(inv); } finally { setBusy(null); }
+    if (pendingInvitations.length <= 1) setOpen(false);
+  };
+  const handleReject = async (inv) => {
+    setBusy(inv.id);
+    try { await rejectInvitation(inv); } finally { setBusy(null); }
+    if (pendingInvitations.length <= 1) setOpen(false);
+  };
+
+  return (
+    <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, animation: "fadeIn 160ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 20, padding: 28, width: 500, maxWidth: "94vw", boxShadow: t.shadowLg, animation: "scaleIn 200ms ease" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: t.accent + "22", border: "1px solid " + t.accent + "40", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Users size={22} color={t.accent} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: t.accent, letterSpacing: 0.8, textTransform: "uppercase" }}>Invitaciones</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: -0.3 }}>Te invitaron a colaborar</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+          {pendingInvitations.map(inv => (
+            <div key={inv.id} style={{ padding: 14, background: t.hover, borderRadius: 12, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{inv.workspace?.name || "Espacio compartido"}</div>
+                <div style={{ fontSize: 11, color: t.dim, marginTop: 2 }}>Invitado el {new Date(inv.created_at).toLocaleDateString("es-AR")}</div>
+              </div>
+              <Btn t={t} variant="danger" size="sm" onClick={() => handleReject(inv)} disabled={busy === inv.id}>Rechazar</Btn>
+              <Btn t={t} size="sm" onClick={() => handleAccept(inv)} disabled={busy === inv.id}>Aceptar</Btn>
+            </div>
+          ))}
+        </div>
+        <Btn t={t} variant="ghost" size="md" onClick={() => setOpen(false)} style={{ width: "100%" }}>Decidir después</Btn>
+      </div>
+    </div>
+  );
+}
+
 function Sidebar({ active, onNav, collapsed, toggle, t, isMobile, mobileOpen, onMobileClose }) {
   const { sedes } = useData();
   const [sedesOpen, setSedesOpen] = useState(true);
@@ -822,7 +967,9 @@ function Sidebar({ active, onNav, collapsed, toggle, t, isMobile, mobileOpen, on
         )}
       </div>
 
-      <div style={{ height: 1, background: "linear-gradient(90deg, transparent, " + t.border + ", transparent)", margin: "0 12px" }} />
+      <div style={{ height: 1, background: "linear-gradient(90deg, transparent, " + t.border + ", transparent)", margin: "0 12px 10px" }} />
+
+      <WorkspaceSwitcher t={t} collapsed={isCollapsed} />
 
       {/* Nav */}
       <div style={{ flex: 1, padding: "10px 8px", overflowY: "auto" }}>
@@ -2689,15 +2836,140 @@ function CalendarPage({ t, onNav, isMobile }) {
   );
 }
 
+// ─── WORKSPACE CARD (en Settings) ───
+function WorkspaceCard({ t, user }) {
+  const { workspaces, workspaceId, members, sentInvitations, inviteMember, cancelInvitation, removeMember, renameWorkspace, userId } = useData();
+  const current = workspaces.find(w => w.id === workspaceId);
+  const isOwner = current && current.owner_id === userId;
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+
+  const handleInvite = async () => {
+    setInviteError("");
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      await inviteMember(inviteEmail.trim());
+      setInviteEmail("");
+    } catch (e) {
+      setInviteError(e.message || "No se pudo enviar la invitación");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!nameDraft.trim()) { setEditingName(false); return; }
+    await renameWorkspace(workspaceId, nameDraft.trim());
+    setEditingName(false);
+  };
+
+  return (
+    <Crd t={t} style={{ padding: 22, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Espacio de trabajo</div>
+          {editingName ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                autoFocus
+                value={nameDraft}
+                onChange={e => setNameDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingName(false); }}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid " + t.border, background: t.bg, color: t.text, fontSize: 16, fontWeight: 700, outline: "none", minWidth: 200 }}
+              />
+              <Btn t={t} size="sm" onClick={handleRename}>Guardar</Btn>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: -0.3 }}>{current?.name || "—"}</div>
+              {isOwner && (
+                <div onClick={() => { setNameDraft(current?.name || ""); setEditingName(true); }} style={{ cursor: "pointer", color: t.muted, display: "flex", alignItems: "center" }} title="Renombrar">
+                  <Edit2 size={14} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {isOwner && <Badge label="Sos owner" color={t.accent} bg={t.accentBg} />}
+      </div>
+
+      <div style={{ fontSize: 11, color: t.dim, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 10 }}>Miembros ({members.length})</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+        {members.map(m => {
+          const isMe = m.user_id === userId;
+          const isOwnerOf = current && current.owner_id === m.user_id;
+          return (
+            <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: t.hover, borderRadius: 10, border: "1px solid " + t.border }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: t.grad, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800 }}>
+                {(isMe ? user.email : m.user_id)[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>
+                  {isMe ? "Vos" : "Miembro"} {isOwnerOf && <span style={{ fontSize: 10, color: t.accent, fontWeight: 700, marginLeft: 6, letterSpacing: 0.4, textTransform: "uppercase" }}>owner</span>}
+                </div>
+                <div style={{ fontSize: 11, color: t.dim }}>Unido {new Date(m.joined_at).toLocaleDateString("es-AR")}</div>
+              </div>
+              {isOwner && !isMe && !isOwnerOf && (
+                <Btn t={t} variant="danger" size="sm" icon={Trash2} onClick={() => removeMember(m.user_id)}>Quitar</Btn>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: 11, color: t.dim, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 10 }}>Invitar por email</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <input
+          type="email"
+          value={inviteEmail}
+          onChange={e => setInviteEmail(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") handleInvite(); }}
+          placeholder="email@ejemplo.com"
+          style={{ flex: 1, minWidth: 200, padding: "10px 12px", borderRadius: 9, border: "1px solid " + t.border, background: t.bg, color: t.text, fontSize: 13, outline: "none" }}
+        />
+        <Btn t={t} icon={Plus} onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+          {inviting ? "Enviando..." : "Invitar"}
+        </Btn>
+      </div>
+      {inviteError && (
+        <div style={{ fontSize: 12, color: t.red, padding: "8px 12px", background: t.redBg, borderRadius: 8, border: "1px solid " + t.red + "40", marginBottom: 12 }}>{inviteError}</div>
+      )}
+      <div style={{ fontSize: 12, color: t.muted, marginBottom: 14 }}>
+        La invitación se acepta automáticamente cuando esa persona se registra o inicia sesión con ese email.
+      </div>
+
+      {sentInvitations.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: t.dim, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 8 }}>Pendientes ({sentInvitations.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {sentInvitations.map(inv => (
+              <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: t.hover, borderRadius: 9, border: "1px solid " + t.border, fontSize: 12 }}>
+                <Clock size={13} color={t.muted} />
+                <div style={{ flex: 1, color: t.text, fontWeight: 600 }}>{inv.email}</div>
+                <div style={{ color: t.dim, fontSize: 11 }}>{new Date(inv.created_at).toLocaleDateString("es-AR")}</div>
+                <Btn t={t} variant="ghost" size="sm" icon={X} onClick={() => cancelInvitation(inv.id)} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Crd>
+  );
+}
+
 // ─── SETTINGS PAGE ───
 function SettingsPage({ t, user, isMobile }) {
-  const { sedes, reload, userId } = useData();
+  const { sedes, reload, userId, workspaceId } = useData();
   const [showSedeForm, setShowSedeForm] = useState(false);
   const [sedeForm, setSedeForm] = useState({ name: "", address: "", budget: "", color: "#7C5CFF", icon: "🏢" });
   const [editId, setEditId] = useState(null);
 
   const saveSede = async () => {
-    const data = { user_id: userId, name: sedeForm.name, address: sedeForm.address || null, budget: Number(sedeForm.budget) || 0, color: sedeForm.color, icon: sedeForm.icon, type: "physical" };
+    const data = { user_id: userId, workspace_id: workspaceId, name: sedeForm.name, address: sedeForm.address || null, budget: Number(sedeForm.budget) || 0, color: sedeForm.color, icon: sedeForm.icon, type: "physical" };
     if (editId) {
       await supabase.from("sedes").update(data).eq("id", editId);
     } else {
@@ -2756,6 +3028,9 @@ function SettingsPage({ t, user, isMobile }) {
           <Btn t={t} icon={Sparkles} onClick={() => window.dispatchEvent(new Event("open-onboarding"))}>Ver tutorial</Btn>
         </div>
       </Crd>
+
+      {/* Workspace */}
+      <WorkspaceCard t={t} user={user} />
 
       {/* Sedes management */}
       <Crd t={t} style={{ padding: 22 }}>
@@ -3147,7 +3422,7 @@ export default function App() {
   const pageCommonProps = { t, onNav, isMobile, notepadVisible, onCloseNotepad: () => setNotepadVisible(false) };
 
   return (
-    <DataProvider userId={user.id}>
+    <DataProvider userId={user.id} userEmail={user.email}>
       <div style={{ display: "flex", height: "100vh", background: t.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: t.text, fontFeatureSettings: "'cv02', 'cv03', 'cv04', 'cv11'", position: "relative", overflow: "hidden" }}>
         {/* Background grid + ambient orbs */}
         <div aria-hidden style={{ position: "fixed", inset: 0, backgroundImage: t.grid, backgroundSize: "32px 32px", pointerEvents: "none", maskImage: "radial-gradient(ellipse at 50% 0%, black 30%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, black 30%, transparent 80%)" }} />
@@ -3205,6 +3480,7 @@ export default function App() {
           </Routes>
         </div>
         <OnboardingGate t={t} onNav={onNav} />
+        <InvitationsModal t={t} />
       </div>
     </DataProvider>
   );

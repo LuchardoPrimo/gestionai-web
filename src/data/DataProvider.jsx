@@ -5,8 +5,12 @@ import { NOTEPAD_REPORT_TYPE, NOTEPAD_REPORT_NAME } from "../lib/notepad.js";
 const DataCtx = createContext({});
 export const useData = () => useContext(DataCtx);
 
-export function DataProvider({ children, userId }) {
-  const [companyId, setCompanyId] = useState(null);
+export function DataProvider({ children, userId, userEmail }) {
+  const [workspaceId, setWorkspaceId] = useState(null);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
+  const [sentInvitations, setSentInvitations] = useState([]);
   const [sedes, setSedes] = useState([]);
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -20,36 +24,89 @@ export function DataProvider({ children, userId }) {
   const notepadReportIdRef = useRef(null);
   const notepadQueueRef = useRef(Promise.resolve());
 
+  // companyId = workspaceId activo. Mantengo el alias para no romper inserts existentes.
+  const companyId = workspaceId;
+
+  // Resuelve el workspace activo + lista de workspaces del usuario. Crea un workspace
+  // propio + perfil si el usuario es nuevo (fallback por si el trigger SQL no corrió).
+  const resolveActiveWorkspace = async () => {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("company_id, active_workspace_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    let active = profile?.active_workspace_id || profile?.company_id || null;
+
+    if (!active) {
+      // Cliente como fallback al trigger: creamos workspace propio + perfil + membership.
+      await supabase.from("workspaces").upsert({ id: userId, name: "Mi espacio", owner_id: userId }, { onConflict: "id" });
+      await supabase.from("workspace_members").upsert({ workspace_id: userId, user_id: userId }, { onConflict: "workspace_id,user_id" });
+      await supabase.from("user_profiles").upsert({ id: userId, company_id: userId, active_workspace_id: userId }, { onConflict: "id" });
+      active = userId;
+    }
+
+    // Si el email tiene invitaciones pendientes, las aceptamos automáticamente al primer login.
+    if (userEmail) {
+      const { data: invs } = await supabase
+        .from("workspace_invitations")
+        .select("workspace_id")
+        .ilike("email", userEmail)
+        .is("accepted_at", null);
+      if (invs && invs.length) {
+        for (const inv of invs) {
+          await supabase.from("workspace_members").upsert(
+            { workspace_id: inv.workspace_id, user_id: userId },
+            { onConflict: "workspace_id,user_id" }
+          );
+        }
+        await supabase
+          .from("workspace_invitations")
+          .update({ accepted_at: new Date().toISOString() })
+          .ilike("email", userEmail)
+          .is("accepted_at", null);
+      }
+    }
+
+    return active;
+  };
+
+  const loadWorkspaces = async () => {
+    const { data: memb } = await supabase
+      .from("workspace_members")
+      .select("workspace_id, workspace:workspaces(id, name, owner_id, created_at)")
+      .eq("user_id", userId);
+    const list = (memb || []).map(m => m.workspace).filter(Boolean);
+    setWorkspaces(list);
+    return list;
+  };
+
   const load = async () => {
     if (!userId) return;
     setLoading(true);
-    let cId = companyId;
-    if (!cId) {
-      const { data: profile } = await supabase.from("user_profiles").select("company_id").eq("id", userId).maybeSingle();
-      cId = profile?.company_id || null;
-      if (!cId) {
-        // Usuario sin perfil (recién registrado o legacy): le creamos su propia "empresa" usando su user_id como company_id.
-        // Esto garantiza aislamiento total entre cuentas — cada usuario nuevo arranca con su propia data.
-        const { data: created } = await supabase
-          .from("user_profiles")
-          .upsert({ id: userId, company_id: userId }, { onConflict: "id" })
-          .select("company_id")
-          .single();
-        cId = created?.company_id || userId;
-      }
-      setCompanyId(cId);
-    }
-    if (!cId) { setLoading(false); return; }
 
-    const [se, pr, ta, doc, tx, notif, rep, np] = await Promise.all([
-      supabase.from("sedes").select("*").eq("user_id", userId).order("name"),
-      supabase.from("projects").select("*, sede:sedes(name, color, icon)").eq("company_id", cId).order("created_at", { ascending: false }),
-      supabase.from("tasks").select("*, project:projects(name, sede_id), sede:sedes(name)").eq("company_id", cId).order("due_date"),
-      supabase.from("documents").select("*").eq("company_id", cId).order("created_at", { ascending: false }).limit(100),
-      supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").eq("company_id", cId).order("date", { ascending: false }).limit(100),
+    let wsId = workspaceId;
+    if (!wsId) {
+      wsId = await resolveActiveWorkspace();
+      setWorkspaceId(wsId);
+      await loadWorkspaces();
+    }
+    if (!wsId) { setLoading(false); return; }
+
+    const [se, pr, ta, doc, tx, notif, rep, np, mem, sentInv, pendInv] = await Promise.all([
+      supabase.from("sedes").select("*").eq("workspace_id", wsId).order("name"),
+      supabase.from("projects").select("*, sede:sedes(name, color, icon)").eq("company_id", wsId).order("created_at", { ascending: false }),
+      supabase.from("tasks").select("*, project:projects(name, sede_id), sede:sedes(name)").eq("company_id", wsId).order("due_date"),
+      supabase.from("documents").select("*").eq("company_id", wsId).order("created_at", { ascending: false }).limit(100),
+      supabase.from("transactions").select("*, contact:clients(name), project:projects(name)").eq("company_id", wsId).order("date", { ascending: false }).limit(100),
       supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("ai_reports").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("ai_reports").select("id, result").eq("user_id", userId).eq("report_type", NOTEPAD_REPORT_TYPE).maybeSingle(),
+      supabase.from("workspace_members").select("user_id, joined_at").eq("workspace_id", wsId),
+      supabase.from("workspace_invitations").select("*").eq("workspace_id", wsId).is("accepted_at", null).order("created_at", { ascending: false }),
+      userEmail
+        ? supabase.from("workspace_invitations").select("id, workspace_id, invited_by, created_at, workspace:workspaces(name)").ilike("email", userEmail).is("accepted_at", null)
+        : Promise.resolve({ data: [] }),
     ]);
     setSedes(se.data || []);
     setProjects((pr.data || []).map(p => ({
@@ -72,13 +129,90 @@ export function DataProvider({ children, userId }) {
     })));
     setNotifications(notif.data || []);
     setReports(rep.data || []);
+    setMembers(mem.data || []);
+    setSentInvitations(sentInv.data || []);
+    setPendingInvitations(pendInv.data || []);
     notepadReportIdRef.current = np?.data?.id || null;
     setNotepadHtml(np?.data?.result || "");
     setNotepadLoaded(true);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [userId]);
+  useEffect(() => { load(); }, [userId, workspaceId]);
+
+  // ─── Workspace actions ───
+
+  const switchWorkspace = async (newWsId) => {
+    if (!newWsId || newWsId === workspaceId) return;
+    await supabase.from("user_profiles").update({ active_workspace_id: newWsId }).eq("id", userId);
+    // Limpio el cache local y disparo recarga total apuntando al nuevo workspace.
+    setWorkspaceId(newWsId);
+    setSedes([]); setProjects([]); setTasks([]); setDocuments([]); setTransactions([]);
+    setMembers([]); setSentInvitations([]);
+  };
+
+  const createWorkspace = async (name) => {
+    const trimmed = (name || "").trim() || "Nuevo espacio";
+    const { data, error } = await supabase
+      .from("workspaces")
+      .insert({ name: trimmed, owner_id: userId })
+      .select("id")
+      .single();
+    if (error) throw error;
+    await supabase.from("workspace_members").insert({ workspace_id: data.id, user_id: userId });
+    await loadWorkspaces();
+    await switchWorkspace(data.id);
+    return data.id;
+  };
+
+  const renameWorkspace = async (wsId, name) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return;
+    await supabase.from("workspaces").update({ name: trimmed }).eq("id", wsId);
+    await loadWorkspaces();
+  };
+
+  const inviteMember = async (email) => {
+    const trimmed = (email || "").trim().toLowerCase();
+    if (!trimmed || !workspaceId) return;
+    const { error } = await supabase
+      .from("workspace_invitations")
+      .insert({ workspace_id: workspaceId, email: trimmed, invited_by: userId });
+    if (error) throw error;
+    const { data: sentInv } = await supabase
+      .from("workspace_invitations")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .is("accepted_at", null)
+      .order("created_at", { ascending: false });
+    setSentInvitations(sentInv || []);
+  };
+
+  const cancelInvitation = async (invId) => {
+    await supabase.from("workspace_invitations").delete().eq("id", invId);
+    setSentInvitations(curr => curr.filter(i => i.id !== invId));
+  };
+
+  const removeMember = async (memberUserId) => {
+    if (!workspaceId) return;
+    await supabase.from("workspace_members").delete().eq("workspace_id", workspaceId).eq("user_id", memberUserId);
+    setMembers(curr => curr.filter(m => m.user_id !== memberUserId));
+  };
+
+  const acceptInvitation = async (inv) => {
+    await supabase
+      .from("workspace_members")
+      .upsert({ workspace_id: inv.workspace_id, user_id: userId }, { onConflict: "workspace_id,user_id" });
+    await supabase.from("workspace_invitations").update({ accepted_at: new Date().toISOString() }).eq("id", inv.id);
+    setPendingInvitations(curr => curr.filter(i => i.id !== inv.id));
+    await loadWorkspaces();
+    await switchWorkspace(inv.workspace_id);
+  };
+
+  const rejectInvitation = async (inv) => {
+    await supabase.from("workspace_invitations").delete().eq("id", inv.id);
+    setPendingInvitations(curr => curr.filter(i => i.id !== inv.id));
+  };
 
   // ─── Optimistic update helpers ───
   // Cada uno devuelve una función de rollback para revertir si Supabase falla.
@@ -206,7 +340,16 @@ export function DataProvider({ children, userId }) {
   };
 
   return (
-    <DataCtx.Provider value={{ sedes, projects, tasks, documents, transactions, notifications, reports, loading, reload: load, userId, companyId, notepadHtml, notepadLoaded, saveNotepad, patchTaskLocal, removeTaskLocal, patchProjectLocal, removeProjectLocal, patchSedeLocal }}>
+    <DataCtx.Provider value={{
+      sedes, projects, tasks, documents, transactions, notifications, reports,
+      loading, reload: load, userId, userEmail, companyId, workspaceId,
+      workspaces, members, sentInvitations, pendingInvitations,
+      switchWorkspace, createWorkspace, renameWorkspace,
+      inviteMember, cancelInvitation, removeMember,
+      acceptInvitation, rejectInvitation,
+      notepadHtml, notepadLoaded, saveNotepad,
+      patchTaskLocal, removeTaskLocal, patchProjectLocal, removeProjectLocal, patchSedeLocal,
+    }}>
       {children}
     </DataCtx.Provider>
   );
