@@ -2745,6 +2745,18 @@ function SettingsPage({ t, user, isMobile }) {
         </div>
       </Crd>
 
+      {/* Tutorial */}
+      <Crd t={t} style={{ padding: 22, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: t.dim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Tutorial</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>Cómo usar Guanaco</div>
+            <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Repasá el paso a paso de la plataforma cuando quieras.</div>
+          </div>
+          <Btn t={t} icon={Sparkles} onClick={() => window.dispatchEvent(new Event("open-onboarding"))}>Ver tutorial</Btn>
+        </div>
+      </Crd>
+
       {/* Sedes management */}
       <Crd t={t} style={{ padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -2801,19 +2813,56 @@ function SettingsPage({ t, user, isMobile }) {
 
 // ─── LOGIN PAGE ───
 function LoginPage({ onLogin, t }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const isSignup = mode === "signup";
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError("");
+    setInfo("");
+    setPass2("");
+  };
+
+  const handleSubmit = async () => {
     setLoading(true);
     setError("");
+    setInfo("");
+    if (isSignup) {
+      if (pass.length < 6) { setError("La contraseña debe tener al menos 6 caracteres."); setLoading(false); return; }
+      if (pass !== pass2) { setError("Las contraseñas no coinciden."); setLoading(false); return; }
+      const { data, error } = await supabase.auth.signUp({ email, password: pass });
+      if (error) { setError(error.message); setLoading(false); return; }
+      // Si Supabase tiene confirmación de email activada, no devuelve sesión iniciada.
+      // El perfil con company_id propio se crea automáticamente al primer load del DataProvider.
+      if (data?.session) {
+        onLogin();
+      } else {
+        setInfo("Cuenta creada. Revisá tu email para confirmar y después iniciá sesión.");
+        switchMode("login");
+      }
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) setError(error.message);
     else onLogin();
     setLoading(false);
   };
+
+  const tabStyle = (active) => ({
+    flex: 1, padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+    cursor: "pointer", textAlign: "center", transition: "all 140ms",
+    background: active ? t.accent + "22" : "transparent",
+    color: active ? t.accent : t.muted,
+    border: "1px solid " + (active ? t.accent + "55" : "transparent"),
+  });
 
   return (
     <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bg, position: "relative", overflow: "hidden" }}>
@@ -2821,30 +2870,174 @@ function LoginPage({ onLogin, t }) {
       <div style={{ position: "absolute", top: "20%", left: "20%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, " + t.accent + "30 0%, transparent 60%)", filter: "blur(80px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "10%", right: "15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, " + t.purple + "25 0%, transparent 60%)", filter: "blur(80px)", pointerEvents: "none" }} />
 
-      <div onSubmit={e => { e.preventDefault(); handleLogin(); }} style={{ width: 400, padding: 36, background: t.cardElev, borderRadius: 20, border: "1px solid " + t.borderStrong, boxShadow: t.shadowLg, position: "relative", zIndex: 1 }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
+      <div onSubmit={e => { e.preventDefault(); handleSubmit(); }} style={{ width: 400, padding: 36, background: t.cardElev, borderRadius: 20, border: "1px solid " + t.borderStrong, boxShadow: t.shadowLg, position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: "#E5A100", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 12px 32px rgba(229,161,0,0.45)" }}>
             <GuanacoIcon size={34} />
           </div>
           <div style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: -0.6 }}>Guanaco</div>
           <div style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Gestor de proyectos</div>
         </div>
+        <div style={{ display: "flex", gap: 6, padding: 4, background: t.bg, borderRadius: 12, border: "1px solid " + t.border, marginBottom: 20 }}>
+          <div onClick={() => switchMode("login")} style={tabStyle(!isSignup)}>Ingresar</div>
+          <div onClick={() => switchMode("signup")} style={tabStyle(isSignup)}>Crear cuenta</div>
+        </div>
         <Inp label="Email" val={email} onChange={setEmail} t={t} placeholder="tu@email.com" />
         <Inp label="Contraseña" val={pass} onChange={setPass} t={t} type="password" placeholder="••••••••" />
+        {isSignup && (
+          <Inp label="Repetir contraseña" val={pass2} onChange={setPass2} t={t} type="password" placeholder="••••••••" />
+        )}
         {error && (
           <div style={{ fontSize: 12, color: t.red, marginBottom: 14, padding: "10px 12px", background: t.redBg, borderRadius: 9, border: "1px solid " + t.red + "40", display: "flex", alignItems: "center", gap: 8 }}>
             <AlertCircle size={14} /> {error}
           </div>
         )}
-        <Btn t={t} onClick={handleLogin} disabled={loading || !email || !pass} size="lg" style={{ width: "100%", marginTop: 4 }}>
-          {loading ? "Ingresando..." : "Ingresar"}
+        {info && (
+          <div style={{ fontSize: 12, color: t.accent, marginBottom: 14, padding: "10px 12px", background: t.accent + "15", borderRadius: 9, border: "1px solid " + t.accent + "40" }}>
+            {info}
+          </div>
+        )}
+        <Btn t={t} onClick={handleSubmit} disabled={loading || !email || !pass || (isSignup && !pass2)} size="lg" style={{ width: "100%", marginTop: 4 }}>
+          {loading
+            ? (isSignup ? "Creando cuenta..." : "Ingresando...")
+            : (isSignup ? "Crear cuenta" : "Ingresar")}
         </Btn>
         <div style={{ textAlign: "center", marginTop: 18, fontSize: 11, color: t.dim }}>
-          Hecho con <span style={{ color: t.accent, fontWeight: 700 }}>♥</span> para gestionar sedes
+          {isSignup
+            ? <>¿Ya tenés cuenta? <span onClick={() => switchMode("login")} style={{ color: t.accent, fontWeight: 700, cursor: "pointer" }}>Ingresá acá</span></>
+            : <>¿Sos nuevo? <span onClick={() => switchMode("signup")} style={{ color: t.accent, fontWeight: 700, cursor: "pointer" }}>Creá tu cuenta</span></>}
         </div>
       </div>
     </div>
   );
+}
+
+// ─── ONBOARDING ───
+// Tutorial paso a paso. Se muestra automáticamente la primera vez que un usuario
+// entra sin sedes creadas, y se puede reabrir desde Configuración.
+const ONBOARDING_STEPS = [
+  {
+    icon: Sparkles,
+    title: "Bienvenido a Guanaco",
+    body: "Es tu gestor de proyectos multi-sede. Acá vas a tener todo en un solo lugar: sedes, proyectos, tareas, presupuestos, documentos, informes IA y anotadores.",
+    tip: "Tip: cada cuenta tiene sus propios datos, totalmente independientes.",
+  },
+  {
+    icon: Building2,
+    title: "1. Creá tus sedes",
+    body: "Una sede es un local, oficina o lugar físico que querés gestionar. Cada sede tiene su color, ícono, dirección y un anotador propio para notas libres.",
+    tip: "Empezás desde el sidebar: tocá el ➕ al lado de 'Sedes' para crear la primera.",
+  },
+  {
+    icon: FolderKanban,
+    title: "2. Sumá proyectos a cada sede",
+    body: "Dentro de cada sede creás proyectos: obra, mejora, académico, MRI o general. Cada proyecto tiene presupuesto, costo, fecha límite y descripción.",
+    tip: "Entrá a la sede y vas a ver el botón 'Nuevo proyecto'. Todo se muestra inline, sin tabs.",
+  },
+  {
+    icon: CheckSquare,
+    title: "3. Organizá tareas con el kanban",
+    body: "Cada proyecto tiene sus tareas. Hay 5 estados: Pendiente, En curso, Esperando respuesta, Pendiente de solución y Listo. Arrastrá desde el handle para moverlas entre columnas.",
+    tip: "Las tareas que dependen de un tercero o están bloqueadas tienen su propia columna — así sabés siempre por qué algo no avanza.",
+  },
+  {
+    icon: FileText,
+    title: "4. Documentos, presupuesto y calendario",
+    body: "Subí PDFs, Excel y otros archivos al proyecto. Llevá el control financiero con transacciones (pendientes/pagadas/parciales/vencidas). Mirá todo en el calendario.",
+    tip: "Los documentos se guardan en Supabase Storage y quedan asociados al proyecto y la sede.",
+  },
+  {
+    icon: BarChart3,
+    title: "5. Informes IA y anotadores",
+    body: "Subí un PDF o Excel y pedile a la IA un análisis automático. Usá los anotadores libres (uno por sede + uno general) para notas rápidas con menciones tipo #sede.",
+    tip: "Listo. Cuando cierres este tutorial, creá tu primera sede y arrancá. Podés reabrir el tutorial desde Configuración.",
+  },
+];
+
+function OnboardingModal({ open, onClose, t, onNav }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => { if (open) setStep(0); }, [open]);
+  if (!open) return null;
+
+  const total = ONBOARDING_STEPS.length;
+  const s = ONBOARDING_STEPS[step];
+  const Icon = s.icon;
+  const isLast = step === total - 1;
+
+  const finish = () => {
+    onClose();
+    onNav && onNav("dashboard");
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 160ms ease", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: t.cardElev, border: "1px solid " + t.borderStrong, borderRadius: 20, padding: 32, width: 540, maxWidth: "94vw", maxHeight: "92vh", overflowY: "auto", boxShadow: t.shadowLg, animation: "scaleIn 200ms ease", position: "relative" }}>
+        <div onClick={onClose} style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: t.hover, transition: "background 140ms" }}>
+          <X size={16} color={t.muted} />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: t.accent + "22", border: "1px solid " + t.accent + "40", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon size={28} color={t.accent} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: t.accent, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>Paso {step + 1} de {total}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: t.text, letterSpacing: -0.4 }}>{s.title}</div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 15, color: t.text, lineHeight: 1.6, marginBottom: 16 }}>{s.body}</div>
+
+        <div style={{ fontSize: 13, color: t.muted, lineHeight: 1.5, padding: "12px 14px", background: t.bg, borderRadius: 10, border: "1px solid " + t.border, marginBottom: 22 }}>
+          {s.tip}
+        </div>
+
+        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 22 }}>
+          {ONBOARDING_STEPS.map((_, i) => (
+            <div key={i} onClick={() => setStep(i)} style={{ width: i === step ? 28 : 8, height: 8, borderRadius: 4, background: i === step ? t.accent : (i < step ? t.accent + "55" : t.border), cursor: "pointer", transition: "all 180ms" }} />
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn t={t} variant="ghost" size="lg" onClick={() => step > 0 ? setStep(step - 1) : onClose()} style={{ flex: 1 }}>
+            {step > 0 ? "Atrás" : "Saltar"}
+          </Btn>
+          <Btn t={t} size="lg" onClick={() => isLast ? finish() : setStep(step + 1)} style={{ flex: 2 }}>
+            {isLast ? "¡Empezar!" : "Siguiente"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Wrapper que decide si mostrar el onboarding automáticamente.
+// Se monta dentro del DataProvider para poder leer sedes/userId.
+function OnboardingGate({ t, onNav }) {
+  const { sedes, userId, loading } = useData();
+  const [open, setOpen] = useState(false);
+  const checkedRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || checkedRef.current || !userId) return;
+    checkedRef.current = true;
+    const dismissed = typeof window !== "undefined" && localStorage.getItem("guanaco_onboarding_dismissed_" + userId);
+    if (!dismissed && sedes.length === 0) setOpen(true);
+  }, [loading, userId, sedes.length]);
+
+  // Escucha el evento global "open-onboarding" para reabrir desde Configuración.
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("open-onboarding", handler);
+    return () => window.removeEventListener("open-onboarding", handler);
+  }, []);
+
+  const close = () => {
+    setOpen(false);
+    if (userId) localStorage.setItem("guanaco_onboarding_dismissed_" + userId, "1");
+  };
+
+  return <OnboardingModal open={open} onClose={close} t={t} onNav={onNav} />;
 }
 
 // ─── APP ROOT ───
@@ -3011,6 +3204,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
+        <OnboardingGate t={t} onNav={onNav} />
       </div>
     </DataProvider>
   );

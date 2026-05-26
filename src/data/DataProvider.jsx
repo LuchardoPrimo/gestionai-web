@@ -25,8 +25,18 @@ export function DataProvider({ children, userId }) {
     setLoading(true);
     let cId = companyId;
     if (!cId) {
-      const { data: profile } = await supabase.from("user_profiles").select("company_id").eq("id", userId).single();
+      const { data: profile } = await supabase.from("user_profiles").select("company_id").eq("id", userId).maybeSingle();
       cId = profile?.company_id || null;
+      if (!cId) {
+        // Usuario sin perfil (recién registrado o legacy): le creamos su propia "empresa" usando su user_id como company_id.
+        // Esto garantiza aislamiento total entre cuentas — cada usuario nuevo arranca con su propia data.
+        const { data: created } = await supabase
+          .from("user_profiles")
+          .upsert({ id: userId, company_id: userId }, { onConflict: "id" })
+          .select("company_id")
+          .single();
+        cId = created?.company_id || userId;
+      }
       setCompanyId(cId);
     }
     if (!cId) { setLoading(false); return; }
